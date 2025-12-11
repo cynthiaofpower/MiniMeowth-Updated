@@ -53,6 +53,13 @@ async def on_ready():
         except Exception as e:
             print(f'❌ Failed to load cog {cog}: {e}')
 
+    # Load Jishaku
+    try:
+        await bot.load_extension('jishaku')
+        print(f'✅ Loaded extension: jishaku')
+    except Exception as e:
+        print(f'❌ Failed to load jishaku: {e}')
+
     # Sync slash commands
     try:
         synced = await bot.tree.sync()
@@ -152,6 +159,10 @@ if __name__ == "__main__":
     # Register signal handlers for graceful shutdown
     signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
     signal.signal(signal.SIGTERM, signal_handler)  # Kill command
+
+    # Set Jishaku environment variables (optional customization)
+    os.environ["JISHAKU_NO_UNDERSCORE"] = "True"  # Disables underscore prefix requirement
+    os.environ["JISHAKU_HIDE"] = "True"  # Hides jishaku from help command
 
     try:
         print("🚀 Starting bot...")
