@@ -359,12 +359,14 @@ class ShinyDexManagement(commands.Cog):
                 iv_match = self.iv_pattern.search(line)
                 iv_percent = float(iv_match.group(1)) if iv_match else 0.0
 
-                # Get dex number from utils - returns None for event Pokemon
-                dex_number = utils.get_dex_number(pokemon_name)
-
-                # Skip event Pokemon (not in CSV)
-                if dex_number is None:
+                # FIXED: Check if Pokemon name exists in the regular dex CSV first
+                # This prevents event Pokemon from being added with wrong dex numbers
+                if pokemon_name not in utils.dex_data:
+                    # Pokemon not in regular dex CSV - skip it (event Pokemon, etc.)
                     continue
+
+                # Get dex number from utils (now safe since we know it exists in CSV)
+                dex_number = utils.get_dex_number(pokemon_name)
 
                 shinies.append({
                     'pokemon_id': pokemon_id,
