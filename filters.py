@@ -25,7 +25,7 @@ FILTERS = {
         "New Mega Pokémons",
         "aliases": ["newmega", "new-megas", "mega2", "mega-za", "za-mega", "mega-2"],
         "pokemon": [
-         "Stretchy Tatsugiri","Original Magearna","Droopy Tatsugiri","Crabominable","Victreebel","Feraligatr","Eelektross","Chandelure","Chesnaught","Barbaracle","Scovillain","Baxcalibur","Dragonite","Staraptor","Excadrill","Scolipede","Golisopod","Tatsugiri","Clefable","Meganium","Skarmory","Chimecho","Garchomp","Froslass","Greninja","Meowstic","Dragalge","Hawlucha","Magearna","Glimmora","Starmie","Lucario","Heatran","Darkrai","Scrafty","Delphox","Floette","Malamar","Zygarde","Zeraora","Falinks","Raichu","Emboar","Golurk","Pyroar","Drampa","Absol" 
+         "Mega Stretchy Tatsugiri","Mega Original Magearna","Mega Droopy Tatsugiri","Mega Crabominable","Mega Victreebel","Mega Feraligatr","Mega Eelektross","Mega Chandelure","Mega Chesnaught","Mega Barbaracle","Mega Scovillain","Mega Baxcalibur","Mega Dragonite","Mega Staraptor","Mega Excadrill","Mega Scolipede","Mega Golisopod","Mega Tatsugiri","Mega Clefable","Mega Meganium","Mega Skarmory","Mega Chimecho","Mega Garchomp Z","Mega Froslass","Mega Greninja","Mega Meowstic","Mega Dragalge","Mega Hawlucha","Mega Magearna","Mega Glimmora","Mega Starmie","Mega Lucario Z","Mega Heatran","Mega Darkrai","Mega Scrafty","Mega Delphox","Mega Floette","Mega Malamar","Mega Zygarde","Mega Zeraora","Mega Falinks","Mega Raichu X","Mega Raichu Y","Mega Emboar","Mega Golurk","Mega Pyroar","Mega Drampa","Mega Absol Z" 
         ]
     },
 
