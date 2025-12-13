@@ -117,26 +117,26 @@ class ShinyDexStats(commands.Cog):
 
         # Region emojis mapping
         self.region_emojis = {
-            'Kanto': '<:black_small_square:1449352367756542002>',
-            'Johto': '<:black_small_square:1449352435674906625>',
-            'Hoenn': '<:black_small_square:1449352573810376744>',
-            'Sinnoh': '<:black_small_square:1449352646086361300>',
-            'Unova': '<:black_small_square:1449352763891912714>',
-            'Kalos': '<:black_small_square:1449356394712010847>',
-            'Alola': '<:black_small_square:1449352883987288195>',
-            'Galar': '<:black_small_square:1449353475476422726>',
-            'Hisui': '<:black_small_square:1449353533475520572>',
-            'Paldea': '<:black_small_square:1449353594343129128>',
-            'Kitakami': '<:black_small_square:1449353760206884904>',
+            'Kanto': '<:white_small_square:1449352367756542002>',
+            'Johto': '<:white_small_square:1449352435674906625>',
+            'Hoenn': '<:white_small_square:1449352573810376744>',
+            'Sinnoh': '<:white_small_square:1449352646086361300>',
+            'Unova': '<:white_small_square:1449352763891912714>',
+            'Kalos': '<:white_small_square:1449356394712010847>',
+            'Alola': '<:white_small_square:1449352883987288195>',
+            'Galar': '<:white_small_square:1449353475476422726>',
+            'Hisui': '<:white_small_square:1449353533475520572>',
+            'Paldea': '<:white_small_square:1449353594343129128>',
+            'Kitakami': '<:white_small_square:1449353760206884904>',
             'Unknown': '<:question:1449363513595400332>',
             'Missing': '❓'
         }
 
         # Progress bar emojis (Pokétwo style)
         # When quest is COMPLETE (100%)
-        self.progress_complete_first = '<:ballot_box_with_check:1449344144156659802>'
-        self.progress_complete_middle = '<:ballot_box_with_check:1449341980248113256>'
-        self.progress_complete_end = '<:ballot_box_with_check:1449341970639097907>'
+        self.progress_complete_first = '<:white_check_mark:1449344144156659802>'
+        self.progress_complete_middle = '<:white_check_mark:1449341980248113256>'
+        self.progress_complete_end = '<:white_check_mark:1449341970639097907>'
 
         # When quest is INCOMPLETE (<100%)
         self.progress_incomplete_first = '<:black_large_square:1449341999735111690>'
