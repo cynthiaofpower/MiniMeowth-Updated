@@ -656,76 +656,59 @@ class Help(commands.Cog):
         )
 
         embed.add_field(
-            name="📥 Tracking Shinies",
+            name="📥 Adding Shinies",
             value=(
-                f"**`{prefix}trackshiny`** or **`{prefix}addshiny`** - Track shinies from Pokétwo\n"
-                "• Reply to a Pokétwo `--sh` message\n"
-                "• Or provide message IDs: `{prefix}trackshiny 123456789`\n"
-                "• Bot auto-detects page changes for 250 seconds\n"
-                "• Automatically skips duplicates and event Pokémon\n\n"
-                "**Auto-Detection:**\n"
-                "1. Use command while replying to Pokétwo shiny list\n"
-                "2. Click through pages normally\n"
-                "3. Bot will automatically track all new shinies"
+                f"**`m!trackshiny`** or **`m!addshiny`** - Track shinies from Pokétwo\n"
+                "• Reply to Pokétwo `--sh` message or provide message IDs\n"
+                "• Auto-detects page changes for 10 minutes\n"
+                "• Skips duplicates and event Pokémon automatically\n\n"
+                "**Context Menu:**\n"
+                "• Right-click Pokétwo message → Apps → **Add Shiny**\n"
+                "• Quick way to add shinies from any message"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="📖 Viewing Your Dex",
+            name="📖 Viewing Dex",
             value=(
-                f"**`{prefix}shinydex`** or **`{prefix}sd`** - View basic dex (unique species)\n"
-                f"**`{prefix}shinydexfull`** or **`{prefix}sdf`** - View full dex (all forms)\n"
-                f"**`{prefix}filter [name]`** or **`{prefix}f [name]`** - View filtered dex\n\n"
-                "**Available Filters:**\n"
-                "Use `{prefix}filter` with no arguments to see all available filters\n"
-                "Examples: eevos, starters, legendaries, mythicals, etc."
+                f"**`m!shinydex`** or **`{prefix}sd`** - Basic dex (one per dex number)\n"
+                f"**`m!shinydexfull`** or **`{prefix}sdf`** - Full dex (all forms + genders)\n"
+                f"**`m!eventdex`** or **`{prefix}ed`** - Event Pokémon dex\n"
+                f"**`m!filter [name]`** or **`{prefix}f [name]`** - Custom filters\n"
+                "• Use without name to see available filters"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="🔍 Filter Options",
+            name="📊 Statistics",
             value=(
-                "**Viewing Options:**\n"
-                "• `--caught` or `--c` - Show only caught shinies\n"
-                "• `--uncaught` or `--unc` - Show only missing shinies\n"
-                "• `--orderd` - Order by count (descending)\n"
-                "• `--ordera` - Order by count (ascending)\n\n"
-                "**Full Dex Only:**\n"
-                "• `--ignore mega` - Hide Mega evolutions\n"
-                "• `--ignore gigantamax` - Hide Gigantamax forms\n\n"
-                "**Examples:**\n"
-                f"`{prefix}sd --caught --orderd` - Caught shinies by count\n"
-                f"`{prefix}sdf --uncaught --ignore mega` - Missing (no Megas)\n"
-                f"`{prefix}filter legendaries --caught` - Caught legendary shinies"
+                f"**`m!shinystats`** - Overall collection stats\n"
+                f"**`m!typestats`** or **`{prefix}ts`** - Progress by type\n"
+                f"**`m!regionstats`** or **`{prefix}rs`** - Progress by region"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="📊 Statistics & Info",
+            name="🗑️ Removing Shinies",
             value=(
-                f"**`{prefix}shinystats`** - View collection statistics\n"
-                "• Total tracked shinies\n"
-                "• Unique species and forms\n"
-                "• Completion percentages\n"
-                "• Gender breakdown\n"
-                "• IV statistics\n"
-                "• Most collected Pokémon"
+                f"**`m!removeshiny [ids]`** or **`{prefix}rmshiny [ids]`** - Remove by IDs\n"
+                f"**`m!clearshiny`** - Clear ALL shinies (requires confirmation)\n\n"
+                "**Context Menu:**\n"
+                "• Right-click Pokétwo message → Apps → **Remove Shiny**\n"
+                "• Quick way to remove shinies from any message"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="🗑️ Managing Shinies",
+            name="🔍 Available Filters",
             value=(
-                f"**`{prefix}removeshiny [ids...]`** or **`{prefix}rmshiny [ids...]`**\n"
-                f"• Remove specific shinies by ID\n"
-                f"• Example: `{prefix}rmshiny 12345 67890`\n\n"
-                f"**`{prefix}clearshiny`** - Clear ALL tracked shinies\n"
-                "• Requires confirmation\n"
-                "• Does NOT affect actual Pokétwo Pokémon"
+                "`--caught` `--c` `--uncaught` `--unc` `--orderd` `--ordera`\n"
+                "`--region [name]` `--r [name]` `--type [name]` `--t [name]`\n"
+                "`--name [search]` `--n [search]` `--page [number]` `--p [number]`"
             ),
             inline=False
         )
@@ -733,23 +716,11 @@ class Help(commands.Cog):
         embed.add_field(
             name="⚠️ Important Notes",
             value=(
-                "• **Event Pokémon are tracked but NOT counted in dex completion**\n"
+                "• Event Pokémon are tracked differently and have different shinydex i.e. m!eventdex\n"
+                "• Non-Event Pokémon are tracked differently and have different shinydex i.e. m!sdf or m!sd\n"
                 "• Reindexing in Pokétwo may break ID tracking\n"
-                "• Only breedable Pokémon are tracked (no Undiscovered egg group)\n"
-                "• Shiny tracking is separate from breeding inventory\n"
-                "• Duplicates are automatically skipped during tracking"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="💡 Pro Tips",
-            value=(
-                "• Use `--caught` to see your collection highlights\n"
-                "• Use `--uncaught` to plan your shiny hunting\n"
-                "• Check filters regularly for completion goals\n"
-                "• Track shinies immediately after catching for best accuracy\n"
-                "• Use `shinystats` to track your progress over time"
+                "• Shiny tracking separate from breeding inventory\n"
+                "• Does NOT affect actual Pokétwo Pokémon"
             ),
             inline=False
         )
