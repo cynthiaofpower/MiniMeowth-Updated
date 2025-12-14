@@ -651,7 +651,7 @@ class Pokedex(commands.Cog):
         except Exception as e:
             print(f"❌ Error loading alldata/pokemon_data.json: {e}")
 
-    @commands.hybrid_command(name='dex', aliases=['d', 'pokedex'])
+    @commands.hybrid_command(name='pokedex', aliases=['d', 'dex'])
     @app_commands.describe(pokemon="Name of the Pokemon to look up")
     async def dex_command(self, ctx, *, pokemon: str):
         """
