@@ -268,7 +268,7 @@ class ShinyDexDisplay(commands.Cog):
         total_caught = sum(1 for _, _, count in dex_entries if count > 0)
         total_pokemon = len(dex_entries)
 
-        # Create pages
+        # Create pagess
         lines = []
         for dex_num, name, count in filtered_entries:
             icon = f"{config.TICK}" if count > 0 else f"{config.CROSS}"
