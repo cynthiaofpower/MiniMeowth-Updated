@@ -15,12 +15,12 @@
     "region": "???",
     "catchable": "Yes",
     "base_stats": {
-      "HP": "???",
-      "Attack": "???",
-      "Defense": "???",
-      "Sp. Atk": "???",
-      "Sp. Def": "???",
-      "Speed": "???"
+      "HP": null,
+      "Attack": null,
+      "Defense": null,
+      "Sp. Atk": null,
+      "Sp. Def": null,
+      "Speed": null
     },
     "names": {
       "ja": [
@@ -38,8 +38,8 @@
       ]
     },
     "appearance": {
-      "height_m": "???",
-      "weight_kg": "???"
+      "height_m": null,
+      "weight_kg": null
     },
     "gender_ratio": "Genderless",
     "egg_groups": "Undiscovered",
