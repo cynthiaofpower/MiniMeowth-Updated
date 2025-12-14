@@ -385,8 +385,9 @@ class PokedexView(discord.ui.View):
         """Create embed for current Pokemon form"""
         data = self.pokemon_data[self.current_form_key]
 
-        # Create title
-        title = f"#{data['dex_number']} — {data['name']}"
+        # Create title with sparkles if shiny
+        title_prefix = "✨ " if self.is_shiny else ""
+        title = f"{title_prefix}#{data['dex_number']} — {data['name']}"
 
         # Create embed
         embed = discord.Embed(
@@ -430,14 +431,15 @@ class PokedexView(discord.ui.View):
         # Add Base Stats field
         if data.get('base_stats'):
             stats = data['base_stats']
-            total = sum(stats.values())
+            # Filter out None values when calculating total
+            total = sum(v for v in stats.values() if v is not None)
             stats_text = '\n'.join([
-                f"**HP:** {stats.get('HP', 0)}",
-                f"**Attack:** {stats.get('Attack', 0)}",
-                f"**Defense:** {stats.get('Defense', 0)}",
-                f"**Sp. Atk:** {stats.get('Sp. Atk', 0)}",
-                f"**Sp. Def:** {stats.get('Sp. Def', 0)}",
-                f"**Speed:** {stats.get('Speed', 0)}",
+                f"**HP:** {stats.get('HP') or 'N/A'}",
+                f"**Attack:** {stats.get('Attack') or 'N/A'}",
+                f"**Defense:** {stats.get('Defense') or 'N/A'}",
+                f"**Sp. Atk:** {stats.get('Sp. Atk') or 'N/A'}",
+                f"**Sp. Def:** {stats.get('Sp. Def') or 'N/A'}",
+                f"**Speed:** {stats.get('Speed') or 'N/A'}",
                 f"**Total: {total}**"
             ])
             embed.add_field(name="Base Stats", value=stats_text, inline=True)
@@ -471,14 +473,12 @@ class PokedexView(discord.ui.View):
         if data.get('hatch_time'):
             embed.add_field(name="Hatch Time", value=data['hatch_time'], inline=True)
 
+        # Add Rarity field
+        if data.get('rarity'):
+            embed.add_field(name="Rarity", value=data['rarity'], inline=True)
+
         # Build footer
         footer_parts = []
-
-        if data.get('rarity'):
-            footer_parts.append(f"Rarity: {data['rarity']}")
-
-        if self.is_shiny:
-            footer_parts.append("✨ Shiny Form")
 
         if self.is_female and self.has_gender_diff:
             footer_parts.append("♀ Female")
@@ -652,26 +652,41 @@ class Pokedex(commands.Cog):
             print(f"❌ Error loading alldata/pokemon_data.json: {e}")
 
     @commands.hybrid_command(name='pokedex', aliases=['d', 'dex'])
-    @app_commands.describe(pokemon="Name of the Pokemon to look up")
+    @app_commands.describe(pokemon="Name or dex number (e.g., 'bulbasaur' or '#1') of the Pokemon to look up")
     async def dex_command(self, ctx, *, pokemon: str):
         """
         Look up Pokemon information in the Pokedex
-        Usage: m!dex <pokemon name>
+        Usage: m!dex <pokemon name or #dex_number>
         Examples:
           m!dex bulbasaur
+          m!dex #1
           m!dex bisasam (German name)
           m!dex ibui (works for Ībui/Eevee)
           m!dex deoxys
         """
         pokemon_lower = pokemon.lower().strip()
 
-        # Look up Pokemon by name (try exact match first)
-        form_key = self.name_index.get(pokemon_lower)
+        # Check if looking up by dex number (e.g., "#1" or "1")
+        form_key = None
+        if pokemon_lower.startswith('#'):
+            dex_num = pokemon_lower[1:].strip()
+            if dex_num in self.dex_number_forms:
+                # Get first form of this dex number
+                form_key, _ = self.dex_number_forms[dex_num][0]
+        elif pokemon_lower.isdigit():
+            # Also support without # prefix
+            if pokemon_lower in self.dex_number_forms:
+                form_key, _ = self.dex_number_forms[pokemon_lower][0]
 
-        # If not found, try normalized (accent-removed) version
+        # If not found by dex number, look up by name
         if not form_key:
-            normalized = self.normalize_name(pokemon)
-            form_key = self.name_index.get(normalized)
+            # Look up Pokemon by name (try exact match first)
+            form_key = self.name_index.get(pokemon_lower)
+
+            # If not found, try normalized (accent-removed) version
+            if not form_key:
+                normalized = self.normalize_name(pokemon)
+                form_key = self.name_index.get(normalized)
 
         if not form_key:
             await ctx.send(f"❌ Pokemon `{pokemon}` not found in Pokedex", reference=ctx.message, mention_author=False)
