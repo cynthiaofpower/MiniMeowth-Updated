@@ -271,7 +271,7 @@ class ShinyDexDisplay(commands.Cog):
         # Create pages
         lines = []
         for dex_num, name, count in filtered_entries:
-            icon = "{config.TICK}" if count > 0 else "{config.CROSS}"
+            icon = f"{config.TICK}" if count > 0 else f"{config.CROSS}"
             sparkles = f"{count} ✨" if count > 0 else "0"
             lines.append(f"{icon} **#{dex_num}** {name} - {sparkles}")
 
@@ -397,7 +397,7 @@ class ShinyDexDisplay(commands.Cog):
         # Create pages
         lines = []
         for dex_num, name, gender_key, count in filtered_entries:
-            icon = "{config.TICK}" if count > 0 else "{config.CROSS}"
+            icon = f"{config.TICK}" if count > 0 else f"{config.CROSS}"
             sparkles = f"{count} ✨" if count > 0 else "0"
 
             # Add gender emoji if applicable
@@ -556,7 +556,7 @@ class ShinyDexDisplay(commands.Cog):
         # Create pages
         lines = []
         for dex_num, name, gender_key, count in filtered_entries:
-            icon = "{config.TICK}" if count > 0 else "{config.CROSS}"
+            icon = f"{config.TICK}" if count > 0 else f"{config.CROSS}"
             sparkles = f"{count} ✨" if count > 0 else "0"
 
             gender_emoji = ""
