@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
+import io
 import config
 from config import EMBED_COLOR
 from database import db
@@ -82,7 +83,7 @@ class ShinyDexDisplay(commands.Cog):
 
     def parse_filters(self, filter_string: str):
         """Parse filter string to extract options
-        Returns: (show_caught, show_uncaught, order, region, types, name_searches, page)
+        Returns: (show_caught, show_uncaught, order, region, types, name_searches, page, show_list)
         """
         show_caught = True
         show_uncaught = True
@@ -91,9 +92,10 @@ class ShinyDexDisplay(commands.Cog):
         types = []
         name_searches = []
         page = None
+        show_list = False
 
         if not filter_string:
-            return show_caught, show_uncaught, order, region, types, name_searches, page
+            return show_caught, show_uncaught, order, region, types, name_searches, page, show_list
 
         args = filter_string.lower().split()
 
@@ -118,6 +120,9 @@ class ShinyDexDisplay(commands.Cog):
                 i += 1
             elif arg == '--ordera':
                 order = 'asc'
+                i += 1
+            elif arg == '--list':
+                show_list = True
                 i += 1
             elif arg in ['--region', '--r']:
                 if i + 1 < len(args) and args[i + 1] in valid_regions:
@@ -176,7 +181,7 @@ class ShinyDexDisplay(commands.Cog):
             else:
                 i += 1
 
-        return show_caught, show_uncaught, order, region, types, name_searches, page
+        return show_caught, show_uncaught, order, region, types, name_searches, page, show_list
 
     def matches_filters(self, pokemon_name: str, utils, region_filter: str, type_filters: list):
         """Check if a Pokemon matches region and type filters"""
@@ -200,8 +205,31 @@ class ShinyDexDisplay(commands.Cog):
 
         return True
 
+    async def send_pokemon_list(self, ctx, pokemon_names: list):
+        """Send Pokemon names as --n formatted list (text or file)"""
+        # Create the formatted list
+        formatted_names = [f"--n {name}" for name in pokemon_names]
+        list_text = " ".join(formatted_names)
+
+        # If list is short enough (under 1900 chars), send as message
+        if len(list_text) <= 1900:
+            await ctx.send(list_text, reference=ctx.message, mention_author=False)
+        else:
+            # Create a text file
+            file_content = " ".join(formatted_names)
+            file = discord.File(
+                io.BytesIO(file_content.encode('utf-8')),
+                filename='pokemon_list.txt'
+            )
+            await ctx.send(
+                f"📝 List is too long! Here's a file with {len(pokemon_names)} Pokemon names:",
+                file=file,
+                reference=ctx.message,
+                mention_author=False
+            )
+
     @commands.hybrid_command(name='shinydex', aliases=['sd'])
-    @app_commands.describe(filters="Filters: --caught, --uncaught, --orderd, --ordera, --region, --type, --name, --page")
+    @app_commands.describe(filters="Filters: --caught, --uncaught, --orderd, --ordera, --region, --type, --name, --page, --list")
     async def shiny_dex(self, ctx, *, filters: str = None):
         """View your basic shiny dex (one Pokemon per dex number, counts all forms)"""
         utils = self.bot.get_cog('Utils')
@@ -212,7 +240,7 @@ class ShinyDexDisplay(commands.Cog):
         user_id = ctx.author.id
 
         # Parse filters
-        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page = self.parse_filters(filters)
+        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list = self.parse_filters(filters)
 
         # Get user's shinies
         user_shinies = await db.get_all_shinies(user_id)
@@ -264,11 +292,17 @@ class ShinyDexDisplay(commands.Cog):
             await ctx.send("❌ No shinies match your filters!", reference=ctx.message, mention_author=False)
             return
 
+        # If --list flag is set, send list format
+        if show_list:
+            pokemon_names = [name for _, name, _ in filtered_entries]
+            await self.send_pokemon_list(ctx, pokemon_names)
+            return
+
         # Calculate stats
         total_caught = sum(1 for _, _, count in dex_entries if count > 0)
         total_pokemon = len(dex_entries)
 
-        # Create pagess
+        # Create pages
         lines = []
         for dex_num, name, count in filtered_entries:
             icon = f"{config.TICK}" if count > 0 else f"{config.CROSS}"
@@ -306,7 +340,7 @@ class ShinyDexDisplay(commands.Cog):
         view.message = message
 
     @commands.hybrid_command(name='shinydexfull', aliases=['sdf'])
-    @app_commands.describe(filters="Filters: --caught, --unc, --orderd, --ordera, --region, --type, --name, --page")
+    @app_commands.describe(filters="Filters: --caught, --unc, --orderd, --ordera, --region, --type, --name, --page, --list")
     async def shiny_dex_full(self, ctx, *, filters: str = None):
         """View your full shiny dex (all forms, includes gender differences)"""
         utils = self.bot.get_cog('Utils')
@@ -317,7 +351,7 @@ class ShinyDexDisplay(commands.Cog):
         user_id = ctx.author.id
 
         # Parse filters
-        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page = self.parse_filters(filters)
+        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list = self.parse_filters(filters)
 
         # Get user's shinies
         user_shinies = await db.get_all_shinies(user_id)
@@ -388,6 +422,19 @@ class ShinyDexDisplay(commands.Cog):
 
         if not filtered_entries:
             await ctx.send("❌ No shinies match your filters!", reference=ctx.message, mention_author=False)
+            return
+
+        # If --list flag is set, send list format
+        if show_list:
+            pokemon_names = [name for _, name, _, _ in filtered_entries]
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_names = []
+            for name in pokemon_names:
+                if name not in seen:
+                    seen.add(name)
+                    unique_names.append(name)
+            await self.send_pokemon_list(ctx, unique_names)
             return
 
         # Calculate stats
@@ -477,7 +524,7 @@ class ShinyDexDisplay(commands.Cog):
         user_id = ctx.author.id
 
         # Parse options
-        show_caught, show_uncaught, order, _, _, _, page = self.parse_filters(options)
+        show_caught, show_uncaught, order, _, _, _, page, _ = self.parse_filters(options)
 
         # Get user's shinies
         user_shinies = await db.get_all_shinies(user_id)
