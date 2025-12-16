@@ -210,7 +210,7 @@ class ShinyDexDisplay(commands.Cog):
         # Create the formatted list
         formatted_names = [f"--n {name}" for name in pokemon_names]
         list_text = " ".join(formatted_names)
-        
+
         # Add count header
         count_header = f"**Total: {len(pokemon_names)} Pokemon**\n\n"
 
@@ -492,7 +492,7 @@ class ShinyDexDisplay(commands.Cog):
     @commands.hybrid_command(name='filter', aliases=['f'])
     @app_commands.describe(
         filter_name="Filter name (e.g., eevos, starters, legendaries)",
-        options="Options: --caught, --uncaught, --orderd, --ordera, --page"
+        options="Options: --caught, --uncaught, --orderd, --ordera, --page, --list"
     )
     async def filter_dex(self, ctx, filter_name: str = None, *, options: str = None):
         """View your shiny dex with custom filters"""
@@ -527,7 +527,7 @@ class ShinyDexDisplay(commands.Cog):
         user_id = ctx.author.id
 
         # Parse options
-        show_caught, show_uncaught, order, _, _, _, page, _ = self.parse_filters(options)
+        show_caught, show_uncaught, order, _, _, _, page, show_list = self.parse_filters(options)
 
         # Get user's shinies
         user_shinies = await db.get_all_shinies(user_id)
@@ -597,6 +597,19 @@ class ShinyDexDisplay(commands.Cog):
 
         if not filtered_entries:
             await ctx.send("❌ No shinies match your filters!", reference=ctx.message, mention_author=False)
+            return
+
+        # If --list flag is set, send list format
+        if show_list:
+            pokemon_names = [name for _, name, _, _ in filtered_entries]
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_names = []
+            for name in pokemon_names:
+                if name not in seen:
+                    seen.add(name)
+                    unique_names.append(name)
+            await self.send_pokemon_list(ctx, unique_names)
             return
 
         # Calculate stats
