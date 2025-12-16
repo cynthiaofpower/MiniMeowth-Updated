@@ -210,10 +210,13 @@ class ShinyDexDisplay(commands.Cog):
         # Create the formatted list
         formatted_names = [f"--n {name}" for name in pokemon_names]
         list_text = " ".join(formatted_names)
+        
+        # Add count header
+        count_header = f"**Total: {len(pokemon_names)} Pokemon**\n\n"
 
-        # If list is short enough (under 1900 chars), send as message
-        if len(list_text) <= 1900:
-            await ctx.send(list_text, reference=ctx.message, mention_author=False)
+        # If list is short enough (under 1800 chars to account for header), send as message
+        if len(list_text) + len(count_header) <= 1900:
+            await ctx.send(count_header + list_text, reference=ctx.message, mention_author=False)
         else:
             # Create a text file
             file_content = " ".join(formatted_names)
@@ -222,7 +225,7 @@ class ShinyDexDisplay(commands.Cog):
                 filename='pokemon_list.txt'
             )
             await ctx.send(
-                f"📝 List is too long! Here's a file with {len(pokemon_names)} Pokemon names:",
+                f"**Total: {len(pokemon_names)} Pokemon**\n📝 List is too long! Here's a file:",
                 file=file,
                 reference=ctx.message,
                 mention_author=False
