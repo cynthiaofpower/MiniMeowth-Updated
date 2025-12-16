@@ -65,6 +65,7 @@ async def on_ready():
     cogs = [
         'cogs.utils',
         'cogs.pokedex',
+        'cogs.shinypokemonviewer',
         'cogs.shinydexstats',
         'cogs.shinydex_display',
         'cogs.shinydex_management',
