@@ -11,13 +11,14 @@ from filters import get_filter, get_all_filter_names
 class ShinyDexView(discord.ui.View):
     """Pagination view for shiny dex"""
 
-    def __init__(self, ctx, pages, total_caught, total_pokemon, dex_type="basic", timeout=180):
+    def __init__(self, ctx, pages, total_caught, total_pokemon, dex_type="basic", total_shiny_count=0, timeout=180):
         super().__init__(timeout=timeout)
         self.ctx = ctx
         self.pages = pages
         self.total_caught = total_caught
         self.total_pokemon = total_pokemon
         self.dex_type = dex_type
+        self.total_shiny_count = total_shiny_count
         self.current_page = 0
         self.message = None
         self.update_buttons()
@@ -37,6 +38,8 @@ class ShinyDexView(discord.ui.View):
         embed.description = count_line + self.pages[self.current_page]
 
         footer_text = f"Page {self.current_page + 1}/{len(self.pages)}"
+        if self.total_shiny_count > 0:
+            footer_text += f" • Total Shinies: {self.total_shiny_count}"
         embed.set_footer(text=footer_text)
 
         return embed
@@ -205,27 +208,67 @@ class ShinyDexDisplay(commands.Cog):
 
         return True
 
+    def categorize_pokemon(self, pokemon_names: list):
+        """Categorize Pokemon into regular, rare, and gigantamax"""
+        regular = []
+        rare = []
+        gigantamax = []
+
+        rare_set = set(config.RARE_POKEMONS) if hasattr(config, 'RARE_POKEMONS') else set()
+
+        for name in pokemon_names:
+            # Check if it's a Gigantamax Pokemon (has 'gigantamax' in name, case-insensitive)
+            if 'gigantamax' in name.lower():
+                gigantamax.append(name)
+            # Check if it's a rare Pokemon
+            elif name in rare_set:
+                rare.append(name)
+            else:
+                regular.append(name)
+
+        return regular, rare, gigantamax
+
     async def send_pokemon_list(self, ctx, pokemon_names: list):
-        """Send Pokemon names as --n formatted list (text or file)"""
-        # Create the formatted list
-        formatted_names = [f"--n {name}" for name in pokemon_names]
-        list_text = " ".join(formatted_names)
+        """Send Pokemon names as --n formatted list (text or file) with categories"""
+        # Categorize Pokemon
+        regular, rare, gigantamax = self.categorize_pokemon(pokemon_names)
 
-        # Add count header
-        count_header = f"**Total: {len(pokemon_names)} Pokemon**\n\n"
+        # Build the formatted output
+        sections = []
 
-        # If list is short enough (under 1800 chars to account for header), send as message
-        if len(list_text) + len(count_header) <= 1900:
-            await ctx.send(count_header + list_text, reference=ctx.message, mention_author=False)
+        # Header
+        total_count = len(pokemon_names)
+        sections.append(f"**Total Pokemon: {total_count}**\n")
+
+        # Regular Pokemon
+        if regular:
+            formatted_regular = " ".join([f"--n {name}" for name in regular])
+            sections.append(formatted_regular)
+
+        # Rare Pokemon
+        if rare:
+            formatted_rare = " ".join([f"--n {name}" for name in rare])
+            sections.append(formatted_rare)
+
+        # Gigantamax Pokemon
+        if gigantamax:
+            formatted_gmax = " ".join([f"--n {name}" for name in gigantamax])
+            sections.append(formatted_gmax)
+
+        # Join sections with blank lines
+        list_text = "\n\n".join(sections)
+
+        # If list is short enough, send as message
+        if len(list_text) <= 1900:
+            await ctx.send(list_text, reference=ctx.message, mention_author=False)
         else:
             # Create a text file
-            file_content = " ".join(formatted_names)
             file = discord.File(
-                io.BytesIO(file_content.encode('utf-8')),
+                io.BytesIO(list_text.encode('utf-8')),
                 filename='pokemon_list.txt'
             )
             await ctx.send(
-                f"**Total: {len(pokemon_names)} Pokemon**\n📝 List is too long! Here's a file:",
+                f"**Total: {total_count} Pokemon**\n📝 List is too long! Here's a file:",
                 file=file,
                 reference=ctx.message,
                 mention_author=False
@@ -304,6 +347,7 @@ class ShinyDexDisplay(commands.Cog):
         # Calculate stats
         total_caught = sum(1 for _, _, count in dex_entries if count > 0)
         total_pokemon = len(dex_entries)
+        total_shiny_count = sum(count for _, _, count in filtered_entries)
 
         # Create pages
         lines = []
@@ -319,16 +363,14 @@ class ShinyDexDisplay(commands.Cog):
             page_content = "\n".join(lines[i:i+per_page])
             pages.append(page_content)
 
-        # Create view
+        # Create view with only region and type filters in display name
         filter_text = "basic"
         if region_filter:
             filter_text += f" - {region_filter}"
         if type_filters:
             filter_text += f" - {'/'.join(type_filters)}"
-        if name_searches:
-            filter_text += f" - {', '.join(name_searches)}"
 
-        view = ShinyDexView(ctx, pages, total_caught, total_pokemon, filter_text)
+        view = ShinyDexView(ctx, pages, total_caught, total_pokemon, filter_text, total_shiny_count)
 
         # Apply page number if specified
         if page is not None:
@@ -443,6 +485,7 @@ class ShinyDexDisplay(commands.Cog):
         # Calculate stats
         total_caught = sum(1 for entry in form_entries if entry[3] > 0)
         total_forms = len(form_entries)
+        total_shiny_count = sum(entry[3] for entry in filtered_entries)
 
         # Create pages
         lines = []
@@ -466,16 +509,14 @@ class ShinyDexDisplay(commands.Cog):
             page_content = "\n".join(lines[i:i+per_page])
             pages.append(page_content)
 
-        # Create view
+        # Create view with only region and type filters in display name
         filter_text = "full"
         if region_filter:
             filter_text += f" - {region_filter}"
         if type_filters:
             filter_text += f" - {'/'.join(type_filters)}"
-        if name_searches:
-            filter_text += f" - {', '.join(name_searches)}"
 
-        view = ShinyDexView(ctx, pages, total_caught, total_forms, filter_text)
+        view = ShinyDexView(ctx, pages, total_caught, total_forms, filter_text, total_shiny_count)
 
         # Apply page number if specified
         if page is not None:
@@ -615,6 +656,7 @@ class ShinyDexDisplay(commands.Cog):
         # Calculate stats
         total_caught = sum(1 for entry in dex_entries if entry[3] > 0)
         total_pokemon = len(dex_entries)
+        total_shiny_count = sum(entry[3] for entry in filtered_entries)
 
         # Create pages
         lines = []
@@ -639,7 +681,7 @@ class ShinyDexDisplay(commands.Cog):
 
         # Create view
         filter_display_name = filter_data['name']
-        view = ShinyDexView(ctx, pages, total_caught, total_pokemon, filter_display_name)
+        view = ShinyDexView(ctx, pages, total_caught, total_pokemon, filter_display_name, total_shiny_count)
 
         # Apply page number if specified
         if page is not None:
