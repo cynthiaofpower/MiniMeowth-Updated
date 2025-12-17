@@ -235,7 +235,7 @@ class ShinyDexDisplay(commands.Cog):
     async def send_pokemon_list_simple(self, ctx, pokemon_names: list):
         """Send simple Pokemon names as --n formatted list (text or file)"""
         formatted_list = " ".join([f"--n {name}" for name in pokemon_names])
-
+        
         total_count = len(pokemon_names)
         list_text = f"**Total Pokemon: {total_count}**\n\n{formatted_list}"
 
@@ -264,13 +264,10 @@ class ShinyDexDisplay(commands.Cog):
         male_gender_diff = []
         female_gender_diff = []
 
-        gender_diff_pokemon_names = set()  # Track unique pokemon with gender differences
-
         for name, gender_key, count in pokemon_data:
             has_gender_diff = utils.has_gender_difference(name)
-
+            
             if has_gender_diff:
-                gender_diff_pokemon_names.add(name)
                 if gender_key == 'male':
                     male_gender_diff.append(name)
                 elif gender_key == 'female':
@@ -286,12 +283,16 @@ class ShinyDexDisplay(commands.Cog):
         # Build the formatted output
         sections = []
 
-        # Calculate total count (gender diff pokemon count as 2 each)
-        total_no_gender = len(set(no_gender_diff))
-        total_with_gender = len(gender_diff_pokemon_names) * 2  # Each counts twice (male + female)
-        total_count = total_no_gender + total_with_gender
-        gender_diff_count = len(gender_diff_pokemon_names)
-
+        # Calculate total count based on actual entries in the list
+        total_count = len(no_gender_diff) + len(male_gender_diff) + len(female_gender_diff)
+        
+        # Count unique species with gender differences that appear in this list
+        gender_diff_species = set()
+        for name, gender_key, count in pokemon_data:
+            if utils.has_gender_difference(name):
+                gender_diff_species.add(name)
+        gender_diff_count = len(gender_diff_species)
+        
         # Header
         sections.append(f"**Total Pokemon: {total_count}** ({gender_diff_count} species with gender differences)\n")
 
