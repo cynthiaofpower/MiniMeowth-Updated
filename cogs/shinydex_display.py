@@ -237,7 +237,7 @@ class ShinyDexDisplay(commands.Cog):
         formatted_list = " ".join([f"--n {name}" for name in pokemon_names])
         
         total_count = len(pokemon_names)
-        list_text = f"**Total Pokemon: {total_count}**\n\n{formatted_list}"
+        list_text = f"**Total Pokemon: {total_count}**. Use --smartlist/--slist for better list!\n\n{formatted_list}"
 
         # If list is short enough, send as message
         if len(list_text) <= 1900:
