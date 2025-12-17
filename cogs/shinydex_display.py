@@ -235,7 +235,7 @@ class ShinyDexDisplay(commands.Cog):
     async def send_pokemon_list_simple(self, ctx, pokemon_names: list):
         """Send simple Pokemon names as --n formatted list (text or file)"""
         formatted_list = " ".join([f"--n {name}" for name in pokemon_names])
-        
+
         total_count = len(pokemon_names)
         list_text = f"**Total Pokemon: {total_count}**\n\n{formatted_list}"
 
@@ -257,7 +257,7 @@ class ShinyDexDisplay(commands.Cog):
 
     async def send_pokemon_smartlist(self, ctx, pokemon_data: list, utils):
         """Send Pokemon names as smartlist with gender differences and categories
-        pokemon_data: list of tuples (name, gender_key, has_it)
+        pokemon_data: list of tuples (name, gender_key, count)
         """
         # Separate by gender difference status
         no_gender_diff = []
@@ -266,18 +266,17 @@ class ShinyDexDisplay(commands.Cog):
 
         gender_diff_pokemon_names = set()  # Track unique pokemon with gender differences
 
-        for name, gender_key, has_it in pokemon_data:
+        for name, gender_key, count in pokemon_data:
             has_gender_diff = utils.has_gender_difference(name)
-            
+
             if has_gender_diff:
                 gender_diff_pokemon_names.add(name)
-                if gender_key == 'male' and not has_it:
+                if gender_key == 'male':
                     male_gender_diff.append(name)
-                elif gender_key == 'female' and not has_it:
+                elif gender_key == 'female':
                     female_gender_diff.append(name)
             else:
-                if not has_it:
-                    no_gender_diff.append(name)
+                no_gender_diff.append(name)
 
         # Categorize each group
         regular, rare, gigantamax = self.categorize_pokemon(no_gender_diff)
@@ -292,7 +291,7 @@ class ShinyDexDisplay(commands.Cog):
         total_with_gender = len(gender_diff_pokemon_names) * 2  # Each counts twice (male + female)
         total_count = total_no_gender + total_with_gender
         gender_diff_count = len(gender_diff_pokemon_names)
-        
+
         # Header
         sections.append(f"**Total Pokemon: {total_count}** ({gender_diff_count} species with gender differences)\n")
 
@@ -425,7 +424,7 @@ class ShinyDexDisplay(commands.Cog):
         # If --smartlist flag is set, send smartlist format
         if show_smartlist:
             # For basic dex, we don't track gender, so just mark all as no gender diff
-            pokemon_data = [(name, None, count == 0) for _, name, count in filtered_entries]
+            pokemon_data = [(name, None, count) for _, name, count in filtered_entries]
             await self.send_pokemon_smartlist(ctx, pokemon_data, utils)
             return
 
@@ -569,7 +568,7 @@ class ShinyDexDisplay(commands.Cog):
 
         # If --smartlist flag is set, send smartlist format
         if show_smartlist:
-            pokemon_data = [(name, gender_key, count == 0) for _, name, gender_key, count in filtered_entries]
+            pokemon_data = [(name, gender_key, count) for _, name, gender_key, count in filtered_entries]
             await self.send_pokemon_smartlist(ctx, pokemon_data, utils)
             return
 
@@ -746,7 +745,7 @@ class ShinyDexDisplay(commands.Cog):
 
         # If --smartlist flag is set, send smartlist format
         if show_smartlist:
-            pokemon_data = [(name, gender_key, count == 0) for _, name, gender_key, count in filtered_entries]
+            pokemon_data = [(name, gender_key, count) for _, name, gender_key, count in filtered_entries]
             await self.send_pokemon_smartlist(ctx, pokemon_data, utils)
             return
 
