@@ -149,12 +149,12 @@ class UtilityCommands(commands.Cog):
 
     # ==================== Prefix Command ====================
 
-    @commands.command(name='prefix')
+    @commands.command(name='add')
     async def prefix_command(self, ctx, pattern: str, *, items: str):
         """
         Add a prefix pattern to comma-separated items
-        Usage: ?prefix "<pattern>" item1, item2, item3
-        Example: ?prefix "--n" abra, kadabra, alakazam
+        Usage: ?add "<pattern>" item1, item2, item3
+        Example: ?add "--n" abra, kadabra, alakazam
         Result: --n abra --n kadabra --n alakazam
 
         The pattern in quotes will replace each comma.
@@ -164,7 +164,7 @@ class UtilityCommands(commands.Cog):
         item_list = [item.strip() for item in items.split(',') if item.strip()]
 
         if not item_list:
-            return await self._send_error(ctx, "No items found! Use format: `?prefix \"--n\" item1, item2, item3`")
+            return await self._send_error(ctx, "No items found! Use format: `?add \"--n\" item1, item2, item3`")
 
         # Build result with pattern before each item
         result = ' '.join([f"{pattern} {item}" for item in item_list])
