@@ -352,7 +352,7 @@ class ShinyDexDisplay(commands.Cog):
                 mention_author=False
             )
 
-    @commands.hybrid_command(name='shinydex', aliases=['sd'])
+    @commands.hybrid_command(name='shinydex', aliases=['sd','basicdex','bd'])
     @app_commands.describe(filters="Filters: --caught, --uncaught, --orderd, --ordera, --region, --type, --name, --page, --list, --smartlist")
     async def shiny_dex(self, ctx, *, filters: str = None):
         """View your basic shiny dex (one Pokemon per dex number, counts all forms)"""
@@ -469,7 +469,7 @@ class ShinyDexDisplay(commands.Cog):
         message = await ctx.send(embed=view.create_embed(), view=view, reference=ctx.message, mention_author=False)
         view.message = message
 
-    @commands.hybrid_command(name='shinydexfull', aliases=['sdf'])
+    @commands.hybrid_command(name='shinydexfull', aliases=['sdf','fulldex','fd','fullshinydex','fsd'])
     @app_commands.describe(filters="Filters: --caught, --unc, --orderd, --ordera, --region, --type, --name, --page, --list, --smartlist")
     async def shiny_dex_full(self, ctx, *, filters: str = None):
         """View your full shiny dex (all forms, includes gender differences)"""
