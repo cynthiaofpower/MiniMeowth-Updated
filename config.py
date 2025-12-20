@@ -20,6 +20,7 @@ COLLECTION_SETTINGS = "settings"
 NORMAL_CATEGORY = "normal"
 TRIPMAX_CATEGORY = "tripmax"
 TRIPZERO_CATEGORY = "tripzero"
+COLLECTION_ID_OVERRIDES = "id_overrides"
 
 
 # Cooldown Duration
