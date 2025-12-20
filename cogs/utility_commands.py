@@ -51,6 +51,16 @@ class UtilityCommands(commands.Cog):
         if message.content and "You are currently running another command" in message.content:
             return
 
+        # Check for buy confirmation message - don't proceed to next command
+        if message.content and message.content.startswith("Are you sure you want to buy"):
+            return
+
+        # Check in embeds as well
+        if message.embeds:
+            for embed in message.embeds:
+                if embed.description and embed.description.startswith("Are you sure you want to buy"):
+                    return
+
         # Handle next command in sequence
         command_data['current_index'] += 1
 
