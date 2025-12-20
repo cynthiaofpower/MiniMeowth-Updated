@@ -30,10 +30,11 @@ class Breeding(commands.Cog):
 
         user_id = ctx.author.id
 
-        # OPTIMIZATION: Fetch all data in parallel
-        settings, cooldowns = await asyncio.gather(
+        # OPTIMIZATION: Fetch all data in parallel (including ID overrides)
+        settings, cooldowns, id_overrides = await asyncio.gather(
             db.get_settings(user_id),
-            db.get_cooldowns(user_id)
+            db.get_cooldowns(user_id),
+            db.get_id_overrides(user_id)
         )
 
         mode = settings.get('mode', 'notselective')
@@ -55,27 +56,25 @@ class Breeding(commands.Cog):
             await ctx.send(f"❌ No Pokemon available for breeding in {category} inventory (all on cooldown or inventory empty)")
             return
 
-        # OPTIMIZATION: Enrich Pokemon data if needed (for old entries without pre-computed fields)
-        available = self.enrich_pokemon_data(available, utils)
 
-        # Generate pairs based on breeding mode
+        # Generate pairs based on breeding mode (pass overrides)
         pairs = []
 
         if breeding_mode == 'mychoice':
-            pairs = await self.handle_mychoice_breeding(available, settings, utils, selective, count)
+            pairs = await self.handle_mychoice_breeding(available, settings, utils, selective, count, id_overrides)
         elif breeding_mode == 'tripmax':
-            pairs = await self.handle_tripmax_breeding(available, utils, selective, count)
+            pairs = await self.handle_tripmax_breeding(available, utils, selective, count, id_overrides)
         elif breeding_mode == 'tripzero':
-            pairs = await self.handle_tripzero_breeding(available, utils, selective, count)
+            pairs = await self.handle_tripzero_breeding(available, utils, selective, count, id_overrides)
         elif breeding_mode == 'gmax':
-            pairs = await self.handle_gmax_breeding(available, targets, utils, selective, count)
+            pairs = await self.handle_gmax_breeding(available, targets, utils, selective, count, id_overrides)
         elif breeding_mode == 'regionals':
-            pairs = await self.handle_regionals_breeding(available, targets, utils, selective, count)
+            pairs = await self.handle_regionals_breeding(available, targets, utils, selective, count, id_overrides)
         elif breeding_mode == 'all':
-            pairs = await self.handle_all_breeding(available, utils, selective, count)
+            pairs = await self.handle_all_breeding(available, utils, selective, count, id_overrides)
         else:
             # Multiple specific Pokemon targets
-            pairs = await self.handle_specific_targets_breeding(available, targets, utils, selective, count)
+            pairs = await self.handle_specific_targets_breeding(available, targets, utils, selective, count, id_overrides)
 
         if not pairs:
             await ctx.send("❌ No compatible breeding pairs found with current settings")
@@ -89,7 +88,7 @@ class Breeding(commands.Cog):
         # OPTIMIZATION: Add cooldowns and send result in parallel
         await asyncio.gather(
             db.add_cooldown(user_id, cooldown_ids_to_add),
-            self.send_breed_result(ctx, pairs, selective, utils, show_info)
+            self.send_breed_result(ctx, pairs, selective, utils, show_info, id_overrides)
         )
 
     def enrich_pokemon_data(self, pokemon_list, utils):
@@ -127,7 +126,7 @@ class Breeding(commands.Cog):
 
     # ===== HELPER FUNCTIONS =====
 
-    def can_pair_pokemon(self, female, male, utils, selective):
+    def can_pair_pokemon(self, female, male, utils, selective, overrides=None):
         """Check if two Pokemon can be paired following all rules - OPTIMIZED"""
         # Use pre-computed fields instead of calling utils functions
         is_gmax_female = female.get('is_gmax', False)
@@ -156,8 +155,8 @@ class Breeding(commands.Cog):
         if not self.can_breed_optimized(female, male):
             return False
 
-        # If selective mode, check ID compatibility
-        if selective and not utils.can_pair_ids(female['pokemon_id'], male['pokemon_id']):
+        # If selective mode, check ID compatibility (with overrides)
+        if selective and not utils.can_pair_ids(female['pokemon_id'], male['pokemon_id'], overrides):
             return False
 
         return True
@@ -182,7 +181,7 @@ class Breeding(commands.Cog):
         # Check for shared egg group
         return any(group in groups2 for group in groups1)
 
-    def find_best_male_for_female(self, female, males, dittos, utils, selective, used_male_ids):
+    def find_best_male_for_female(self, female, males, dittos, utils, selective, used_male_ids, overrides=None):
         """
         Find best male match for a female following rule 1:
         1. Same dex number
@@ -198,7 +197,7 @@ class Breeding(commands.Cog):
         ]
 
         for male in same_dex_males:
-            if self.can_pair_pokemon(female, male, utils, selective):
+            if self.can_pair_pokemon(female, male, utils, selective, overrides):
                 return male, 'same_dex'
 
         # Step 2: Try compatible egg group males
@@ -210,20 +209,20 @@ class Breeding(commands.Cog):
         ]
 
         for male in compatible_males:
-            if self.can_pair_pokemon(female, male, utils, selective):
+            if self.can_pair_pokemon(female, male, utils, selective, overrides):
                 return male, 'compatible'
 
         # Step 3: Try Ditto
         for ditto in dittos:
             if ditto['pokemon_id'] not in used_male_ids:
-                if self.can_pair_pokemon(female, ditto, utils, selective):
+                if self.can_pair_pokemon(female, ditto, utils, selective, overrides):
                     return ditto, 'ditto'
 
         return None, None
 
     # ===== BREEDING MODE HANDLERS =====
 
-    async def handle_all_breeding(self, available, utils, selective, count):
+    async def handle_all_breeding(self, available, utils, selective, count, overrides=None):
         """Handle 'all' target - pair any compatible Pokemon"""
         females = [p for p in available if p['gender'] == 'female']
         males = [p for p in available if p['gender'] == 'male']
@@ -240,7 +239,7 @@ class Breeding(commands.Cog):
             if len(pairs) >= count:
                 break
 
-            male, match_type = self.find_best_male_for_female(female, males, dittos, utils, selective, used_male_ids)
+            male, match_type = self.find_best_male_for_female(female, males, dittos, utils, selective, used_male_ids, overrides)
 
             if male:
                 pairs.append({'female': female, 'male': male})
@@ -258,14 +257,14 @@ class Breeding(commands.Cog):
                 # Find ditto
                 for ditto in dittos:
                     if ditto['pokemon_id'] not in used_male_ids:
-                        if self.can_pair_pokemon(ditto, male, utils, selective):
+                        if self.can_pair_pokemon(ditto, male, utils, selective, overrides):
                             pairs.append({'female': ditto, 'male': male})
                             used_male_ids.add(ditto['pokemon_id'])
                             break
 
         return pairs
 
-    async def handle_gmax_breeding(self, available, targets, utils, selective, count):
+    async def handle_gmax_breeding(self, available, targets, utils, selective, count, overrides=None):
         """Handle Gmax target - one Pokemon in pair MUST have Gigantamax"""
         gmax_females = [p for p in available if p['gender'] == 'female' and p.get('is_gmax', False)]
         gmax_males = [p for p in available if p['gender'] == 'male' and p.get('is_gmax', False)]
@@ -284,7 +283,7 @@ class Breeding(commands.Cog):
             if len(pairs) >= count:
                 break
 
-            male, match_type = self.find_best_male_for_female(female, normal_males, dittos, utils, selective, used_male_ids)
+            male, match_type = self.find_best_male_for_female(female, normal_males, dittos, utils, selective, used_male_ids, overrides)
 
             if male:
                 pairs.append({'female': female, 'male': male})
@@ -298,14 +297,14 @@ class Breeding(commands.Cog):
 
                 for ditto in dittos:
                     if ditto['pokemon_id'] not in used_male_ids:
-                        if self.can_pair_pokemon(ditto, male, utils, selective):
+                        if self.can_pair_pokemon(ditto, male, utils, selective, overrides):
                             pairs.append({'female': ditto, 'male': male})
                             used_male_ids.add(ditto['pokemon_id'])
                             break
 
         return pairs
 
-    async def handle_regionals_breeding(self, available, targets, utils, selective, count):
+    async def handle_regionals_breeding(self, available, targets, utils, selective, count, overrides=None):
         """Handle Regionals target - one Pokemon in pair MUST be regional"""
         regional_females = [p for p in available if p['gender'] == 'female' and p.get('is_regional', False)]
         regional_males = [p for p in available if p['gender'] == 'male' and p.get('is_regional', False)]
@@ -324,7 +323,7 @@ class Breeding(commands.Cog):
             if len(pairs) >= count:
                 break
 
-            male, match_type = self.find_best_male_for_female(female, normal_males, dittos, utils, selective, used_male_ids)
+            male, match_type = self.find_best_male_for_female(female, normal_males, dittos, utils, selective, used_male_ids, overrides)
 
             if male:
                 pairs.append({'female': female, 'male': male})
@@ -338,14 +337,14 @@ class Breeding(commands.Cog):
 
                 for ditto in dittos:
                     if ditto['pokemon_id'] not in used_male_ids:
-                        if self.can_pair_pokemon(ditto, male, utils, selective):
+                        if self.can_pair_pokemon(ditto, male, utils, selective, overrides):
                             pairs.append({'female': ditto, 'male': male})
                             used_male_ids.add(ditto['pokemon_id'])
                             break
 
         return pairs
 
-    async def handle_tripmax_breeding(self, available, utils, selective, count):
+    async def handle_tripmax_breeding(self, available, utils, selective, count, overrides=None):
         """Handle TripMax - pair high IV with high IV"""
         females = [p for p in available if p['gender'] == 'female']
         males = [p for p in available if p['gender'] == 'male']
@@ -363,7 +362,7 @@ class Breeding(commands.Cog):
             if len(pairs) >= count:
                 break
 
-            male, match_type = self.find_best_male_for_female(female, males, dittos, utils, selective, used_male_ids)
+            male, match_type = self.find_best_male_for_female(female, males, dittos, utils, selective, used_male_ids, overrides)
 
             if male:
                 pairs.append({'female': female, 'male': male})
@@ -380,14 +379,14 @@ class Breeding(commands.Cog):
 
                 for ditto in dittos:
                     if ditto['pokemon_id'] not in used_male_ids:
-                        if self.can_pair_pokemon(ditto, male, utils, selective):
+                        if self.can_pair_pokemon(ditto, male, utils, selective, overrides):
                             pairs.append({'female': ditto, 'male': male})
                             used_male_ids.add(ditto['pokemon_id'])
                             break
 
         return pairs
 
-    async def handle_tripzero_breeding(self, available, utils, selective, count):
+    async def handle_tripzero_breeding(self, available, utils, selective, count, overrides=None):
         """Handle TripZero - pair low IV with low IV"""
         females = [p for p in available if p['gender'] == 'female']
         males = [p for p in available if p['gender'] == 'male']
@@ -406,7 +405,7 @@ class Breeding(commands.Cog):
                 break
 
             # For TripZero, find lowest IV compatible male
-            male, match_type = self.find_best_male_for_female_tripzero(female, males, dittos, utils, selective, used_male_ids)
+            male, match_type = self.find_best_male_for_female_tripzero(female, males, dittos, utils, selective, used_male_ids, overrides)
 
             if male:
                 pairs.append({'female': female, 'male': male})
@@ -423,14 +422,14 @@ class Breeding(commands.Cog):
 
                 for ditto in dittos:
                     if ditto['pokemon_id'] not in used_male_ids:
-                        if self.can_pair_pokemon(ditto, male, utils, selective):
+                        if self.can_pair_pokemon(ditto, male, utils, selective, overrides):
                             pairs.append({'female': ditto, 'male': male})
                             used_male_ids.add(ditto['pokemon_id'])
                             break
 
         return pairs
 
-    def find_best_male_for_female_tripzero(self, female, males, dittos, utils, selective, used_male_ids):
+    def find_best_male_for_female_tripzero(self, female, males, dittos, utils, selective, used_male_ids, overrides=None):
         """Find LOWEST IV male for TripZero"""
         # Step 1: Try same dex number males (lowest IV)
         same_dex_males = [
@@ -442,7 +441,7 @@ class Breeding(commands.Cog):
         same_dex_males.sort(key=lambda x: x['iv_percent'])
 
         for male in same_dex_males:
-            if self.can_pair_pokemon(female, male, utils, selective):
+            if self.can_pair_pokemon(female, male, utils, selective, overrides):
                 return male, 'same_dex'
 
         # Step 2: Try compatible egg group males (lowest IV)
@@ -455,19 +454,19 @@ class Breeding(commands.Cog):
         compatible_males.sort(key=lambda x: x['iv_percent'])
 
         for male in compatible_males:
-            if self.can_pair_pokemon(female, male, utils, selective):
+            if self.can_pair_pokemon(female, male, utils, selective, overrides):
                 return male, 'compatible'
 
         # Step 3: Try Ditto (lowest IV)
         dittos_sorted = sorted(dittos, key=lambda x: x['iv_percent'])
         for ditto in dittos_sorted:
             if ditto['pokemon_id'] not in used_male_ids:
-                if self.can_pair_pokemon(female, ditto, utils, selective):
+                if self.can_pair_pokemon(female, ditto, utils, selective, overrides):
                     return ditto, 'ditto'
 
         return None, None
 
-    async def handle_mychoice_breeding(self, available, settings, utils, selective, count):
+    async def handle_mychoice_breeding(self, available, settings, utils, selective, count, overrides=None):
         """Handle MyChoice - user-specified male and female species - OPTIMIZED"""
         mychoice_male = settings.get('mychoice_male')
         mychoice_female = settings.get('mychoice_female')
@@ -518,7 +517,7 @@ class Breeding(commands.Cog):
                 if male['pokemon_id'] in used_male_ids:
                     continue
 
-                if selective and not utils.can_pair_ids(female['pokemon_id'], male['pokemon_id']):
+                if selective and not utils.can_pair_ids(female['pokemon_id'], male['pokemon_id'], overrides):
                     continue
 
                 best_male = male
@@ -531,7 +530,7 @@ class Breeding(commands.Cog):
 
         return pairs
 
-    async def handle_specific_targets_breeding(self, available, targets, utils, selective, count):
+    async def handle_specific_targets_breeding(self, available, targets, utils, selective, count, overrides=None):
         """Handle multiple specific Pokemon targets - OPTIMIZED"""
         # Filter Pokemon matching targets
         filtered = []
@@ -565,7 +564,7 @@ class Breeding(commands.Cog):
             if len(pairs) >= count:
                 break
 
-            male, match_type = self.find_best_male_for_female(female, all_males, dittos, utils, selective, used_male_ids)
+            male, match_type = self.find_best_male_for_female(female, all_males, dittos, utils, selective, used_male_ids, overrides)
 
             if male:
                 pairs.append({'female': female, 'male': male})
@@ -583,7 +582,7 @@ class Breeding(commands.Cog):
                 # Find available Ditto
                 for ditto in dittos:
                     if ditto['pokemon_id'] not in used_male_ids:
-                        if self.can_pair_pokemon(ditto, male, utils, selective):
+                        if self.can_pair_pokemon(ditto, male, utils, selective, overrides):
                             pairs.append({'female': ditto, 'male': male})
                             used_male_ids.add(ditto['pokemon_id'])
                             used_male_ids.add(male['pokemon_id'])
@@ -621,7 +620,7 @@ class Breeding(commands.Cog):
 
     # ===== RESULT DISPLAY =====
 
-    async def send_breed_result(self, ctx, pairs, selective, utils, show_info):
+    async def send_breed_result(self, ctx, pairs, selective, utils, show_info, overrides=None):
         """Send breeding pair results"""
         command_parts = ["<@716390085896962058> daycare add"]
 
@@ -644,7 +643,7 @@ class Breeding(commands.Cog):
                 female = pair['female']
                 male = pair['male']
 
-                comp = utils.get_compatibility(female, male, selective)
+                comp = utils.get_compatibility(female, male, selective, overrides)
 
                 female_icon = config.GENDER_FEMALE if female['gender'] == 'female' else config.GENDER_UNKNOWN
                 male_icon = config.GENDER_MALE if male['gender'] == 'male' else config.GENDER_UNKNOWN
@@ -658,7 +657,7 @@ class Breeding(commands.Cog):
                         f"**Compatibility:** {comp}"
                     )
 
-                    reason = self.get_pairing_reason(female, male, utils, selective)
+                    reason = self.get_pairing_reason(female, male, utils, selective, overrides)
                     if reason:
                         pair_info += f"\n**Reason:** {reason}"
 
@@ -672,7 +671,7 @@ class Breeding(commands.Cog):
 
         await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
 
-    def get_pairing_reason(self, female, male, utils, selective):
+    def get_pairing_reason(self, female, male, utils, selective, overrides=None):
         """Get human-readable reason for pairing - OPTIMIZED"""
         is_ditto_female = female.get('is_ditto', False)
         is_ditto_male = male.get('is_ditto', False)
@@ -708,9 +707,16 @@ class Breeding(commands.Cog):
         if female['iv_percent'] >= 80 and male['iv_percent'] >= 80:
             reasons.append("High IV pair")
 
-        # Old/New
-        if selective and utils.can_pair_ids(female['pokemon_id'], male['pokemon_id']):
-            reasons.append("Old+New IDs")
+        # Old/New (with overrides)
+        if selective and utils.can_pair_ids(female['pokemon_id'], male['pokemon_id'], overrides):
+            # Check if either ID is overridden
+            female_override = overrides.get(female['pokemon_id']) if overrides else None
+            male_override = overrides.get(male['pokemon_id']) if overrides else None
+
+            if female_override or male_override:
+                reasons.append("Old+New IDs (with override)")
+            else:
+                reasons.append("Old+New IDs")
 
         return ", ".join(reasons) if reasons else None
 
