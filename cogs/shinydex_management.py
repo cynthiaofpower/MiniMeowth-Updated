@@ -233,7 +233,7 @@ class ShinyDexManagement(commands.Cog):
                        after.author.id == POKETWO_BOT_ID and 
                        after.embeds)
 
-            timeout = 600
+            timeout = 300
             start_time = asyncio.get_event_loop().time()
             last_update = start_time
 
