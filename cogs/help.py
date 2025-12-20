@@ -3,63 +3,74 @@ from discord.ext import commands
 from discord import app_commands
 import config
 
+# ===== HELP SYSTEM CONFIG =====
+HELP_PREFIX = "m!"  # Change this to update prefix everywhere in help
+
 class HelpDropdown(discord.ui.Select):
     """Dropdown menu for selecting help categories"""
 
-    def __init__(self):
+    def __init__(self, help_cog):
+        self.help_cog = help_cog
+
         options = [
             discord.SelectOption(
-                label="🏠 Home",
-                description="Return to main help menu",
+                label="Home",
+                description="Main help menu",
                 value="home",
                 emoji="🏠"
             ),
             discord.SelectOption(
-                label="📦 Inventory",
-                description="Adding, viewing, and managing Pokemon",
+                label="Inventory",
+                description="Manage your Pokemon inventory",
                 value="inventory",
                 emoji="📦"
             ),
             discord.SelectOption(
-                label="🔒 Cooldown",
-                description="Managing breeding cooldowns",
-                value="cooldown",
-                emoji="🔒"
-            ),
-            discord.SelectOption(
-                label="⚙️ Settings",
-                description="Configure breeding preferences",
-                value="settings",
-                emoji="⚙️"
-            ),
-            discord.SelectOption(
-                label="💕 Breeding",
+                label="Breeding",
                 description="Generate breeding pairs",
                 value="breeding",
                 emoji="💕"
             ),
             discord.SelectOption(
-                label="🎯 Breeding Modes",
-                description="Different breeding strategies",
-                value="modes",
-                emoji="🎯"
+                label="Cooldown",
+                description="Manage breeding cooldowns",
+                value="cooldown",
+                emoji="🔒"
             ),
             discord.SelectOption(
-                label="✨ Shiny Dex",
-                description="Track and view your shiny collection",
+                label="Settings",
+                description="Configure preferences",
+                value="settings",
+                emoji="⚙️"
+            ),
+            discord.SelectOption(
+                label="Shiny Dex",
+                description="Track your shinies",
                 value="shinydex",
                 emoji="✨"
             ),
             discord.SelectOption(
-                label="💡 Tips & Tricks",
-                description="Pro tips for efficient breeding",
-                value="tips",
-                emoji="💡"
+                label="Pokedex",
+                description="Look up Pokemon info",
+                value="pokedex",
+                emoji="🔍"
+            ),
+            discord.SelectOption(
+                label="Utility",
+                description="Helpful utility commands",
+                value="utility",
+                emoji="🛠️"
+            ),
+            discord.SelectOption(
+                label="Context Menu",
+                description="Right-click message commands",
+                value="context",
+                emoji="📱"
             )
         ]
 
         super().__init__(
-            placeholder="📚 Choose a help category...",
+            placeholder="Choose a category...",
             min_values=1,
             max_values=1,
             options=options
@@ -67,841 +78,786 @@ class HelpDropdown(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         """Handle dropdown selection"""
+        if interaction.user.id != self.view.ctx.author.id:
+            await interaction.response.send_message("This is not your help menu!", ephemeral=True)
+            return
+
         category = self.values[0]
 
-        if category == "home":
-            embed = self.view.help_cog.get_home_embed(self.view.prefix)
-        elif category == "inventory":
-            embed = self.view.help_cog.get_inventory_embed(self.view.prefix)
-        elif category == "cooldown":
-            embed = self.view.help_cog.get_cooldown_embed(self.view.prefix)
-        elif category == "settings":
-            embed = self.view.help_cog.get_settings_embed(self.view.prefix)
-        elif category == "breeding":
-            embed = self.view.help_cog.get_breeding_embed(self.view.prefix)
-        elif category == "shinydex":
-            embed = self.view.help_cog.get_shinydex_embed(self.view.prefix)
-        elif category == "modes":
-            embed = self.view.help_cog.get_modes_embed(self.view.prefix)
-        elif category == "tips":
-            embed = self.view.help_cog.get_tips_embed(self.view.prefix)
+        embed_map = {
+            "home": self.help_cog.get_home_embed,
+            "inventory": self.help_cog.get_inventory_embed,
+            "breeding": self.help_cog.get_breeding_embed,
+            "cooldown": self.help_cog.get_cooldown_embed,
+            "settings": self.help_cog.get_settings_embed,
+            "shinydex": self.help_cog.get_shinydex_embed,
+            "pokedex": self.help_cog.get_pokedex_embed,
+            "utility": self.help_cog.get_utility_embed,
+            "context": self.help_cog.get_context_embed
+        }
 
+        embed = embed_map[category]()
         await interaction.response.edit_message(embed=embed, view=self.view)
 
 
 class HelpView(discord.ui.View):
     """View with navigation buttons and dropdown"""
 
-    def __init__(self, help_cog, prefix):
-        super().__init__(timeout=180)  # 3 minutes timeout
+    def __init__(self, ctx, help_cog):
+        super().__init__(timeout=180)
+        self.ctx = ctx
         self.help_cog = help_cog
-        self.prefix = prefix
-        self.add_item(HelpDropdown())
+        self.message = None
 
-    @discord.ui.button(label="Inventory", style=discord.ButtonStyle.primary, emoji="📦", row=1)
+        # Add dropdown
+        self.add_item(HelpDropdown(help_cog))
+
+    @discord.ui.button(label="📦Inventory", style=discord.ButtonStyle.primary, row=1)
     async def inventory_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        embed = self.help_cog.get_inventory_embed(self.prefix)
+        if interaction.user.id != self.ctx.author.id:
+            await interaction.response.send_message("This is not your help menu!", ephemeral=True)
+            return
+        embed = self.help_cog.get_inventory_embed()
         await interaction.response.edit_message(embed=embed, view=self)
 
-    @discord.ui.button(label="Settings", style=discord.ButtonStyle.primary, emoji="⚙️", row=1)
-    async def settings_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        embed = self.help_cog.get_settings_embed(self.prefix)
-        await interaction.response.edit_message(embed=embed, view=self)
-
-    @discord.ui.button(label="Breeding", style=discord.ButtonStyle.primary, emoji="💕", row=1)
+    @discord.ui.button(label="💕Breeding", style=discord.ButtonStyle.primary, row=1)
     async def breeding_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        embed = self.help_cog.get_breeding_embed(self.prefix)
+        if interaction.user.id != self.ctx.author.id:
+            await interaction.response.send_message("This is not your help menu!", ephemeral=True)
+            return
+        embed = self.help_cog.get_breeding_embed()
         await interaction.response.edit_message(embed=embed, view=self)
 
-    @discord.ui.button(label="Modes", style=discord.ButtonStyle.primary, emoji="🎯", row=1)
-    async def modes_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        embed = self.help_cog.get_modes_embed(self.prefix)
+    @discord.ui.button(label="⚙️Settings", style=discord.ButtonStyle.primary, row=1)
+    async def settings_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.ctx.author.id:
+            await interaction.response.send_message("This is not your help menu!", ephemeral=True)
+            return
+        embed = self.help_cog.get_settings_embed()
         await interaction.response.edit_message(embed=embed, view=self)
 
-    @discord.ui.button(label="Shiny Dex", style=discord.ButtonStyle.success, emoji="✨", row=2)
+    @discord.ui.button(label="✨Shiny Dex", style=discord.ButtonStyle.success, row=2)
     async def shinydex_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        embed = self.help_cog.get_shinydex_embed(self.prefix)
+        if interaction.user.id != self.ctx.author.id:
+            await interaction.response.send_message("This is not your help menu!", ephemeral=True)
+            return
+        embed = self.help_cog.get_shinydex_embed()
         await interaction.response.edit_message(embed=embed, view=self)
 
-    @discord.ui.button(label="Tips", style=discord.ButtonStyle.success, emoji="💡", row=2)
-    async def tips_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        embed = self.help_cog.get_tips_embed(self.prefix)
+    @discord.ui.button(label="🛠️Utility", style=discord.ButtonStyle.success, row=2)
+    async def utility_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.ctx.author.id:
+            await interaction.response.send_message("This is not your help menu!", ephemeral=True)
+            return
+        embed = self.help_cog.get_utility_embed()
         await interaction.response.edit_message(embed=embed, view=self)
 
-    @discord.ui.button(label="Home", style=discord.ButtonStyle.secondary, emoji="🏠", row=2)
+    @discord.ui.button(label="🏠Home", style=discord.ButtonStyle.secondary, row=2)
     async def home_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        embed = self.help_cog.get_home_embed(self.prefix)
+        if interaction.user.id != self.ctx.author.id:
+            await interaction.response.send_message("This is not your help menu!", ephemeral=True)
+            return
+        embed = self.help_cog.get_home_embed()
         await interaction.response.edit_message(embed=embed, view=self)
 
+    async def on_timeout(self):
+        if self.message:
+            try:
+                for item in self.children:
+                    item.disabled = True
+                await self.message.edit(view=self)
+            except:
+                pass
 
-class Help(commands.Cog):
-    """Interactive help system for the bot"""
+
+class HelpCommands(commands.Cog):
+    """Enhanced help system with interactive menus"""
 
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.hybrid_command(name='help')
-    @app_commands.describe(category="Choose a help category")
-    async def help_command(self, ctx, category: str = None):
+    @commands.hybrid_command(name='help', aliases=['h'])
+    @app_commands.describe(command="Specific command to get help for")
+    async def help_command(self, ctx, *, command: str = None):
         """
-        Display interactive help menu
-        Usage: ?help or /help [category]
-        """
-        prefix = ctx.prefix
-        view = HelpView(self, prefix)
+        Display help menu or get info about a specific command
 
-        if category:
-            category = category.lower()
-            if category in ['inventory', 'inv']:
-                embed = self.get_inventory_embed(prefix)
-            elif category in ['cooldown', 'cd']:
-                embed = self.get_cooldown_embed(prefix)
-            elif category in ['settings', 'config']:
-                embed = self.get_settings_embed(prefix)
-            elif category in ['breeding', 'breed']:
-                embed = self.get_breeding_embed(prefix)
-            elif category in ['modes', 'mode']:
-                embed = self.get_modes_embed(prefix)
-            elif category in ['shinydex', 'shiny', 'sd']:
-                embed = self.get_shinydex_embed(prefix)
-            elif category in ['tips', 'trick', 'tricks']:
-                embed = self.get_tips_embed(prefix)
-            else:
-                embed = self.get_home_embed(prefix)
+        __Usage:__
+        > `m!help` - Show interactive help menu
+        > `m!help <command>` - Get detailed info about a command
+
+        __Examples:__
+        > `m!help breed`
+        > `m!help trackshiny`
+        """
+        # If specific command requested
+        if command:
+            await self.show_command_help(ctx, command)
+            return
+
+        # Show interactive menu
+        view = HelpView(ctx, self)
+        embed = self.get_home_embed()
+        message = await ctx.send(embed=embed, view=view, reference=ctx.message if hasattr(ctx.message, 'reference') else None, mention_author=False)
+        view.message = message
+
+    async def show_command_help(self, ctx, command_name: str):
+        """Show detailed help for a specific command"""
+        cmd = self.bot.get_command(command_name.lower())
+
+        if not cmd:
+            await ctx.send(f"Command `{command_name}` not found! Use `{HELP_PREFIX}help` to see all commands.", 
+                          reference=ctx.message if hasattr(ctx.message, 'reference') else None, mention_author=False)
+            return
+
+        # Check if it's a hybrid command
+        is_hybrid = isinstance(cmd, commands.HybridCommand)
+        is_slash = is_hybrid or hasattr(cmd, 'app_command')
+
+        # Build description
+        description_parts = []
+
+        # Get command help text
+        if cmd.help:
+            description_parts.append(cmd.help.split('\n\n')[0])  # First paragraph only
         else:
-            embed = self.get_home_embed(prefix)
+            description_parts.append("_No description available_")
 
-        await ctx.send(embed=embed, view=view, reference=ctx.message, mention_author=False)
+        description_parts.append("")  # Empty line
 
-    def get_home_embed(self, prefix):
+        # Command availability
+        if is_hybrid:
+            description_parts.append("__Available as:__")
+            description_parts.append(f"> Prefix command: `{HELP_PREFIX}{cmd.name}`")
+            description_parts.append(f"> Slash command: `/{cmd.name}`")
+        elif is_slash:
+            description_parts.append(f"__Available as:__ Slash command only `/{cmd.name}`")
+        else:
+            description_parts.append(f"__Available as:__ Prefix command `{HELP_PREFIX}{cmd.name}`")
+
+        embed = discord.Embed(
+            title=f"Command: {cmd.name}",
+            description="\n".join(description_parts),
+            color=config.EMBED_COLOR
+        )
+
+        # Aliases (only for prefix commands)
+        if cmd.aliases:
+            aliases_text = " ".join([f"`{alias}`" for alias in cmd.aliases])
+            embed.add_field(
+                name="__Aliases__",
+                value=aliases_text,
+                inline=False
+            )
+
+        # Usage
+        usage_lines = []
+        if cmd.signature:
+            usage_lines.append(f"> `{HELP_PREFIX}{cmd.name} {cmd.signature}`")
+            if is_hybrid or is_slash:
+                clean_sig = cmd.signature.replace('[', '').replace(']', '').replace('<', '').replace('>', '')
+                usage_lines.append(f"> `/{cmd.name} {clean_sig}`")
+        else:
+            usage_lines.append(f"> `{HELP_PREFIX}{cmd.name}`")
+            if is_hybrid or is_slash:
+                usage_lines.append(f"> `/{cmd.name}`")
+
+        embed.add_field(
+            name="__Usage__",
+            value="\n".join(usage_lines),
+            inline=False
+        )
+
+        # Parameters (if any)
+        if cmd.clean_params:
+            param_lines = []
+            for param_name, param in cmd.clean_params.items():
+                # Determine if required or optional
+                is_required = param.default == param.empty
+
+                if is_required:
+                    param_lines.append(f"> `{param_name}` - Required")
+                else:
+                    param_lines.append(f"> `{param_name}` - Optional")
+
+            if param_lines:
+                embed.add_field(
+                    name="__Parameters__",
+                    value="\n".join(param_lines),
+                    inline=False
+                )
+
+        # Examples from docstring
+        if cmd.help and ("__Examples:__" in cmd.help or "__Usage:__" in cmd.help):
+            examples = []
+            lines = cmd.help.split('\n')
+            in_example_section = False
+
+            for line in lines:
+                if "__Examples:__" in line or "__Usage:__" in line:
+                    in_example_section = True
+                    continue
+                if in_example_section:
+                    if line.strip().startswith('>'):
+                        # Extract the example
+                        example = line.strip()[1:].strip()
+                        if example.startswith('`') and example.endswith('`'):
+                            examples.append(example)
+                    elif line.strip() and not line.strip().startswith('>'):
+                        # Hit next section
+                        break
+
+            if examples:
+                embed.add_field(
+                    name="__Examples__",
+                    value="\n".join([f"> {ex}" for ex in examples[:3]]),
+                    inline=False
+                )
+
+        # Footer with category info
+        cog_name = cmd.cog.qualified_name if cmd.cog else "General"
+        embed.set_footer(text=f"Category: {cog_name}")
+
+        await ctx.send(embed=embed, reference=ctx.message if hasattr(ctx.message, 'reference') else None, mention_author=False)
+
+    def get_home_embed(self):
         """Main help menu"""
         embed = discord.Embed(
-            title="🎮 Poketwo Daycare Bot - Help Menu",
+            title="🎮 Bot Help Menu",
             description=(
-                "Welcome to the comprehensive Poketwo breeding assistant!\n\n"
-                "**Quick Navigation:**\n"
-                "Use the dropdown menu or buttons below to explore different categories.\n\n"
-                "**What is this bot?**\n"
-                "This bot helps you manage and optimize Pokemon breeding in Poketwo by:\n"
-                "• Storing your Pokemon inventory\n"
-                "• Automatically pairing compatible Pokemon\n"
-                "• Tracking breeding cooldowns\n"
-                "• Supporting multiple breeding strategies"
+                f"Welcome to the Pokétwo assistant bot!\n\n"
+                f"__📚 Quick Navigation__\n"
+                f"- Use the dropdown menu below to explore categories\n"
+                f"- Use `{HELP_PREFIX}help <command>` for detailed info\n\n"
+                f"__💬 Command Types__\n"
+                f"- **Prefix** - Use `{HELP_PREFIX}` before command\n"
+                f"- **Slash** - Use `/` before command\n"
+                f"- **Context** - Right-click messages (see Context Menu page)"
             ),
             color=config.EMBED_COLOR
         )
 
         embed.add_field(
-            name="📦 Inventory",
-            value="Add, view, and manage your Pokemon across multiple inventories",
-            inline=True
+            name="__📂 Categories__",
+            value=(
+                "- 📦 **Inventory** - Pokemon management\n"
+                "- 💕 **Breeding** - Generate breeding pairs\n"
+                "- 🔒 **Cooldown** - Track breeding cooldowns\n"
+                "- ⚙️ **Settings** - Configure preferences\n"
+                "- ✨ **Shiny Dex** - Track shiny collection\n"
+                "- 🔍 **Pokedex** - Look up Pokemon info\n"
+                "- 🛠️ **Utility** - Helper commands\n"
+                "- 📱 **Context Menu** - Message actions"
+            ),
+            inline=False
         )
 
-        embed.add_field(
-            name="🔒 Cooldown",
-            value=f"Track and manage breeding cooldowns ({config.COOLDOWN_DAYS}d {config.COOLDOWN_HOURS}h)",
-            inline=True
-        )
-
-        embed.add_field(
-            name="⚙️ Settings",
-            value="Configure breeding modes, targets, and preferences",
-            inline=True
-        )
-
-        embed.add_field(
-            name="💕 Breeding",
-            value="Generate optimal breeding pairs based on your settings",
-            inline=True
-        )
-
-        embed.add_field(
-            name="🎯 Breeding Modes",
-            value="Different strategies: Gmax, Regional, TripMax, TripZero, MyChoice",
-            inline=True
-        )
-
-        embed.add_field(
-            name="💡 Tips & Tricks",
-            value="Pro tips for efficient breeding and inventory management",
-            inline=True
-        )
-
-        embed.set_footer(text=f"Bot Prefix: {prefix} • Use dropdown or buttons to navigate")
+        embed.set_footer(text=f"Use {HELP_PREFIX}help <command> for details • Menu timeout: 3 minutes")
 
         return embed
 
-    def get_inventory_embed(self, prefix):
+    def get_inventory_embed(self):
         """Inventory commands help"""
         embed = discord.Embed(
-            title="📦 Inventory Management",
-            description="Commands for adding, viewing, and managing your Pokemon inventory",
+            title="📦 __Inventory Commands__",
+            description="Manage your Pokemon inventory across multiple categories",
             color=config.EMBED_COLOR
         )
 
         embed.add_field(
-            name="➕ Adding Pokemon",
+            name=f"`{HELP_PREFIX}add` `{HELP_PREFIX}addtripmax` `{HELP_PREFIX}addtripzero`",
             value=(
-                f"**`{prefix}add`** - Add Pokemon to normal inventory\n"
-                "• Reply to a Poketwo message, or provide message IDs\n"
-                "• Bot auto-detects page changes for 60 seconds\n"
-                f"• Example: `{prefix}add` (then click through pages)\n"
-                f"• Example: `{prefix}add 123456789 987654321`\n\n"
-                f"**`{prefix}addtripmax`** - Add to TripMax inventory (highest IV)\n"
-                f"**`{prefix}addtripzero`** - Add to TripZero inventory (lowest IV)"
+                "> Add Pokemon to inventories\n"
+                "> Reply to Pokétwo message or provide message IDs\n"
+                "> Auto-detects page changes for 60 seconds"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="👀 Viewing Inventory",
+            name=f"`{HELP_PREFIX}inv` `{HELP_PREFIX}invtripmax` `{HELP_PREFIX}invtripzero`",
             value=(
-                f"**`{prefix}inv`** - View normal inventory\n"
-                f"**`{prefix}inv --gmax`** - View Gigantamax only\n"
-                f"**`{prefix}inv --regional`** - View regional forms only\n"
-                f"**`{prefix}inv pikachu`** - View specific species\n"
-                f"**`{prefix}inv --g male`** - View males only\n"
-                f"**`{prefix}inv --g female`** - View females only\n"
-                f"**`{prefix}inv --g unknown`** - View unknown gender\n"
-                f"**`{prefix}inv --g male --gmax`** - Combine filters\n\n"
-                f"**`{prefix}invtripmax`** - View TripMax inventory\n"
-                f"**`{prefix}invtripzero`** - View TripZero inventory\n\n"
-                f"**`{prefix}stats`** - View statistics for all inventories"
+                "> View your Pokemon inventories\n"
+                "> **Filters:** `--g male/female`, `--gmax`, `--regional`, `--n <name>`, `--cd`, `--nocd`"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="🗑️ Removing Pokemon",
-            value=(
-                f"**`{prefix}remove [ids...]`** - Remove Pokemon from inventory\n"
-                f"• Example: `{prefix}remove 12345 67890`\n\n"
-                f"**`{prefix}clear inv`** - Clear normal inventory\n"
-                f"**`{prefix}clear tripmax`** - Clear TripMax inventory\n"
-                f"**`{prefix}clear tripzero`** - Clear TripZero inventory"
-            ),
+            name=f"`{HELP_PREFIX}stats`",
+            value="> View statistics for all inventories",
             inline=False
         )
 
         embed.add_field(
-            name="🔍 Filter Flags",
+            name=f"`{HELP_PREFIX}remove` `{HELP_PREFIX}clear`",
             value=(
-                "**Gender Filters:**\n"
-                "• `--g male` or `--gender male`\n"
-                "• `--g female` or `--gender female`\n"
-                "• `--g unknown` or `--gender unknown`\n\n"
-                "**Form Filters:**\n"
-                "• `--gmax` or `--gigantamax`\n"
-                "• `--regional` or `--regionals`\n\n"
-                "**Combine filters:**\n"
-                f"`{prefix}inv --g female --gmax` - Female Gigantamax only\n"
-                f"`{prefix}inv pikachu --g male` - Male Pikachu only"
+                "> Remove Pokemon by ID or clear entire inventory\n"
+                "> **Clear options:** `inv`, `tripmax`, `tripzero`, `all`"
             ),
             inline=False
         )
 
-        embed.add_field(
-            name="💡 Pro Tips",
-            value=(
-                "• Same Pokemon can be in multiple inventories\n"
-                "• Only breedable Pokemon are saved (no Undiscovered)\n"
-                "• Shiny Pokemon are automatically excluded\n"
-                "• Duplicates are ignored (same ID = same Pokemon)"
-            ),
-            inline=False
-        )
-
-        embed.set_footer(text=f"Use {prefix}help [category] to see other commands")
+        embed.set_footer(text=f"Example: {HELP_PREFIX}inv --g female --gmax")
 
         return embed
 
-    def get_cooldown_embed(self, prefix):
-        """Cooldown commands help"""
-        embed = discord.Embed(
-            title="🔒 Cooldown Management",
-            description=f"Track and manage breeding cooldowns ({config.COOLDOWN_DAYS} days {config.COOLDOWN_HOURS} hour)",
-            color=config.EMBED_COLOR
-        )
-
-        embed.add_field(
-            name="📋 Viewing Cooldowns",
-            value=(
-                f"**`{prefix}cd list`** - View all Pokemon on cooldown\n"
-                "• Shows time remaining for each Pokemon\n"
-                "• Sorted by expiry time (soonest first)\n"
-                "• Shows Pokemon details (name, gender, IV)"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="➕ Adding to Cooldown",
-            value=(
-                f"**`{prefix}cd add [ids...]`** - Manually add Pokemon to cooldown\n"
-                f"• Example: `{prefix}cd add 12345 67890`\n"
-                "• Useful if you bred outside the bot\n"
-                f"• Cooldown duration: {config.COOLDOWN_DAYS} days {config.COOLDOWN_HOURS} hour"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="➖ Removing from Cooldown",
-            value=(
-                f"**`{prefix}cd remove [ids...]`** - Remove Pokemon from cooldown\n"
-                f"• Example: `{prefix}cd remove 12345 67890`\n"
-                "• Useful if cooldown expired early\n\n"
-                f"**`{prefix}cd clear`** - Clear ALL your cooldowns\n"
-                "• Removes all Pokemon from cooldown\n"
-                "• Use with caution!"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="🔄 Automatic Cooldown",
-            value=(
-                f"When you use `{prefix}breed`, paired Pokemon are automatically added to cooldown.\n"
-                "This prevents them from being used again until the cooldown expires."
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="💡 Important Notes",
-            value=(
-                "• Cooldown is GLOBAL across all inventories\n"
-                "• If a Pokemon is on cooldown, it won't appear in any breeding\n"
-                "• Cooldown is per Pokemon ID, not per inventory"
-            ),
-            inline=False
-        )
-
-        embed.set_footer(text="Cooldown duration can be changed in config.py")
-
-        return embed
-
-    def get_settings_embed(self, prefix):
-        """Settings commands help"""
-        embed = discord.Embed(
-            title="⚙️ Settings Configuration",
-            description="Configure breeding modes, targets, and display preferences",
-            color=config.EMBED_COLOR
-        )
-
-        embed.add_field(
-            name="📊 Viewing Settings",
-            value=(
-                f"**`{prefix}settings`** - View all current settings\n"
-                "Shows: mode, target, mychoice, info display"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="🎯 Pairing Mode",
-            value=(
-                f"**`{prefix}settings mode selective`** - Old/New ID pairing\n"
-                "• Pairs old IDs (≤271800) with new IDs (≥271900)\n"
-                "• Maximizes compatibility (High/Medium)\n\n"
-                f"**`{prefix}settings mode notselective`** - Any compatible pairing\n"
-                "• Pairs any compatible Pokemon\n"
-                "• Compatibility may vary (Low/Medium)"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="🎯 Breeding Target",
-            value=(
-                f"**`{prefix}settings target all`** - Breed everything\n"
-                f"**`{prefix}settings target gmax`** - Gigantamax only\n"
-                f"**`{prefix}settings target regionals`** - Regional forms only\n"
-                f"**`{prefix}settings target pikachu, eevee`** - Specific species\n"
-                f"**`{prefix}settings target mychoice`** - Custom male/female species\n"
-                f"**`{prefix}settings target tripmax`** - TripMax inventory (highest IV)\n"
-                f"**`{prefix}settings target tripzero`** - TripZero inventory (lowest IV)"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="💝 MyChoice Settings",
-            value=(
-                f"**`{prefix}settings setmale pikachu`** - Set male species\n"
-                f"**`{prefix}settings setfemale meowth`** - Set female species\n"
-                f"**`{prefix}settings setmale none`** - Clear male\n"
-                f"**`{prefix}settings setfemale none`** - Clear female\n\n"
-                "**Ditto Special Case:**\n"
-                "• Male Ditto + Female Pikachu = Pairs all female Pikachus\n"
-                "• Female Ditto + Male Pikachu = Pairs all male Pikachus"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="ℹ️ Info Display",
-            value=(
-                f"**`{prefix}settings info detailed`** - Full info (default)\n"
-                "• Shows IDs, names, IVs, compatibility, reasons\n\n"
-                f"**`{prefix}settings info simple`** - Basic info only\n"
-                "• Shows names and compatibility only\n\n"
-                f"**`{prefix}settings info off`** - Command only\n"
-                "• Shows just the breeding command"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="🔄 Reset Settings",
-            value=(
-                f"**`{prefix}reset-settings`** - Reset all to defaults\n"
-                "• Mode: notselective\n"
-                "• Target: all"
-            ),
-            inline=False
-        )
-
-        embed.set_footer(text="Settings are saved per user")
-
-        return embed
-
-    def get_breeding_embed(self, prefix):
+    def get_breeding_embed(self):
         """Breeding commands help"""
         embed = discord.Embed(
-            title="💕 Breeding Commands",
+            title="💕 __Breeding Commands__",
             description="Generate optimal breeding pairs based on your settings",
             color=config.EMBED_COLOR
         )
 
         embed.add_field(
-            name="🎲 Generate Pairs",
+            name=f"__🎲 Generate Pairs__",
             value=(
-                f"**`{prefix}breed`** or **`/breed`** - Generate 1 pair\n"
-                f"**`{prefix}breed 2`** or **`/breed 2`** - Generate 2 pairs (max)\n\n"
-                "The bot will:\n"
-                "1. Get Pokemon from the appropriate inventory\n"
-                "2. Filter by your target settings\n"
-                "3. Skip Pokemon on cooldown\n"
-                "4. Apply breeding rules (no two Gmax/Regional)\n"
-                "5. Pair based on mode (selective/notselective)\n"
-                "6. Automatically add pairs to cooldown"
+                f"`{HELP_PREFIX}breed [count]` `/breed [count]`\n"
+                f"- Generate 1-2 breeding pairs\n"
+                f"- Automatically adds Pokemon to cooldown\n"
+                f"- Uses your configured settings"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="📋 Output Format",
+            name=f"__⚙️ Basic Settings__",
             value=(
-                "Shows a ready-to-paste command:\n"
-                "`@Pokétwo#8236 dc add [female_id] [male_id]`\n\n"
-                "Plus additional info based on your `info` setting:\n"
-                "• **Detailed**: Full details (IDs, IVs, compatibility, reasons)\n"
-                "• **Simple**: Names and compatibility only\n"
-                "• **Off**: Just the command"
+                f"`{HELP_PREFIX}settings`\n"
+                f"- View all current settings\n"
+                f"- Configure mode, target, and display preferences"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="🎯 Pairing Priority",
+            name=f"__🎯 Pairing Mode__",
             value=(
-                "**General Priority Order:**\n"
-                "1. Pair females first (produce eggs)\n"
-                "2. Pair males with Ditto\n"
-                "3. Pair unknown gender with Ditto\n\n"
-                "**Within each category:**\n"
-                "• Same species > Different species\n"
-                "• Highest IV with highest IV (or lowest with lowest for TripZero)\n"
-                "• Selective mode: old+new IDs preferred"
+                f"`{HELP_PREFIX}settings mode <selective/notselective>`\n"
+                f"- **Selective:** Pairs old IDs with new IDs\n"
+                f"- **Not Selective:** Pairs any compatible Pokemon"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="💡 Important Rules",
+            name=f"__🎯 Breeding Targets__",
             value=(
-                "• Never pairs two Gigantamax (except MyChoice)\n"
-                "• Never pairs two Regional forms (except MyChoice)\n"
-                "• Female-only species always pair with Ditto\n"
-                "• Male-only species always pair with Ditto\n"
-                "• Egg groups must be compatible"
+                f"`{HELP_PREFIX}settings target <targets>`\n"
+                f"- **Options:** `all`, `gmax`, `regionals`, `tripmax`, `tripzero`, `mychoice`\n"
+                f"- Or specify Pokemon names: `pikachu, eevee`"
             ),
             inline=False
         )
 
-        embed.set_footer(text="Max 2 pairs per command due to Poketwo's daycare slots")
+        embed.add_field(
+            name=f"__🔢 ID Overrides__",
+            value=(
+                f"`{HELP_PREFIX}setid` `{HELP_PREFIX}setnew` `{HELP_PREFIX}setold`\n"
+                f"- Override ID categorization for selective mode\n"
+                f"- Supports bulk operations and ranges"
+            ),
+            inline=False
+        )
+
+        embed.set_footer(text=f"💡 Example: {HELP_PREFIX}settings target gmax")
 
         return embed
 
-    def get_modes_embed(self, prefix):
-        """Breeding modes help"""
+    def get_cooldown_embed(self):
+        """Cooldown commands help"""
         embed = discord.Embed(
-            title="🎯 Breeding Modes Explained",
-            description="Different strategies for different breeding goals",
+            title="🔒 __Cooldown Commands__",
+            description=f"Manage breeding cooldowns ({config.COOLDOWN_DAYS}d {config.COOLDOWN_HOURS}h duration)",
             color=config.EMBED_COLOR
         )
 
         embed.add_field(
-            name="💎 Gigantamax Mode",
+            name=f"`{HELP_PREFIX}cd list` `{HELP_PREFIX}cooldown list`",
             value=(
-                f"**Target:** `{prefix}settings target gmax`\n"
-                "**Goal:** Maximize Gigantamax egg production\n\n"
-                "**Strategy:**\n"
-                "• Female Gmax + Normal Male = Gmax egg (female form)\n"
-                "• Male Gmax + Ditto = Gmax egg (50% chance)\n"
-                "• Female-only Gmax + Ditto = Gmax egg\n"
-                "• NEVER pairs two Gmax together\n\n"
-                "**Important:** Gmax eggs have only 1% hatch chance!"
+                "> View all Pokemon on cooldown\n"
+                "> Shows time remaining and Pokemon details"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="🌍 Regional Mode",
+            name=f"`{HELP_PREFIX}cd add <ids>` `{HELP_PREFIX}cd remove <ids>`",
             value=(
-                f"**Target:** `{prefix}settings target regionals`\n"
-                "**Goal:** Breed regional form eggs\n\n"
-                "**Strategy:**\n"
-                "• Female Regional + Normal Male = Regional egg\n"
-                "• Male Regional + Ditto = 50% Regional egg\n"
-                "• NEVER pairs two Regionals together\n\n"
-                "**Important:** Regional eggs have 20% hatch chance!\n"
-                "**Regionals:** Alolan, Galarian, Hisuian, Paldean, Aqua/Combat/Blaze Breed"
+                "> Manually manage cooldowns\n"
+                "> Space-separated Pokemon IDs"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="📈 TripMax Mode (Trip31)",
+            name=f"`{HELP_PREFIX}cd clear`",
             value=(
-                f"**Target:** `{prefix}settings target tripmax`\n"
-                "**Goal:** Breed highest IV Pokemon\n\n"
-                "**Strategy:**\n"
-                "• Uses TripMax inventory only\n"
-                "• Pairs HIGHEST IV with HIGHEST IV\n"
-                "• Follows form rules (no two Gmax/Regional)\n"
-                "• Best for producing high-stat eggs"
+                "> Clear ALL cooldowns\n"
+                "> Requires confirmation"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="📉 TripZero Mode (Trip0)",
+            name="Note",
             value=(
-                f"**Target:** `{prefix}settings target tripzero`\n"
-                "**Goal:** Breed lowest IV Pokemon (for trading/wonder trade)\n\n"
-                "**Strategy:**\n"
-                "• Uses TripZero inventory only\n"
-                "• Pairs LOWEST IV with LOWEST IV\n"
-                "• Follows form rules (no two Gmax/Regional)\n"
-                "• Best for clearing low-value Pokemon"
+                f"> Pokemon are automatically added to cooldown when using `{HELP_PREFIX}breed`\n"
+                "> Cooldowns are global across all inventories"
             ),
             inline=False
         )
 
-        embed.add_field(
-            name="💝 MyChoice Mode",
-            value=(
-                f"**Target:** `{prefix}settings target mychoice`\n"
-                "**Goal:** Breed specific species combinations\n\n"
-                "**Setup:**\n"
-                f"1. `{prefix}settings setmale pikachu`\n"
-                f"2. `{prefix}settings setfemale pikachu`\n"
-                f"3. `{prefix}breed`\n\n"
-                "**Features:**\n"
-                "• Allows two Gmax/Regional (with warning)\n"
-                "• Supports Ditto special cases\n"
-                "• Validates egg group compatibility"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="🔀 Normal Mode",
-            value=(
-                f"**Target:** `{prefix}settings target all`\n"
-                "**Goal:** General breeding from normal inventory\n\n"
-                "**Strategy:**\n"
-                "• Pairs any compatible Pokemon\n"
-                "• Follows form rules (no two Gmax/Regional)\n"
-                "• Prioritizes females > males > unknowns"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="🎯 Species Mode",
-            value=(
-                f"**Target:** `{prefix}settings target pikachu, eevee`\n"
-                "**Goal:** Breed specific species only\n\n"
-                "**Strategy:**\n"
-                "• Only pairs specified species\n"
-                "• Follows form rules (no two Gmax/Regional)\n"
-                "• Can specify multiple species"
-            ),
-            inline=False
-        )
-
-        embed.set_footer(text="Mix and match modes with selective/notselective setting")
+        embed.set_footer(text=f"Example: {HELP_PREFIX}cd add 123456 789012")
 
         return embed
 
-    def get_shinydex_embed(self, prefix):
+    def get_settings_embed(self):
+        """Settings commands help"""
+        embed = discord.Embed(
+            title="⚙️ __Settings Commands__",
+            description="Configure your breeding preferences and behavior",
+            color=config.EMBED_COLOR
+        )
+
+        embed.add_field(
+            name=f"__📊 View Settings__",
+            value=(
+                f"`{HELP_PREFIX}settings`\n"
+                f"- View all current settings and available options"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name="__🎯 Mode Configuration__",
+            value=(
+                f"`{HELP_PREFIX}settings mode <selective/notselective>`\n"
+                f"- **Selective:** Pairs old IDs (≤271800) with new IDs (≥271900)\n"
+                f"- **Not Selective:** Pairs any compatible Pokemon"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name="__🎯 Target Configuration__",
+            value=(
+                f"`{HELP_PREFIX}settings target <targets>`\n"
+                f"- `all` - Breed everything\n"
+                f"- `gmax` - Gigantamax only\n"
+                f"- `regionals` - Regional forms\n"
+                f"- `tripmax` - High IV inventory\n"
+                f"- `tripzero` - Low IV inventory\n"
+                f"- `mychoice` - Custom pairing\n"
+                f"- `pikachu, eevee` - Specific Pokemon"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name="__💝 MyChoice Configuration__",
+            value=(
+                f"`{HELP_PREFIX}settings setmale <species>` - Set male species\n"
+                f"`{HELP_PREFIX}settings setfemale <species>` - Set female species"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name="__ℹ️ Display Configuration__",
+            value=(
+                f"`{HELP_PREFIX}settings info <detailed/simple/off>`\n"
+                f"- **Detailed:** Full information with IVs and reasons\n"
+                f"- **Simple:** Basic info only\n"
+                f"- **Off:** Command only"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name=f"__🔄 Reset Settings__",
+            value=(
+                f"`{HELP_PREFIX}reset-settings`\n"
+                f"- Reset all settings to defaults"
+            ),
+            inline=False
+        )
+
+        embed.set_footer(text="💡 Settings are saved per user")
+
+        return embed
+
+    def get_shinydex_embed(self):
         """Shiny Dex commands help"""
         embed = discord.Embed(
-            title="✨ Shiny Dex Management",
-            description="Track, view, and manage your shiny Pokémon collection",
+            title="✨ __Shiny Dex Commands__",
+            description="Track and view your shiny Pokemon collection",
             color=config.EMBED_COLOR
         )
 
         embed.add_field(
-            name="📥 Adding Shinies",
+            name=f"`{HELP_PREFIX}trackshiny [msg_ids]`",
             value=(
-                f"**`m!trackshiny`** or **`m!addshiny`** - Track shinies from Pokétwo\n"
-                "• Reply to Pokétwo `--sh` message or provide message IDs\n"
-                "• Auto-detects page changes for 10 minutes\n"
-                "• Skips duplicates and event Pokémon automatically\n\n"
-                "**Context Menu:**\n"
-                "• Right-click Pokétwo message → Apps → **Add Shiny**\n"
-                "• Quick way to add shinies from any message"
+                "> Track shinies from Pokétwo `--sh` messages\n"
+                "> Reply to message or provide IDs\n"
+                "> Auto-detects page changes for 5 minutes"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="📖 Viewing Dex",
+            name=f"`{HELP_PREFIX}shinydex` `{HELP_PREFIX}shinydexfull`",
             value=(
-                f"**`m!shinydex`** or **`{prefix}sd`** - Basic dex (one per dex number)\n"
-                f"**`m!shinydexfull`** or **`{prefix}sdf`** - Full dex (all forms + genders)\n"
-                f"**`m!eventdex`** or **`{prefix}ed`** - Event Pokémon dex\n"
-                f"**`m!filter [name]`** or **`{prefix}f [name]`** - Custom filters\n"
-                "• Use without name to see available filters"
+                "> **Basic dex** (`sd`) - One per dex number\n"
+                "> **Full dex** (`sdf`) - All forms and genders"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="📊 Statistics",
+            name=f"`{HELP_PREFIX}eventdex` `{HELP_PREFIX}pokemon`",
             value=(
-                f"**`m!shinystats`** - Overall collection stats\n"
-                f"**`m!typestats`** or **`{prefix}ts`** - Progress by type\n"
-                f"**`m!regionstats`** or **`{prefix}rs`** - Progress by region"
+                "> **Event dex** (`ed`) - Event Pokemon collection\n"
+                "> **Pokemon list** (`p`) - Detailed list with filters"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="🗑️ Removing Shinies",
+            name=f"`{HELP_PREFIX}filter <name>` `{HELP_PREFIX}order <type>`",
             value=(
-                f"**`m!removeshiny [ids]`** or **`{prefix}rmshiny [ids]`** - Remove by IDs\n"
-                f"**`m!clearshiny`** - Clear ALL shinies (requires confirmation)\n\n"
-                "**Context Menu:**\n"
-                "• Right-click Pokétwo message → Apps → **Remove Shiny**\n"
-                "• Quick way to remove shinies from any message"
+                "> **Filter** - Use custom filters (eevos, starters, etc.)\n"
+                "> **Order** - Set display order (iv, number, pokedex)"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="🔍 Available Filters",
-            value=(
-                "`--caught` `--c` `--uncaught` `--unc` `--orderd` `--ordera`\n"
-                "`--region [name]` `--r [name]` `--type [name]` `--t [name]`\n"
-                "`--name [search]` `--n [search]` `--page [number]` `--p [number]`"
-            ),
+            name=f"`{HELP_PREFIX}shinystats` `{HELP_PREFIX}typestats` `{HELP_PREFIX}regionstats`",
+            value="> View collection statistics and progress",
             inline=False
         )
 
         embed.add_field(
-            name="⚠️ Important Notes",
+            name=f"`{HELP_PREFIX}removeshiny` `{HELP_PREFIX}clearshiny`",
+            value="> Remove shinies by ID or clear all tracked shinies",
+            inline=False
+        )
+
+        embed.add_field(
+            name="Available Filters",
             value=(
-                "• Event Pokémon are tracked differently and have different shinydex i.e. m!eventdex\n"
-                "• Non-Event Pokémon are tracked differently and have different shinydex i.e. m!sdf or m!sd\n"
-                "• Reindexing in Pokétwo may break ID tracking\n"
-                "• Shiny tracking separate from breeding inventory\n"
-                "• Does NOT affect actual Pokétwo Pokémon"
+                "> `--caught` `--uncaught` `--orderd` `--ordera`\n"
+                "> `--region <name>` `--type <name>` `--name <search>`\n"
+                "> `--page <number>` `--list` `--smartlist`"
             ),
             inline=False
         )
 
-        embed.set_footer(text=f"Use {prefix}help [category] to see other commands")
+        embed.set_footer(text=f"Example: {HELP_PREFIX}shinydex --region kanto --caught")
 
         return embed
 
-    def get_tips_embed(self, prefix):
-        """Tips and tricks"""
+    def get_pokedex_embed(self):
+        """Pokedex commands help"""
         embed = discord.Embed(
-            title="💡 Tips & Tricks",
-            description="Pro strategies for efficient breeding",
+            title="🔍 __Pokedex Commands__",
+            description="Look up detailed Pokemon information",
             color=config.EMBED_COLOR
         )
 
         embed.add_field(
-            name="🚀 Quick Start Guide",
+            name=f"__🔎 Lookup Command__",
             value=(
-                f"1. Add Pokemon: `{prefix}add` (reply to Poketwo)\n"
-                f"2. Check inventory: `{prefix}stats`\n"
-                f"3. Set mode: `{prefix}settings mode selective`\n"
-                f"4. Set target: `{prefix}settings target all`\n"
-                f"5. Generate pair: `{prefix}breed`\n"
-                "6. Copy command to Discord and breed!"
+                f"`{HELP_PREFIX}dex <pokemon>` `{HELP_PREFIX}pokedex <pokemon>`\n"
+                f"- Look up any Pokemon by name or dex number\n"
+                f"- Supports all languages (EN, JP, DE, FR)\n"
+                f"- Works with forms and alternate names"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="💎 Gigantamax Breeding - CRITICAL INFO",
+            name="__🎮 Interactive Features__",
             value=(
-                "**⚠️ NEVER breed two Gigantamax together!**\n\n"
-                "**Why?** Each Gmax can produce 1 egg independently:\n"
-                "• Female Gmax + Compatible male/ditto = 1 Gmax egg\n"
-                "• Male Gmax + Ditto = 1 Gmax egg\n"
-                "• Total: **2 Gmax eggs** from 2 separate pairs\n\n"
-                "**Hatch Rate:** Only **1% chance** to hatch Gmax!\n"
-                "• 99% hatches as non-Gmax of mother's species\n\n"
-                "**Best Strategy:**\n"
-                f"• `{prefix}settings target gmax`\n"
-                "• Breed each Gmax separately for maximum eggs\n"
-                "• Female Gmax with normal males\n"
-                "• Male Gmax with Ditto"
+                f"- Toggle between normal and shiny sprites\n"
+                f"- View gender differences (male/female)\n"
+                f"- Browse all forms via dropdown menu\n"
+                f"- Navigate between dex numbers\n"
+                f"- See your shiny count for that Pokemon"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="🌍 Regional Form Breeding - CRITICAL INFO",
+            name="__📊 Information Displayed__",
             value=(
-                "**⚠️ NEVER breed two Regionals together!**\n\n"
-                "**Why?** Each Regional can produce 1 egg independently:\n"
-                "• Female Regional + Compatible male/ditto = 1 Regional egg\n"
-                "• Male Regional + Ditto = 1 Regional egg\n"
-                "• Total: **2 Regional eggs** from 2 separate pairs\n\n"
-                "**Hatch Rate:** Only **20% chance** to hatch Regional!\n"
-                "• 80% hatches as base form of mother's species\n\n"
-                "**Best Strategy:**\n"
-                f"• `{prefix}settings target regionals`\n"
-                "• Breed each Regional separately for maximum eggs\n"
-                "• Female Regional with normal males\n"
-                "• Male Regional with Ditto"
+                f"- Base stats (HP, Attack, Defense, Sp. Atk, Sp. Def, Speed)\n"
+                f"- Types, region, and catchability\n"
+                f"- Evolution line and methods\n"
+                f"- Egg groups and hatch time\n"
+                f"- Gender ratio and appearance\n"
+                f"- Names in multiple languages"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="📊 Multi-Inventory Strategy",
+            name="__💡 Examples__",
             value=(
-                "**Normal Inventory:** General breeding\n"
-                "**TripMax Inventory:** High IV Pokemon for competitive\n"
-                "**TripZero Inventory:** Low IV for Wonder Trade/releases\n\n"
-                "**Pro Tip:** Same Pokemon can be in all three!\n"
-                f"`{prefix}add` → adds to normal\n"
-                f"`{prefix}addtripmax` → adds to tripmax (can be same IDs)\n"
-                f"`{prefix}addtripzero` → adds to tripzero (can be same IDs)"
+                f"- `{HELP_PREFIX}dex bulbasaur` - Look up by name\n"
+                f"- `{HELP_PREFIX}dex #25` - Look up by dex number\n"
+                f"- `{HELP_PREFIX}dex deoxys` - Browse all forms\n"
+                f"- `{HELP_PREFIX}dex pikachu` - See gender differences"
+            ),
+            inline=False
+        )
+
+        embed.set_footer(text="💡 Supports accent-insensitive search")
+
+        return embed
+
+    def get_utility_embed(self):
+        """Utility commands help"""
+        embed = discord.Embed(
+            title="🛠️ __Utility Commands__",
+            description="Helpful commands for various tasks",
+            color=config.EMBED_COLOR
+        )
+
+        embed.add_field(
+            name=f"__📝 Track Command__",
+            value=(
+                f"`{HELP_PREFIX}track <command template>`\n"
+                f"- Track Pokemon IDs from an editing list\n"
+                f"- Reply to message, edit it, then react with ✅\n"
+                f"- **Example:** `{HELP_PREFIX}track p!select (id)`\n"
+                f"- Monitors for 3 minutes"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="🎯 Selective Mode Benefits",
+            name=f"__✏️ Format Command__",
             value=(
-                "**Old IDs (≤271800) + New IDs (≥271900) = Better Compatibility**\n\n"
-                "• Same species + old/new = HIGH compatibility\n"
-                "• Different species + old/new = MEDIUM compatibility\n"
-                "• Ditto + old/new = MEDIUM compatibility\n\n"
-                f"**Enable:** `{prefix}settings mode selective`"
+                f"`{HELP_PREFIX}format \"<pattern>\" <items>`\n"
+                f"- Add prefix pattern to comma-separated items\n"
+                f"- **Example:** `{HELP_PREFIX}format \"--n\" abra, kadabra`\n"
+                f"- **Result:** `--n abra --n kadabra`"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="⚡ Speed Tips",
+            name=f"__💰 Convert Command__",
             value=(
-                f"• Use `{prefix}inv --gmax` to quickly check Gmax count\n"
-                f"• Set `{prefix}settings info off` for instant commands\n"
-                "• Use `/breed` slash command for autocomplete\n"
-                f"• `{prefix}cd list` to see what's available soon\n"
-                f"• Check `{prefix}stats` regularly to monitor inventory\n"
-                "• Use filters: `--g male`, `--gmax`, `--regional`"
+                f"`/convert <currency> <amount>`\n"
+                f"- Convert between Pokétwo currencies\n"
+                f"- **Currencies:** PC, Shards, Redeems, Incenses\n"
+                f"- Slash command only"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="🔄 Cooldown Management",
+            name=f"__🔄 Replace Command__",
             value=(
-                f"• Bot auto-adds pairs to cooldown when you `{prefix}breed`\n"
-                f"• If you breed manually, use `{prefix}cd add [ids]`\n"
-                "• Check cooldowns before long breeding sessions\n"
-                f"• Use `{prefix}cd clear` to reset if needed (be careful!)"
+                f"`/replace <old> <new> <text>`\n"
+                f"- Replace or remove phrases from text\n"
+                f"- Leave `new` empty to remove phrase\n"
+                f"- Slash command only"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="💝 MyChoice Advanced",
+            name=f"__📊 Order Command__",
             value=(
-                "**Use Case 1: Shiny Hunting**\n"
-                f"`{prefix}settings setmale pikachu`\n"
-                f"`{prefix}settings setfemale pikachu`\n"
-                "Pairs all Pikachu together for shiny chain\n\n"
-                "**Use Case 2: Ditto Breeding**\n"
-                f"`{prefix}settings setmale ditto`\n"
-                f"`{prefix}settings setfemale pikachu`\n"
-                "Pairs all female Pikachus with Ditto"
+                f"`{HELP_PREFIX}order <type>`\n"
+                f"- Set Pokemon display order\n"
+                f"- **Types:** `iv`, `iv+`, `iv-`, `number`, `number+`, `number-`, `pokedex`, `pokedex+`, `pokedex-`"
+            ),
+            inline=False
+        )
+
+        embed.set_footer(text="💡 Track command auto-sends commands on Pokétwo response")
+
+        return embed
+
+    def get_context_embed(self):
+        """Context menu commands help"""
+        embed = discord.Embed(
+            title="📱 Context Menu Commands",
+            description=(
+                "Right-click (or long-press on mobile) Pokétwo messages to access quick actions.\n\n"
+                "__📖 How to Use__\n"
+                "- Right-click any Pokétwo message\n"
+                "- Select **Apps** from the menu\n"
+                "- Choose one of the commands below"
+            ),
+            color=config.EMBED_COLOR
+        )
+
+        embed.add_field(
+            name="__✨ Add Shiny__",
+            value=(
+                "- Quickly track shinies from Pokétwo shiny list\n"
+                "- Works with `--sh` embed messages\n"
+                "- Automatically filters out event Pokemon\n"
+                "- Shows summary of tracked shinies"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="❌ Common Mistakes to Avoid",
+            name="__🗑️ Remove Shiny__",
             value=(
-                "• **NEVER** pair two Gigantamax (waste of potential eggs!)\n"
-                "• **NEVER** pair two Regionals (waste of potential eggs!)\n"
-                "• Don't forget to add Pokemon to cooldown if breeding manually\n"
-                "• Don't use TripZero inventory for competitive breeding\n"
-                f"• Don't mix up `{prefix}add` and `{prefix}addtripmax` commands\n"
-                "• Remember: Gmax eggs = 1% hatch rate, Regional = 20%"
+                "- Remove shinies from tracking\n"
+                "- Works with any message containing Pokemon IDs\n"
+                "- Extracts IDs and removes from your collection\n"
+                "- Shows count of removed shinies"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="🔍 Using Inventory Filters",
+            name="__🎉 Event Shiny Add__",
             value=(
-                "**Gender Filters:**\n"
-                f"`{prefix}inv --g male` - Show only males\n"
-                f"`{prefix}inv --g female` - Show only females\n\n"
-                "**Form Filters:**\n"
-                f"`{prefix}inv --gmax` - Show only Gigantamax\n"
-                f"`{prefix}inv --regional` - Show only Regionals\n\n"
-                "**Combine Everything:**\n"
-                f"`{prefix}inv pikachu --g female --gmax`\n"
-                "Shows only female Gigantamax Pikachu"
+                "- Track event Pokemon specifically\n"
+                "- Works with `--sh` messages containing event forms\n"
+                "- Separate tracking from regular shinies\n"
+                "- View with `m!eventdex`"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="📈 Maximizing Egg Production",
+            name="__🗑️ Event Shiny Remove__",
             value=(
-                "**For Gmax Pokemon:**\n"
-                "• 1 Female Gmax + Compatible male/ditto = 1 Gmax egg\n"
-                "• 1 Male Gmax + Ditto = 1 Gmax egg\n"
-                "• Total: 2 Gmax eggs (not wasted in one pair!)\n\n"
-                "**For Regional Pokemon:**\n"
-                "• 1 Female Regional + Compatible male/ditto = 1 Regional egg\n"
-                "• 1 Male Regional + Ditto = 1 Regional egg\n"
-                "• Total: 2 Regional eggs (not wasted in one pair!)\n\n"
-                "**Key Insight:** Breed special forms separately!"
+                "- Remove event Pokemon from tracking\n"
+                "- Similar to Remove Shiny but for events\n"
+                "- Extracts IDs from message\n"
+                "- Updates event dex"
             ),
             inline=False
         )
 
-        embed.set_footer(text="Have more questions? Ask in the support server!")
+        embed.add_field(
+            name="__⚠️ Requirements__",
+            value=(
+                "- Must be used on Pokétwo bot messages\n"
+                "- Message must contain embed or Pokemon IDs\n"
+                "- Works in any channel where bot has access\n"
+                "- Ephemeral responses (only you see them)"
+            ),
+            inline=False
+        )
+
+        embed.set_footer(text="💡 Context commands work even in archived threads!")
 
         return embed
 
 
 async def setup(bot):
-    await bot.add_cog(Help(bot))
+    await bot.add_cog(HelpCommands(bot))
