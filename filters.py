@@ -22,8 +22,17 @@ FILTERS = {
     },
     "newmegas": {
         "name":
-        "New Mega Pokémons",
-        "aliases": ["newmega", "new-megas", "mega2", "mega-za", "za-mega", "mega-2"],
+        "Eeveelutions",
+        "aliases":
+        ["newmega", "new-megas", "mega2", "mega-za", "za-mega", "mega-2", "nm"],
+        "pokemon": [
+            "Raichu","Clefable","Victreebel","Starmie","Dragonite","Meganium","Feraligatr","Skarmory","Chimecho","Absol","Staraptor","Garchomp","Lucario","Froslass","Heatran","Darkrai","Emboar","Excadrill","Scolipede","Scrafty","Eelektross","Chandelure","Golurk","Chesnaught","Delphox","Greninja","Pyroar","Meowstic","Malamar","Barbaracle","Dragalge","Hawlucha","Complete Zygarde","Crabominable","Golisopod","Drampa","Magearna","Zeraora","Falinks","Scovillain","Glimmora","Tatsugiri","Droopy Tatsugiri","Stretchy Tatsugiri","Baxcalibur" 
+        ]
+    },
+    "megas-not-in-p2-yet": {
+        "name":
+        "New Mega Pokémons Not in P2 yet",
+        "aliases": ["p2newmega", "p2new-megas", "p2mega2", "p2mega-za", "p2za-mega", "p2mega-2", "p2nm"],
         "pokemon": [
          "Mega Stretchy Tatsugiri","Mega Original Magearna","Mega Droopy Tatsugiri","Mega Crabominable","Mega Victreebel","Mega Feraligatr","Mega Eelektross","Mega Chandelure","Mega Chesnaught","Mega Barbaracle","Mega Scovillain","Mega Baxcalibur","Mega Dragonite","Mega Staraptor","Mega Excadrill","Mega Scolipede","Mega Golisopod","Mega Tatsugiri","Mega Clefable","Mega Meganium","Mega Skarmory","Mega Chimecho","Mega Garchomp Z","Mega Froslass","Mega Greninja","Mega Meowstic","Mega Dragalge","Mega Hawlucha","Mega Magearna","Mega Glimmora","Mega Starmie","Mega Lucario Z","Mega Heatran","Mega Darkrai","Mega Scrafty","Mega Delphox","Mega Floette","Mega Malamar","Mega Zygarde","Mega Zeraora","Mega Falinks","Mega Raichu X","Mega Raichu Y","Mega Emboar","Mega Golurk","Mega Pyroar","Mega Drampa","Mega Absol Z" 
         ]
