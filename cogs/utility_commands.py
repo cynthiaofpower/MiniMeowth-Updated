@@ -102,10 +102,10 @@ class UtilityCommands(commands.Cog):
         Usage: ?track <command with (id) placeholder>
         Example: ?track p!select (id)
 
-        Reply to a Pokétwo list message OR a plain text message with IDs, then react with ✅ when done editing.
+        Reply to a Pokétwo list/marketplace message OR a plain text message with IDs, then react with ✅ when done editing.
         """
         if not ctx.message.reference:
-            return await self._send_error(ctx, "Please reply to a Pokétwo list message or a message containing Pokemon IDs!")
+            return await self._send_error(ctx, "Please reply to a Pokétwo list/marketplace message or a message containing Pokemon IDs!")
 
         if ctx.channel.id in active_track_commands:
             return await self._send_error(ctx, "There's already an active track command in this channel! Use `?stoptrack` first.")
@@ -116,8 +116,14 @@ class UtilityCommands(commands.Cog):
         try:
             replied_message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
 
-            # Check if it's a Pokétwo embed message
-            is_poketwo_embed = await self._validate_poketwo_message(replied_message, "pokémon", check_description=True)
+            # Check if it's a Pokétwo embed message (list or marketplace)
+            is_poketwo_embed = False
+            if replied_message.author.id == 716390085896962058 and replied_message.embeds:
+                embed = replied_message.embeds[0]
+                # Check for both "pokémon" (list) and marketplace embeds
+                if embed.title and ("pokémon" in embed.title.lower() or "marketplace" in embed.title.lower()):
+                    if embed.description:
+                        is_poketwo_embed = True
             
             pokemon_ids = []
             
@@ -368,10 +374,24 @@ class UtilityCommands(commands.Cog):
         """Extract Pokemon IDs from embed description"""
         pokemon_ids = []
         for line in description.split('\n'):
-            if '•' in line:
+            # Match both formats:
+            # 1. **`33384252`** (with backticks and bold)
+            # 2. 33384252　 (plain with Japanese space)
+            # 3. `38749770`　 (with backticks, no bold)
+            
+            # Try to find ID in backticks first
+            backtick_match = re.search(r'`(\d+)`', line)
+            if backtick_match:
+                pokemon_ids.append(backtick_match.group(1))
+                continue
+            
+            # Try to find ID at start of line with Japanese space
+            if '　' in line or '•' in line:
                 id_part = line.split('　')[0] if '　' in line else line.split()[0]
                 id_match = id_part.replace('**', '').replace('`', '').strip()
-                pokemon_ids.append(id_match)
+                if id_match.isdigit():
+                    pokemon_ids.append(id_match)
+        
         return pokemon_ids
 
     def _extract_ids_from_plain_text(self, text: str) -> list:
@@ -393,13 +413,17 @@ class UtilityCommands(commands.Cog):
             if track_data.get('is_plain_text'):
                 if message.content:
                     new_ids = self._extract_ids_from_plain_text(message.content)
-            # Handle Pokétwo embed messages
+            # Handle Pokétwo embed messages (list or marketplace)
             else:
                 if message.author.id != 716390085896962058 or not message.embeds:
                     continue
 
                 embed = message.embeds[0]
-                if not embed.title or "pokémon" not in embed.title.lower() or not embed.description:
+                # Check for both list and marketplace embeds
+                if not embed.title or not embed.description:
+                    continue
+                
+                if "pokémon" not in embed.title.lower() and "marketplace" not in embed.title.lower():
                     continue
 
                 new_ids = self._extract_pokemon_ids(embed.description)
@@ -441,7 +465,12 @@ class UtilityCommands(commands.Cog):
 
         first_id = command_data['pokemon_ids'][0]
         command = command_data['template'].replace('(id)', first_id)
-        await channel.send(f"```{command}```")
+        
+        embed = discord.Embed(
+            description=f"```{command}```",
+            color=EMBED_COLOR
+        )
+        await channel.send(embed=embed)
 
         embed = discord.Embed(
             description=f"{EMOJI_TICK} Started sending commands! Total IDs: {len(command_data['pokemon_ids'])}",
@@ -454,7 +483,12 @@ class UtilityCommands(commands.Cog):
         next_id = command_data['pokemon_ids'][command_data['current_index']]
         template = command_data['template']
         command = template.replace('(id)', next_id)
-        await channel.send(f"```{command}```")
+        
+        embed = discord.Embed(
+            description=f"```{command}```",
+            color=EMBED_COLOR
+        )
+        await channel.send(embed=embed)
 
     async def _finish_track_sequence(self, channel, command_data):
         """Finish track command sequence and cleanup"""
