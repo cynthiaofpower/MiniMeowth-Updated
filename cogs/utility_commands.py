@@ -92,10 +92,10 @@ class UtilityCommands(commands.Cog):
         Usage: ?track <command with (id) placeholder>
         Example: ?track p!select (id)
 
-        Reply to a Pokétwo list message, then react with ✅ when done editing.
+        Reply to a Pokétwo list message OR a plain text message with IDs, then react with ✅ when done editing.
         """
         if not ctx.message.reference:
-            return await self._send_error(ctx, "Please reply to a Pokétwo list message!")
+            return await self._send_error(ctx, "Please reply to a Pokétwo list message or a message containing Pokemon IDs!")
 
         if ctx.channel.id in active_track_commands:
             return await self._send_error(ctx, "There's already an active track command in this channel! Use `?stoptrack` first.")
@@ -106,11 +106,20 @@ class UtilityCommands(commands.Cog):
         try:
             replied_message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
 
-            if not await self._validate_poketwo_message(replied_message, "pokémon", check_description=True):
-                return await self._send_error(ctx, "Please reply to a Pokétwo pokémon list message!")
-
-            # Extract initial Pokemon IDs
-            pokemon_ids = self._extract_pokemon_ids(replied_message.embeds[0].description)
+            # Check if it's a Pokétwo embed message
+            is_poketwo_embed = await self._validate_poketwo_message(replied_message, "pokémon", check_description=True)
+            
+            pokemon_ids = []
+            
+            if is_poketwo_embed:
+                # Extract IDs from Pokétwo embed
+                pokemon_ids = self._extract_pokemon_ids(replied_message.embeds[0].description)
+            elif replied_message.content:
+                # Extract IDs from plain text
+                pokemon_ids = self._extract_ids_from_plain_text(replied_message.content)
+            
+            if not pokemon_ids:
+                return await self._send_error(ctx, "No Pokemon IDs found in the replied message!")
 
             # Create tracking message
             embed = discord.Embed(
@@ -129,7 +138,8 @@ class UtilityCommands(commands.Cog):
                 'tracking_message_id': tracking_msg.id,
                 'status': 'tracking',
                 'current_index': 0,
-                'total_count': 0
+                'total_count': 0,
+                'is_plain_text': not is_poketwo_embed
             }
 
             # Set timeout
@@ -354,6 +364,12 @@ class UtilityCommands(commands.Cog):
                 pokemon_ids.append(id_match)
         return pokemon_ids
 
+    def _extract_ids_from_plain_text(self, text: str) -> list:
+        """Extract numeric IDs from plain text"""
+        # Find all sequences of digits (Pokemon IDs)
+        ids = re.findall(r'\b\d+\b', text)
+        return ids
+
     async def _handle_track_update(self, message: discord.Message):
         """Handle updates to tracked messages"""
         for channel_id, track_data in list(active_track_commands.items()):
@@ -361,14 +377,22 @@ class UtilityCommands(commands.Cog):
                 track_data.get('status') != 'tracking'):
                 continue
 
-            if message.author.id != 716390085896962058 or not message.embeds:
-                continue
+            new_ids = []
+            
+            # Handle plain text messages
+            if track_data.get('is_plain_text'):
+                if message.content:
+                    new_ids = self._extract_ids_from_plain_text(message.content)
+            # Handle Pokétwo embed messages
+            else:
+                if message.author.id != 716390085896962058 or not message.embeds:
+                    continue
 
-            embed = message.embeds[0]
-            if not embed.title or "pokémon" not in embed.title.lower() or not embed.description:
-                continue
+                embed = message.embeds[0]
+                if not embed.title or "pokémon" not in embed.title.lower() or not embed.description:
+                    continue
 
-            new_ids = self._extract_pokemon_ids(embed.description)
+                new_ids = self._extract_pokemon_ids(embed.description)
 
             # Add only new IDs
             added_count = 0
