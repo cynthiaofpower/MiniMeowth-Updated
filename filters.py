@@ -22,7 +22,7 @@ FILTERS = {
     },
     "newmegas": {
         "name":
-        "Eeveelutions",
+        "Pokemons That Got New Mega Form",
         "aliases":
         ["newmega", "new-megas", "mega2", "mega-za", "za-mega", "mega-2", "nm"],
         "pokemon": [
