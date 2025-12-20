@@ -295,8 +295,18 @@ class Utils(commands.Cog):
         # Check for shared egg group
         return any(group in groups2 for group in groups1)
 
-    def categorize_id(self, pokemon_id: int):
-        """Categorize Pokemon ID as old, new, or unknown"""
+    # Replace the categorize_id and can_pair_ids methods in Utils class:
+
+    def categorize_id(self, pokemon_id: int, overrides: dict = None):
+        """
+        Categorize Pokemon ID as old, new, or unknown
+        overrides: dict of {pokemon_id: 'old'/'new'} from database
+        """
+        # Check override first
+        if overrides and pokemon_id in overrides:
+            return overrides[pokemon_id]
+
+        # Use default logic
         if pokemon_id <= config.OLD_ID_MAX:
             return 'old'
         elif pokemon_id >= config.NEW_ID_MIN:
@@ -304,25 +314,30 @@ class Utils(commands.Cog):
         else:
             return 'unknown'
 
-    def can_pair_ids(self, id1: int, id2: int):
-        """Check if two IDs can be paired (one old, one new)"""
-        cat1 = self.categorize_id(id1)
-        cat2 = self.categorize_id(id2)
+    def can_pair_ids(self, id1: int, id2: int, overrides: dict = None):
+        """
+        Check if two IDs can be paired (one old, one new)
+        overrides: dict of {pokemon_id: 'old'/'new'} from database
+        """
+        cat1 = self.categorize_id(id1, overrides)
+        cat2 = self.categorize_id(id2, overrides)
 
         if cat1 == 'unknown' or cat2 == 'unknown':
             return False
 
         return (cat1 == 'old' and cat2 == 'new') or (cat1 == 'new' and cat2 == 'old')
 
-    def get_compatibility(self, pokemon1: dict, pokemon2: dict, selective_mode: bool):
-        """Calculate expected compatibility (High/Medium/Low)"""
+    # Replace get_compatibility method in Utils class:
+
+    def get_compatibility(self, pokemon1: dict, pokemon2: dict, selective_mode: bool, overrides: dict = None):
+        """Calculate expected compatibility (High/Medium/Low) with ID overrides"""
         # Use pre-computed fields
         is_ditto1 = pokemon1.get('is_ditto', False)
         is_ditto2 = pokemon2.get('is_ditto', False)
 
         # Ditto pairs: Medium or Low (never High)
         if is_ditto1 or is_ditto2:
-            if selective_mode and self.can_pair_ids(pokemon1['pokemon_id'], pokemon2['pokemon_id']):
+            if selective_mode and self.can_pair_ids(pokemon1['pokemon_id'], pokemon2['pokemon_id'], overrides):
                 return "Medium"
             else:
                 return "Low/Medium"
@@ -333,13 +348,13 @@ class Utils(commands.Cog):
 
         if dex1 == dex2 and dex1 > 0:
             # Same dex number - check old/new
-            if selective_mode and self.can_pair_ids(pokemon1['pokemon_id'], pokemon2['pokemon_id']):
+            if selective_mode and self.can_pair_ids(pokemon1['pokemon_id'], pokemon2['pokemon_id'], overrides):
                 return "High"
             else:
                 return "Medium"
         else:
             # Different dex number (same egg group)
-            if selective_mode and self.can_pair_ids(pokemon1['pokemon_id'], pokemon2['pokemon_id']):
+            if selective_mode and self.can_pair_ids(pokemon1['pokemon_id'], pokemon2['pokemon_id'], overrides):
                 return "Medium"
             else:
                 return "Low/Medium"
