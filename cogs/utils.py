@@ -7,37 +7,60 @@ import config
 class Utils(commands.Cog):
     """Utility functions for Pokemon parsing, breeding compatibility, and Shiny Dex"""
 
+    # ===== CLASS-LEVEL CACHE (SHARED ACROSS ALL INSTANCES) =====
+    # This data is loaded ONCE and shared by all bot instances
+    _data_loaded = False
+    _shared_data = {}
+
     def __init__(self, bot):
         self.bot = bot
 
-        # Breeding bot data structures
-        self.egg_groups = {}
-        self.male_only_dex = set()
-        self.female_only_dex = set()
-        self.base_species_cache = {}
+        # Use shared class-level data instead of instance data
+        if not Utils._data_loaded:
+            print("📦 Loading Utils data for the first time...")
+            Utils._shared_data = self._initialize_data_structures()
+            self._load_all_data()
+            Utils._data_loaded = True
+            print(f"✅ Utils data loaded and cached")
+        else:
+            print("✅ Utils using cached data (no reload needed)")
 
-        # Shared dex number data (used by both bots)
-        self.dex_numbers = {}
-        self.dex_forms = {}
+        # Create instance references to shared data (for backward compatibility)
+        self.egg_groups = Utils._shared_data['egg_groups']
+        self.male_only_dex = Utils._shared_data['male_only_dex']
+        self.female_only_dex = Utils._shared_data['female_only_dex']
+        self.base_species_cache = Utils._shared_data['base_species_cache']
+        self.dex_numbers = Utils._shared_data['dex_numbers']
+        self.dex_forms = Utils._shared_data['dex_forms']
+        self.dex_data = Utils._shared_data['dex_data']
+        self.dex_by_number = Utils._shared_data['dex_by_number']
+        self.pokemon_info = Utils._shared_data['pokemon_info']
+        self.event_data = Utils._shared_data['event_data']
+        self.event_pokemon_list = Utils._shared_data['event_pokemon_list']
 
-        # Shiny dex specific data structures
-        self.dex_data = {}  # name -> {'dex_number': int, 'has_gender_diff': bool}
-        self.dex_by_number = {}  # dex_number -> [list of (name, has_gender_diff)]
-        self.pokemon_info = {}  # name -> {'region': str, 'type1': str, 'type2': str}
-
-        # Event Pokemon data structures
-        self.event_data = {}  # name -> {'has_gender_diff': bool}
-        self.event_pokemon_list = []  # List of (name, has_gender_diff)
-
-        # Precompile regex patterns for better performance
+        # Precompile regex patterns (instance-specific is fine)
         self.id_pattern = re.compile(r'`(\s*\d+\s*)`')
         self.name_pattern = re.compile(r'> ([^<]+)<:(?:male|female|unknown):')
         self.iv_pattern = re.compile(r'•\s*([\d.]+)%')
 
-        self.load_data()
+    def _initialize_data_structures(self):
+        """Initialize all data structures (called once)"""
+        return {
+            'egg_groups': {},
+            'male_only_dex': set(),
+            'female_only_dex': set(),
+            'base_species_cache': {},
+            'dex_numbers': {},
+            'dex_forms': {},
+            'dex_data': {},
+            'dex_by_number': {},
+            'pokemon_info': {},
+            'event_data': {},
+            'event_pokemon_list': []
+        }
 
-    def load_data(self):
-        """Load all CSV data"""
+    def _load_all_data(self):
+        """Load all CSV data into shared cache"""
         self.load_dex_numbers()
         self.load_egg_groups()
         self.load_gender_only_species()
@@ -46,6 +69,11 @@ class Utils(commands.Cog):
 
     def load_dex_numbers(self):
         """Load both dex_number.csv (breeding) and dex_number_updated.csv (shiny dex)"""
+        dex_numbers = Utils._shared_data['dex_numbers']
+        dex_forms = Utils._shared_data['dex_forms']
+        dex_data = Utils._shared_data['dex_data']
+        dex_by_number = Utils._shared_data['dex_by_number']
+
         # Load breeding bot dex numbers from dex_number.csv
         try:
             with open('data/dex_number.csv', 'r', encoding='utf-8') as f:
@@ -60,20 +88,19 @@ class Utils(commands.Cog):
                         full_name = f"{form} {name}".strip() if form else name
 
                         # Map full name to dex number (for breeding bot)
-                        self.dex_numbers[full_name] = dex_num
+                        dex_numbers[full_name] = dex_num
 
                         # Also map base name to dex number (for lookups)
                         if not form:
-                            self.dex_numbers[name] = dex_num
+                            dex_numbers[name] = dex_num
 
                         # Store in forms dict for reverse lookup (for breeding bot)
-                        self.dex_forms[(dex_num, form)] = full_name
+                        dex_forms[(dex_num, form)] = full_name
 
                     except (ValueError, KeyError) as e:
-                        print(f"Error parsing breeding dex row: {row}, error: {e}")
                         continue
 
-            print(f"✅ Loaded {len(self.dex_numbers)} breeding dex number entries from data/dex_number.csv")
+            print(f"✅ Loaded {len(dex_numbers)} breeding dex number entries from data/dex_number.csv")
         except Exception as e:
             print(f"❌ Error loading data/dex_number.csv: {e}")
 
@@ -88,26 +115,26 @@ class Utils(commands.Cog):
                         has_gender_diff = row.get('HasGenderDifference', '').strip().lower() == 'yes'
 
                         # Store in dex_data (for shiny dex)
-                        self.dex_data[name] = {
+                        dex_data[name] = {
                             'dex_number': dex_num,
                             'has_gender_diff': has_gender_diff
                         }
 
                         # Store in dex_by_number (for shiny dex)
-                        if dex_num not in self.dex_by_number:
-                            self.dex_by_number[dex_num] = []
-                        self.dex_by_number[dex_num].append((name, has_gender_diff))
+                        if dex_num not in dex_by_number:
+                            dex_by_number[dex_num] = []
+                        dex_by_number[dex_num].append((name, has_gender_diff))
 
                     except (ValueError, KeyError) as e:
-                        print(f"Error parsing shiny dex row: {row}, error: {e}")
                         continue
 
-            print(f"✅ Loaded {len(self.dex_data)} shiny dex number entries from data/dex_number_updated.csv")
+            print(f"✅ Loaded {len(dex_data)} shiny dex number entries from data/dex_number_updated.csv")
         except Exception as e:
             print(f"❌ Error loading data/dex_number_updated.csv: {e}")
 
     def load_egg_groups(self):
         """Load egg groups for breeding bot"""
+        egg_groups = Utils._shared_data['egg_groups']
         try:
             with open('data/egg_groups.csv', 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
@@ -115,13 +142,16 @@ class Utils(commands.Cog):
                     name = row['Name'].strip()
                     groups = row['Egg Groups'].strip()
                     if groups:
-                        self.egg_groups[name] = [g.strip() for g in groups.split(',')]
-            print(f"✅ Loaded {len(self.egg_groups)} egg group entries")
+                        egg_groups[name] = [g.strip() for g in groups.split(',')]
+            print(f"✅ Loaded {len(egg_groups)} egg group entries")
         except Exception as e:
             print(f"❌ Error loading data/egg_groups.csv: {e}")
 
     def load_gender_only_species(self):
         """Load male-only and female-only species by dex number"""
+        male_only_dex = Utils._shared_data['male_only_dex']
+        female_only_dex = Utils._shared_data['female_only_dex']
+
         # Load male-only species
         try:
             with open('data/male.csv', 'r', encoding='utf-8') as f:
@@ -130,10 +160,10 @@ class Utils(commands.Cog):
                     if 'dex' in row:
                         try:
                             dex_num = int(row['dex'])
-                            self.male_only_dex.add(dex_num)
+                            male_only_dex.add(dex_num)
                         except ValueError:
                             continue
-            print(f"✅ Loaded {len(self.male_only_dex)} male-only dex numbers")
+            print(f"✅ Loaded {len(male_only_dex)} male-only dex numbers")
         except Exception as e:
             print(f"❌ Error loading data/male.csv: {e}")
 
@@ -145,15 +175,16 @@ class Utils(commands.Cog):
                     if 'dex' in row:
                         try:
                             dex_num = int(row['dex'])
-                            self.female_only_dex.add(dex_num)
+                            female_only_dex.add(dex_num)
                         except ValueError:
                             continue
-            print(f"✅ Loaded {len(self.female_only_dex)} female-only dex numbers")
+            print(f"✅ Loaded {len(female_only_dex)} female-only dex numbers")
         except Exception as e:
             print(f"❌ Error loading data/female.csv: {e}")
 
     def load_pokemon_data(self):
         """Load pokemon_data.csv for region/type filtering (shiny dex)"""
+        pokemon_info = Utils._shared_data['pokemon_info']
         try:
             with open('data/pokemon_data.csv', 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
@@ -163,18 +194,21 @@ class Utils(commands.Cog):
                     type1 = row['type1'].strip() if row['type1'] else ""
                     type2 = row['type2'].strip() if row['type2'] else ""
 
-                    self.pokemon_info[name] = {
+                    pokemon_info[name] = {
                         'region': region,
                         'type1': type1,
                         'type2': type2
                     }
 
-            print(f"✅ Loaded {len(self.pokemon_info)} pokemon data entries")
+            print(f"✅ Loaded {len(pokemon_info)} pokemon data entries")
         except Exception as e:
             print(f"❌ Error loading data/pokemon_data.csv: {e}")
 
     def load_event_pokemon(self):
         """Load event_pokemon.csv (shiny dex)"""
+        event_data = Utils._shared_data['event_data']
+        event_pokemon_list = Utils._shared_data['event_pokemon_list']
+
         try:
             with open('data/event_pokemon.csv', 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
@@ -184,18 +218,17 @@ class Utils(commands.Cog):
                         has_gender_diff = row['HasGenderDifference'].strip().lower() == 'yes'
 
                         # Store in event_data
-                        self.event_data[name] = {
+                        event_data[name] = {
                             'has_gender_diff': has_gender_diff
                         }
 
                         # Store in list
-                        self.event_pokemon_list.append((name, has_gender_diff))
+                        event_pokemon_list.append((name, has_gender_diff))
 
                     except (ValueError, KeyError) as e:
-                        print(f"Error parsing event pokemon row: {row}, error: {e}")
                         continue
 
-            print(f"✅ Loaded {len(self.event_data)} event pokemon entries")
+            print(f"✅ Loaded {len(event_data)} event pokemon entries")
         except Exception as e:
             print(f"❌ Error loading data/event_pokemon.csv: {e}")
 
@@ -295,8 +328,6 @@ class Utils(commands.Cog):
         # Check for shared egg group
         return any(group in groups2 for group in groups1)
 
-    # Replace the categorize_id and can_pair_ids methods in Utils class:
-
     def categorize_id(self, pokemon_id: int, overrides: dict = None):
         """
         Categorize Pokemon ID as old, new, or unknown
@@ -326,8 +357,6 @@ class Utils(commands.Cog):
             return False
 
         return (cat1 == 'old' and cat2 == 'new') or (cat1 == 'new' and cat2 == 'old')
-
-    # Replace get_compatibility method in Utils class:
 
     def get_compatibility(self, pokemon1: dict, pokemon2: dict, selective_mode: bool, overrides: dict = None):
         """Calculate expected compatibility (High/Medium/Low) with ID overrides"""
@@ -409,7 +438,7 @@ class Utils(commands.Cog):
                 # Get dex number
                 dex_number = self.get_dex_number(pokemon_name)
 
-                # NEW: Pre-compute all derived fields
+                # Pre-compute all derived fields
                 egg_groups = self.get_egg_groups(pokemon_name)
                 base_species = self.get_base_species(pokemon_name)
                 is_gmax = self.is_gigantamax(pokemon_name)
