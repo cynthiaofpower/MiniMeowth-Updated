@@ -14,6 +14,8 @@ class Database:
         # Shiny dex collections
         self.shinies = None
         self.event_shinies = None
+        # id override 
+        self.id_overrides = None
 
     @staticmethod
     def clean_pokemon_name(name: str) -> str:
@@ -51,6 +53,10 @@ class Database:
         self.shinies = self.db['shinies']
         self.event_shinies = self.db['event_shinies']
 
+        # Add this in the connect() method after other collections:
+        self.id_overrides = self.db['id_overrides']
+        await self.id_overrides.create_index("user_id", unique=True)
+
         # Create indexes for breeding bot
         await self.pokemon.create_index([("user_id", 1), ("pokemon_id", 1)], unique=True)
         await self.pokemon.create_index("user_id")
@@ -82,6 +88,74 @@ class Database:
             print("❌ Disconnected from MongoDB")
 
     # ===== POKEMON OPERATIONS (BREEDING BOT) =====
+
+    async def set_id_override(self, user_id: int, pokemon_id: int, category: str):
+        """
+        Set an ID override for selective mode
+        category: 'old' or 'new'
+        """
+        if category not in ['old', 'new']:
+            return False
+
+        await self.id_overrides.update_one(
+            {"user_id": user_id},
+            {"$set": {f"overrides.{pokemon_id}": category}},
+            upsert=True
+        )
+        return True
+
+    async def remove_id_override(self, user_id: int, pokemon_id: int):
+        """Remove an ID override"""
+        await self.id_overrides.update_one(
+            {"user_id": user_id},
+            {"$unset": {f"overrides.{pokemon_id}": ""}}
+        )
+
+    async def clear_all_id_overrides(self, user_id: int):
+        """Clear all ID overrides for a user"""
+        doc = await self.id_overrides.find_one(
+            {"user_id": user_id},
+            {"overrides": 1}
+        )
+        if not doc:
+            return 0
+
+        count = len(doc.get("overrides", {}))
+
+        await self.id_overrides.delete_one({"user_id": user_id})
+        return count
+
+    async def get_id_overrides(self, user_id: int):
+        """
+        Get all ID overrides for a user
+        Returns: dict of {pokemon_id: 'old'/'new'}
+        """
+        doc = await self.id_overrides.find_one(
+            {"user_id": user_id},
+            {"overrides": 1}
+        )
+        if not doc:
+            return {}
+
+        overrides = doc.get("overrides", {})
+        # Convert string keys to int
+        return {int(k): v for k, v in overrides.items()}
+
+    async def get_id_override(self, user_id: int, pokemon_id: int):
+        """
+        Get override for a specific ID
+        Returns: 'old', 'new', or None if no override
+        """
+        doc = await self.id_overrides.find_one(
+            {"user_id": user_id},
+            {"overrides": 1}
+        )
+        if not doc:
+            return None
+
+        overrides = doc.get("overrides", {})
+        return overrides.get(str(pokemon_id))
+
 
     # Add this method to the Database class in database.py
 
