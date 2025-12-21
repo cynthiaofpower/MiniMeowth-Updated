@@ -618,61 +618,55 @@ class Breeding(commands.Cog):
             # Match base species or full name
             return target_lower == pokemon_base or target_lower in pokemon_name
 
-    # ===== RESULT DISPLAY =====
-
     async def send_breed_result(self, ctx, pairs, selective, utils, show_info, overrides=None):
-    """Send breeding pair results"""
-    command_parts = ["<@716390085896962058> daycare add"]
+        """Send breeding pair results"""
+        command_parts = ["<@716390085896962058> daycare add"]
 
-    for pair in pairs:
-        command_parts.append(str(pair['female']['pokemon_id']))
-        command_parts.append(str(pair['male']['pokemon_id']))
+        for pair in pairs:
+            command_parts.append(str(pair['female']['pokemon_id']))
+            command_parts.append(str(pair['male']['pokemon_id']))
 
-    command = " ".join(command_parts)
+        command = " ".join(command_parts)
 
-    # NEW: Compact non-embed format (command + compatibility only)
-    if show_info == 'compact':
-        message = f"```{command}```\n"
-        
+        # NEW: Simple non-embed format (command + compatibility only)
+        if show_info == 'simple':
+            message = f"```{command}```\n"
+
+            for i, pair in enumerate(pairs, 1):
+                female = pair['female']
+                male = pair['male']
+                comp = utils.get_compatibility(female, male, selective, overrides)
+
+                if len(pairs) > 1:
+                    message += f"**Pair {i}:** Compatibility - {comp}\n"
+                else:
+                    message += f"Compatibility - {comp}"
+
+            await ctx.send(message, reference=ctx.message, mention_author=False)
+            return
+
+        # Off mode - command only
+        if show_info == 'off':
+            await ctx.send(f"```{command}```", reference=ctx.message, mention_author=False)
+            return
+
+        # Detailed mode - full embed (existing code)
+        embed = discord.Embed(
+            title="📝 Next Breeding Command",
+            color=config.EMBED_COLOR
+        )
+
+        embed.description = f"```{command}```"
+
         for i, pair in enumerate(pairs, 1):
             female = pair['female']
             male = pair['male']
+
             comp = utils.get_compatibility(female, male, selective, overrides)
-            
-            if len(pairs) > 1:
-                message += f"**Pair {i}:** Compatibility - {comp}\n"
-            else:
-                message += f"Compatibility - {comp}"
-        
-        await ctx.send(message, reference=ctx.message, mention_author=False)
-        return
 
-    # Off mode - command only
-    if show_info == 'off':
-        await ctx.send(f"```{command}```", reference=ctx.message, mention_author=False)
-        return
+            female_icon = config.GENDER_FEMALE if female['gender'] == 'female' else config.GENDER_UNKNOWN
+            male_icon = config.GENDER_MALE if male['gender'] == 'male' else config.GENDER_UNKNOWN
 
-    # EMBED MODES (simple and detailed)
-    embed = discord.Embed(
-        title="📝 Next Breeding Command",
-        color=config.EMBED_COLOR
-    )
-
-    embed.description = f"```{command}```"
-
-    # Add pair details for embed modes
-    for i, pair in enumerate(pairs, 1):
-        female = pair['female']
-        male = pair['male']
-
-        comp = utils.get_compatibility(female, male, selective, overrides)
-
-        female_icon = config.GENDER_FEMALE if female['gender'] == 'female' else config.GENDER_UNKNOWN
-        male_icon = config.GENDER_MALE if male['gender'] == 'male' else config.GENDER_UNKNOWN
-
-        if show_info == 'simple':
-            pair_info = f"**Compatibility:** {comp}"
-        else:  # detailed
             pair_info = (
                 f"**Female:** `{female['pokemon_id']}` {female['name']} {female_icon} • {female['iv_percent']}% IV\n"
                 f"**Male:** `{male['pokemon_id']}` {male['name']} {male_icon} • {male['iv_percent']}% IV\n"
@@ -683,15 +677,15 @@ class Breeding(commands.Cog):
             if reason:
                 pair_info += f"\n**Reason:** {reason}"
 
-        embed.add_field(
-            name=f"Pair {i}/{len(pairs)}",
-            value=pair_info,
-            inline=False
-        )
+            embed.add_field(
+                name=f"Pair {i}/{len(pairs)}",
+                value=pair_info,
+                inline=False
+            )
 
-    embed.set_footer(text=f"These Pokemon have been added to cooldown for {config.COOLDOWN_DAYS}d {config.COOLDOWN_HOURS}h")
+        embed.set_footer(text=f"These Pokemon have been added to cooldown for {config.COOLDOWN_DAYS}d {config.COOLDOWN_HOURS}h")
 
-    await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
+        await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
 
     def get_pairing_reason(self, female, male, utils, selective, overrides=None):
         """Get human-readable reason for pairing - OPTIMIZED"""
