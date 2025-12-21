@@ -18,6 +18,7 @@ class PokedexView(discord.ui.View):
         self.all_dex_numbers = all_dex_numbers  # Sorted list of all dex numbers
         self.is_shiny = False
         self.is_female = False  # False = male (default), True = female
+        self.is_compare_mode = False  # New: Track if in compare mode
         self.message = None
         self.current_dropdown_page = 0  # For pagination of form dropdowns
 
@@ -32,23 +33,30 @@ class PokedexView(discord.ui.View):
         current_data = self.pokemon_data[self.current_form_key]
         current_dex = current_data.get('dex_number', '0')
 
-        # Row 1: Navigation buttons (Back, Shiny, Gender, Next)
+        # Row 1: Navigation buttons (Back, Shiny/Compare, Gender, Next)
         # Back button
         self.add_item(self.create_dex_back_button(current_dex))
 
-        # Shiny button
-        self.add_item(self.create_shiny_button())
+        # Shiny/Compare button (changes based on mode)
+        if self.is_compare_mode:
+            self.add_item(self.create_exit_compare_button())
+        else:
+            self.add_item(self.create_shiny_button())
 
-        # Gender buttons (if applicable)
-        if self.has_gender_diff:
+        # Compare button (only show when not in compare mode)
+        if not self.is_compare_mode:
+            self.add_item(self.create_compare_button())
+
+        # Gender buttons (if applicable and not in compare mode)
+        if self.has_gender_diff and not self.is_compare_mode:
             self.add_item(self.create_male_button())
             self.add_item(self.create_female_button())
 
         # Next button
         self.add_item(self.create_dex_next_button(current_dex))
 
-        # Row 2 & 3: Form dropdowns (if multiple forms exist)
-        if len(self.all_forms) > 1:
+        # Row 2 & 3: Form dropdowns (if multiple forms exist and not in compare mode)
+        if len(self.all_forms) > 1 and not self.is_compare_mode:
             # Calculate how many dropdowns we need (25 options max per dropdown)
             total_pages = (len(self.all_forms) + 24) // 25
 
@@ -112,6 +120,28 @@ class PokedexView(discord.ui.View):
             custom_id="toggle_shiny"
         )
         button.callback = self.toggle_shiny_callback
+        return button
+
+    def create_compare_button(self):
+        """Create compare button to show normal and shiny side by side"""
+        button = discord.ui.Button(
+            label="Compare",
+            style=discord.ButtonStyle.success,
+            emoji="🔍",
+            custom_id="compare_forms"
+        )
+        button.callback = self.compare_callback
+        return button
+
+    def create_exit_compare_button(self):
+        """Create button to exit compare mode"""
+        button = discord.ui.Button(
+            label="Exit Compare",
+            style=discord.ButtonStyle.danger,
+            emoji="❌",
+            custom_id="exit_compare"
+        )
+        button.callback = self.exit_compare_callback
         return button
 
     def create_male_button(self):
@@ -182,6 +212,28 @@ class PokedexView(discord.ui.View):
         select.callback = self.form_select_callback
         return select
 
+    async def compare_callback(self, interaction: discord.Interaction):
+        """Enter compare mode to show normal and shiny side by side"""
+        if interaction.user.id != self.ctx.author.id:
+            await interaction.response.send_message("❌ This is not your pokedex!", ephemeral=True)
+            return
+
+        self.is_compare_mode = True
+        self.build_view()
+        embed = await self.create_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    async def exit_compare_callback(self, interaction: discord.Interaction):
+        """Exit compare mode and return to normal view"""
+        if interaction.user.id != self.ctx.author.id:
+            await interaction.response.send_message("❌ This is not your pokedex!", ephemeral=True)
+            return
+
+        self.is_compare_mode = False
+        self.build_view()
+        embed = await self.create_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+
     async def dex_back_callback(self, interaction: discord.Interaction):
         """Go to previous dex number"""
         if interaction.user.id != self.ctx.author.id:
@@ -215,6 +267,7 @@ class PokedexView(discord.ui.View):
                     # Reset states
                     self.is_female = False
                     self.current_dropdown_page = 0
+                    self.is_compare_mode = False  # Exit compare mode when navigating
 
                     self.build_view()
                     embed = await self.create_embed()
@@ -258,6 +311,7 @@ class PokedexView(discord.ui.View):
                     # Reset states
                     self.is_female = False
                     self.current_dropdown_page = 0
+                    self.is_compare_mode = False  # Exit compare mode when navigating
 
                     self.build_view()
                     embed = await self.create_embed()
@@ -385,6 +439,63 @@ class PokedexView(discord.ui.View):
         """Create embed for current Pokemon form"""
         data = self.pokemon_data[self.current_form_key]
 
+        if self.is_compare_mode:
+            # Create comparison embed
+            return await self.create_compare_embed(data)
+        else:
+            # Create normal embed
+            return await self.create_normal_embed(data)
+
+    async def create_compare_embed(self, data):
+        """Create embed showing normal and shiny forms side by side"""
+        # Create title
+        title = f"🔍 Comparison — #{data['dex_number']} {data['name']}"
+
+        # Create embed
+        embed = discord.Embed(
+            title=title,
+            description="**Normal vs Shiny Comparison**",
+            color=discord.Color.from_str(config.EMBED_COLOR) if isinstance(config.EMBED_COLOR, str) else config.EMBED_COLOR
+        )
+
+        # Get base image URL
+        normal_image_url = data['image_url']
+        shiny_image_url = data['image_url'].replace('/images/', '/shiny/')
+
+        # Apply gender difference if applicable
+        if self.is_female and self.has_gender_diff:
+            normal_image_url = normal_image_url.replace('.png', 'F.png')
+            shiny_image_url = shiny_image_url.replace('.png', 'F.png')
+
+        # Set the main image as normal form
+        embed.set_image(url=normal_image_url)
+
+        # Set the thumbnail as shiny form
+        embed.set_thumbnail(url=shiny_image_url)
+
+        # Add field explaining the comparison
+        embed.add_field(
+            name="📊 View", 
+            value="**Large Image:** Normal Form\n**Small Image:** Shiny Form", 
+            inline=False
+        )
+
+        # Add gender info if applicable
+        if self.has_gender_diff:
+            gender_text = "♀ Female" if self.is_female else "♂ Male"
+            embed.add_field(name="Gender", value=gender_text, inline=True)
+
+        # Add basic info
+        if data.get('types'):
+            types_text = ', '.join(data['types'])
+            embed.add_field(name="Types", value=types_text, inline=True)
+
+        embed.set_footer(text="Click 'Exit Compare' to return to normal view")
+
+        return embed
+
+    async def create_normal_embed(self, data):
+        """Create normal Pokemon embed"""
         # Create title with sparkles if shiny
         title_prefix = "✨ " if self.is_shiny else ""
         title = f"{title_prefix}#{data['dex_number']} — {data['name']}"
