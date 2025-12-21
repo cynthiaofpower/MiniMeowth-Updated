@@ -625,7 +625,7 @@ class HelpCommands(commands.Cog):
         )
 
         embed.add_field(
-            name=f"`{HELP_PREFIX}filter <name>` `{HELP_PREFIX}order <type>`",
+            name=f"`{HELP_PREFIX}filter <name> <other filters like --t, --r, --ng>` `{HELP_PREFIX}order <type>`",
             value=(
                 "> **Filter** - Use custom filters (eevos, starters, etc.)\n"
                 "> **Order** - Set display order (iv, number, pokedex)"
