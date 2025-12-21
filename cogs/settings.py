@@ -55,9 +55,9 @@ class MoreInfoView(discord.ui.View):
             name="# Info Display Modes",
             value=(
                 "- `detailed` - Full embed with IVs, names, compatibility, reasons\n"
-                "- `simple` - Basic embed with names and compatibility only\n"
-                "- `compact` - Non-embed, just command + compatibility\n"
-                "- `off` - Command only, no extra info"
+                "- `simple` - Basic non-embed with names and compatibility only\n"
+                "- `compact` - Embed, just command + compatibility\n"
+                "- `off` - Command only, non-embed, no extra info"
             ),
             inline=False
         )
