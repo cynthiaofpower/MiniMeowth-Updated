@@ -467,28 +467,16 @@ class PokedexView(discord.ui.View):
             normal_image_url = normal_image_url.replace('.png', 'F.png')
             shiny_image_url = shiny_image_url.replace('.png', 'F.png')
 
-        # Set the main image as normal form
-        embed.set_image(url=normal_image_url)
+        # Set the main image as shiny form
+        embed.set_image(url=shiny_image_url)
 
-        # Set the thumbnail as shiny form
-        embed.set_thumbnail(url=shiny_image_url)
-
-        # Add field explaining the comparison
-        embed.add_field(
-            name="📊 View", 
-            value="**Large Image:** Normal Form\n**Small Image:** Shiny Form", 
-            inline=False
-        )
+        # Set the thumbnail as normal form
+        embed.set_thumbnail(url=normal_image_url)
 
         # Add gender info if applicable
         if self.has_gender_diff:
             gender_text = "♀ Female" if self.is_female else "♂ Male"
             embed.add_field(name="Gender", value=gender_text, inline=True)
-
-        # Add basic info
-        if data.get('types'):
-            types_text = ', '.join(data['types'])
-            embed.add_field(name="Types", value=types_text, inline=True)
 
         embed.set_footer(text="Click 'Exit Compare' to return to normal view")
 
