@@ -222,6 +222,104 @@ class PokemonListTools(commands.Cog):
         except Exception as e:
             await self._send_error(ctx, f"An error occurred: {str(e)}")
 
+    # ==================== Check Command ====================
+
+    @commands.command(name='check')
+    async def check(self, ctx, *, pokemon_names: str):
+        """
+        Check if specific Pokemon are in a message
+        Usage: Reply to a message and use ?check pikachu, charizard, mewtwo
+        
+        Shows which Pokemon from your list are found and which are missing.
+        Supports message content, embeds, and .txt file attachments.
+        """
+        if not ctx.message.reference:
+            return await self._send_error(ctx, "Please reply to a message to check Pokemon in it!")
+
+        if not self.pokemon_names:
+            return await self._send_error(ctx, "Pokemon names database not loaded! Please contact the bot admin.")
+
+        try:
+            # Fetch the replied message
+            replied_message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+
+            # Extract Pokemon from the replied message
+            found_pokemon = await self._extract_pokemon_from_message(replied_message)
+
+            if not found_pokemon:
+                return await self._send_error(ctx, "No Pokemon found in the replied message!")
+
+            # Parse the Pokemon names to check (comma-separated)
+            pokemon_to_check = [name.strip() for name in pokemon_names.split(',') if name.strip()]
+
+            if not pokemon_to_check:
+                return await self._send_error(ctx, "Please provide Pokemon names separated by commas!\nExample: `?check pikachu, charizard, mewtwo`")
+
+            # Normalize found Pokemon for comparison
+            found_normalized = set(self._normalize_pokemon_name(p) for p in found_pokemon)
+
+            # Check which Pokemon are present and which are missing
+            present = []
+            missing = []
+
+            for pokemon in pokemon_to_check:
+                normalized = self._normalize_pokemon_name(pokemon)
+                if normalized in found_normalized:
+                    present.append(pokemon)
+                else:
+                    missing.append(pokemon)
+
+            # Build and send result
+            await self._send_check_result(ctx, present, missing, len(found_pokemon))
+
+        except discord.NotFound:
+            await self._send_error(ctx, "Replied message not found!")
+        except Exception as e:
+            await self._send_error(ctx, f"An error occurred: {str(e)}")
+
+    async def _send_check_result(self, ctx, present: List[str], missing: List[str], total_in_message: int):
+        """Send check command result"""
+        embed = discord.Embed(
+            title="🔍 Pokemon Check Results",
+            color=EMBED_COLOR
+        )
+
+        embed.add_field(
+            name="📊 Summary",
+            value=f"Total Pokemon in message: {total_in_message}\nChecked: {len(present) + len(missing)} Pokemon",
+            inline=False
+        )
+
+        if present:
+            present_text = ", ".join(present)
+            embed.add_field(
+                name=f"✅ Found ({len(present)})",
+                value=present_text if len(present_text) <= 1024 else present_text[:1021] + "...",
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name=f"✅ Found ({len(present)})",
+                value="None",
+                inline=False
+            )
+
+        if missing:
+            missing_text = ", ".join(missing)
+            embed.add_field(
+                name=f"❌ Missing ({len(missing)})",
+                value=missing_text if len(missing_text) <= 1024 else missing_text[:1021] + "...",
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name=f"❌ Missing ({len(missing)})",
+                value="None",
+                inline=False
+            )
+
+        await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
+
     # ==================== Compare Command ====================
 
     @commands.command(name='compare')
