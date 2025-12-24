@@ -81,10 +81,10 @@ class PokemonListTools(commands.Cog):
     def _create_pokemon_pattern(self, pokemon_name):
         """Create a regex pattern for matching Pokemon names."""
         escaped = re.escape(pokemon_name)
-        
+
         if pokemon_name.endswith('.'):
             escaped = escaped[:-2] + r'\.?'
-        
+
         pattern = r'\b' + escaped + r'(?=\W|$)'
         return pattern
 
@@ -150,7 +150,7 @@ class PokemonListTools(commands.Cog):
         """Extract text from a .txt file attachment"""
         if not attachment.filename.endswith('.txt'):
             return ""
-        
+
         try:
             content = await attachment.read()
             return content.decode('utf-8')
@@ -164,7 +164,7 @@ class PokemonListTools(commands.Cog):
     async def on_message_edit(self, before, after):
         """Handle message edits to update Pokemon lists"""
         message_id = after.id
-        
+
         # Handle createlist monitoring
         if message_id in monitored_messages:
             await self._handle_createlist_update(after)
@@ -182,29 +182,29 @@ class PokemonListTools(commands.Cog):
 
         try:
             replied_message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
-            
+
             # Extract all text from the message
             all_text = self._extract_all_text_from_message(replied_message)
-            
+
             # Also check for .txt file attachments
             if replied_message.attachments:
                 for attachment in replied_message.attachments:
                     if attachment.filename.endswith('.txt'):
                         file_text = await self._extract_text_from_file(attachment)
                         all_text += " " + file_text
-            
+
             if not all_text.strip():
                 return await self._send_error(ctx, "No text content found in the message!")
 
             # Extract Pokemon names using comprehensive method
             pokemon_names = self._extract_pokemon_from_text(all_text)
-            
+
             if not pokemon_names:
                 return await self._send_error(ctx, "No Pokemon names found in the message!")
 
             # Create or update list
             list_key = f"{ctx.channel.id}_{ctx.author.id}"
-            
+
             if list_key in pokemon_lists:
                 await self._update_pokemon_list(ctx, list_key, pokemon_names)
             else:
@@ -230,7 +230,7 @@ class PokemonListTools(commands.Cog):
         """
         Remove specific Pokemon from a list and create a new list
         Usage: Reply to a message/file and use ?remove pikachu, charizard, mewtwo
-        
+
         Creates a new list excluding the specified Pokemon.
         Supports message content, embeds, and .txt file attachments.
         """
@@ -318,7 +318,7 @@ class PokemonListTools(commands.Cog):
             # Create a text file for the new list
             file = io.BytesIO(new_list_text.encode('utf-8'))
             discord_file = discord.File(file, filename='filtered_pokemon_list.txt')
-            
+
             await ctx.send(
                 embed=embed,
                 file=discord_file,
@@ -333,7 +333,7 @@ class PokemonListTools(commands.Cog):
         """
         Check if specific Pokemon are in a message
         Usage: Reply to a message and use ?check pikachu, charizard, mewtwo
-        
+
         Shows which Pokemon from your list are found and which are missing.
         Supports message content, embeds, and .txt file attachments.
         """
@@ -426,29 +426,55 @@ class PokemonListTools(commands.Cog):
 
     # ==================== Compare Command ====================
 
-    @commands.command(name='compare')
-    async def compare(self, ctx, message_id_1: int, message_id_2: int):
+    # Add this slash command to your PokemonListTools class
+    # Place it after the regular compare command
+
+    @app_commands.command(name='compare', description='Compare Pokemon between two lists')
+    @app_commands.describe(
+        list_1='First Pokemon list (paste Pokemon names separated by commas or spaces)',
+        list_2='Second Pokemon list (paste Pokemon names separated by commas or spaces)'
+    )
+    async def compare_slash(self, interaction: discord.Interaction, list_1: str, list_2: str):
         """
-        Compare Pokemon between two messages
-        Usage: ?compare <message_id_1> <message_id_2>
-        
-        Shows Pokemon unique to each message and common Pokemon.
-        Supports message content, embeds, and .txt file attachments.
+        Compare Pokemon between two lists using slash command
+        Shows Pokemon unique to each list and common Pokemon.
+        Users can paste Pokemon names directly into the command.
         """
         if not self.pokemon_names:
-            return await self._send_error(ctx, "Pokemon names database not loaded! Please contact the bot admin.")
+            embed = discord.Embed(
+                description="❌ Pokemon names database not loaded! Please contact the bot admin.",
+                color=EMBED_COLOR
+            )
+            return await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        # Defer the response since this might take a moment
+        await interaction.response.defer()
 
         try:
-            # Fetch both messages
-            message_1 = await ctx.channel.fetch_message(message_id_1)
-            message_2 = await ctx.channel.fetch_message(message_id_2)
-
-            # Extract Pokemon from both messages
-            pokemon_1 = await self._extract_pokemon_from_message(message_1)
-            pokemon_2 = await self._extract_pokemon_from_message(message_2)
+            # Extract Pokemon from both text inputs
+            pokemon_1 = self._extract_pokemon_from_text(list_1)
+            pokemon_2 = self._extract_pokemon_from_text(list_2)
 
             if not pokemon_1 and not pokemon_2:
-                return await self._send_error(ctx, "No Pokemon found in either message!")
+                embed = discord.Embed(
+                    description="❌ No Pokemon found in either list!",
+                    color=EMBED_COLOR
+                )
+                return await interaction.followup.send(embed=embed, ephemeral=True)
+
+            if not pokemon_1:
+                embed = discord.Embed(
+                    description="❌ No Pokemon found in List 1!",
+                    color=EMBED_COLOR
+                )
+                return await interaction.followup.send(embed=embed, ephemeral=True)
+
+            if not pokemon_2:
+                embed = discord.Embed(
+                    description="❌ No Pokemon found in List 2!",
+                    color=EMBED_COLOR
+                )
+                return await interaction.followup.send(embed=embed, ephemeral=True)
 
             # Convert to sets for comparison (normalized names for comparison)
             set_1 = set(self._normalize_pokemon_name(p) for p in pokemon_1)
@@ -475,104 +501,50 @@ class PokemonListTools(commands.Cog):
                 only_in_1, only_in_2, common
             )
 
-            # Send result (as message or file)
-            await self._send_compare_result(ctx, result_text, 
-                                           len(pokemon_1), len(pokemon_2),
-                                           len(only_in_1), len(only_in_2), len(common))
+            # Send result
+            await self._send_compare_result_slash(
+                interaction, result_text,
+                len(pokemon_1), len(pokemon_2),
+                len(only_in_1), len(only_in_2), len(common)
+            )
 
-        except discord.NotFound:
-            await self._send_error(ctx, "One or both message IDs not found in this channel!")
         except Exception as e:
-            await self._send_error(ctx, f"An error occurred: {str(e)}")
+            embed = discord.Embed(
+                description=f"❌ An error occurred: {str(e)}",
+                color=EMBED_COLOR
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
 
-    async def _extract_pokemon_from_message(self, message: discord.Message) -> List[str]:
-        """Extract Pokemon from a message (content, embeds, and files)"""
-        all_text = self._extract_all_text_from_message(message)
-        
-        # Also check for .txt file attachments
-        if message.attachments:
-            for attachment in message.attachments:
-                if attachment.filename.endswith('.txt'):
-                    file_text = await self._extract_text_from_file(attachment)
-                    all_text += " " + file_text
-        
-        return self._extract_pokemon_from_text(all_text)
 
-    def _build_compare_result(self, total_1: int, total_2: int,
-                              only_1: List[str], only_2: List[str], 
-                              common: List[str]) -> str:
-        """Build the comparison result text"""
-        sections = []
-        
-        # Statistics
-        sections.append("**📊 Statistics:**")
-        sections.append(f"Message 1: {total_1} Pokemon")
-        sections.append(f"Message 2: {total_2} Pokemon")
-        sections.append(f"Only in Message 1: {len(only_1)} Pokemon")
-        sections.append(f"Only in Message 2: {len(only_2)} Pokemon")
-        sections.append(f"Common in Both: {len(common)} Pokemon")
-        sections.append("")
-
-        # Only in Message 1
-        if only_1:
-            sections.append("**🔵 Only in Message 1:**")
-            sections.append(", ".join(only_1))
-            sections.append("")
-        else:
-            sections.append("**🔵 Only in Message 1:** None")
-            sections.append("")
-
-        # Only in Message 2
-        if only_2:
-            sections.append("**🔴 Only in Message 2:**")
-            sections.append(", ".join(only_2))
-            sections.append("")
-        else:
-            sections.append("**🔴 Only in Message 2:** None")
-            sections.append("")
-
-        # Common Pokemon
-        if common:
-            sections.append("**🟢 Common in Both:**")
-            sections.append(", ".join(common))
-        else:
-            sections.append("**🟢 Common in Both:** None")
-
-        return "\n".join(sections)
-
-    async def _send_compare_result(self, ctx, result_text: str, 
-                                   total_1: int, total_2: int,
-                                   only_1_count: int, only_2_count: int, 
-                                   common_count: int):
-        """Send comparison result as message or file"""
+    async def _send_compare_result_slash(self, interaction: discord.Interaction, 
+                                         result_text: str, 
+                                         total_1: int, total_2: int,
+                                         only_1_count: int, only_2_count: int, 
+                                         common_count: int):
+        """Send comparison result as message or file for slash command"""
         # Create summary embed
         embed = discord.Embed(
             title="📊 Pokemon Comparison",
             color=EMBED_COLOR
         )
-        embed.add_field(name="Message 1", value=f"{total_1} Pokemon", inline=True)
-        embed.add_field(name="Message 2", value=f"{total_2} Pokemon", inline=True)
+        embed.add_field(name="List 1", value=f"{total_1} Pokemon", inline=True)
+        embed.add_field(name="List 2", value=f"{total_2} Pokemon", inline=True)
         embed.add_field(name="\u200b", value="\u200b", inline=False)
-        embed.add_field(name="🔵 Only in Message 1", value=f"{only_1_count} Pokemon", inline=True)
-        embed.add_field(name="🔴 Only in Message 2", value=f"{only_2_count} Pokemon", inline=True)
+        embed.add_field(name="🔵 Only in List 1", value=f"{only_1_count} Pokemon", inline=True)
+        embed.add_field(name="🔴 Only in List 2", value=f"{only_2_count} Pokemon", inline=True)
         embed.add_field(name="🟢 Common", value=f"{common_count} Pokemon", inline=True)
 
         # If result fits in message, send directly
         if len(result_text) <= 1900:
-            await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
-            await ctx.send(result_text, reference=ctx.message, mention_author=False)
+            await interaction.followup.send(embed=embed)
+            await interaction.followup.send(result_text)
         else:
             # Create a text file
             file = discord.File(
                 io.BytesIO(result_text.encode('utf-8')),
                 filename='pokemon_comparison.txt'
             )
-            await ctx.send(
-                embed=embed,
-                file=file,
-                reference=ctx.message,
-                mention_author=False
-            )
+            await interaction.followup.send(embed=embed, file=file)
 
     # ==================== Helper Methods for CreateList ====================
 
@@ -581,7 +553,7 @@ class PokemonListTools(commands.Cog):
         list_data = monitored_messages.get(message.id)
         if not list_data:
             return
-        
+
         list_key = list_data['list_key']
         if list_key not in pokemon_lists:
             del monitored_messages[message.id]
@@ -589,20 +561,20 @@ class PokemonListTools(commands.Cog):
 
         # Extract all text from the updated message
         all_text = self._extract_all_text_from_message(message)
-        
+
         # Also check for .txt file attachments
         if message.attachments:
             for attachment in message.attachments:
                 if attachment.filename.endswith('.txt'):
                     file_text = await self._extract_text_from_file(attachment)
                     all_text += " " + file_text
-        
+
         if not all_text.strip():
             return
 
         # Extract Pokemon names using comprehensive method
         new_pokemon_names = self._extract_pokemon_from_text(all_text)
-        
+
         if not new_pokemon_names:
             return
 
@@ -641,24 +613,24 @@ class PokemonListTools(commands.Cog):
         """Update the list message with new pokemon"""
         pokemon_list_str = ", ".join(list_data['pokemon'])
         channel = self.bot.get_channel(list_data['channel_id'])
-        
+
         if not channel:
             return
 
         try:
             if len(pokemon_list_str) > 1900:
                 chunks = self._split_pokemon_list(list_data['pokemon'])
-                
+
                 # Edit the first message
                 await list_data['message'].edit(content=f"**Pokemon List ({len(list_data['pokemon'])} total):**\n{chunks[0]}")
-                
+
                 # Get existing continuation messages
                 continuation_msgs = list_data.get('continuation_messages', [])
-                
+
                 # Update or create continuation messages
                 for i, chunk in enumerate(chunks[1:], 2):
                     chunk_index = i - 2  # Index in continuation_messages list
-                    
+
                     if chunk_index < len(continuation_msgs):
                         # Edit existing continuation message
                         try:
@@ -671,7 +643,7 @@ class PokemonListTools(commands.Cog):
                         # Create new continuation message
                         new_msg = await channel.send(f"**Pokemon List (continued - part {i}):**\n{chunk}")
                         continuation_msgs.append(new_msg)
-                
+
                 # Delete extra continuation messages if list got shorter
                 if len(chunks) - 1 < len(continuation_msgs):
                     for msg in continuation_msgs[len(chunks) - 1:]:
@@ -682,11 +654,11 @@ class PokemonListTools(commands.Cog):
                     list_data['continuation_messages'] = continuation_msgs[:len(chunks) - 1]
                 else:
                     list_data['continuation_messages'] = continuation_msgs
-                    
+
             else:
                 # List fits in one message, update main message and delete continuations
                 await list_data['message'].edit(content=f"**Pokemon List ({len(list_data['pokemon'])} total):**\n{pokemon_list_str}")
-                
+
                 # Delete all continuation messages if they exist
                 for msg in list_data.get('continuation_messages', []):
                     try:
@@ -694,14 +666,14 @@ class PokemonListTools(commands.Cog):
                     except:
                         pass
                 list_data['continuation_messages'] = []
-        
+
         except discord.NotFound:
             # Main message was deleted, recreate everything
             if len(pokemon_list_str) > 1900:
                 chunks = self._split_pokemon_list(list_data['pokemon'])
                 new_message = await channel.send(f"**Pokemon List ({len(list_data['pokemon'])} total):**\n{chunks[0]}")
                 list_data['message'] = new_message
-                
+
                 continuation_msgs = []
                 for i, chunk in enumerate(chunks[1:], 2):
                     new_msg = await channel.send(f"**Pokemon List (continued - part {i}):**\n{chunk}")
@@ -715,7 +687,7 @@ class PokemonListTools(commands.Cog):
     async def _create_pokemon_list(self, ctx, list_key: str, pokemon_names: List[str]):
         """Create a new Pokemon list"""
         pokemon_list_str = ", ".join(pokemon_names)
-        
+
         # Create initial message
         list_message = await ctx.channel.send(f"**Pokemon List ({len(pokemon_names)} total):**\n{pokemon_list_str}")
 
@@ -736,7 +708,7 @@ class PokemonListTools(commands.Cog):
         if added_count > 0:
             existing_data['pokemon'].extend(name for name in new_pokemon if name not in existing_data['pokemon'])
             await self._update_list_message(existing_data)
-            
+
             embed = discord.Embed(
                 description=f"✅ Added {added_count} new Pokemon to the list!",
                 color=EMBED_COLOR
