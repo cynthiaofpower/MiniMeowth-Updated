@@ -879,6 +879,5 @@ class ShinyDexDisplay(commands.Cog):
         message = await ctx.send(embed=view.create_embed(), view=view, reference=ctx.message, mention_author=False)
         view.message = message
 
-
-    async def setup(bot):
-        await bot.add_cog(ShinyDexDisplay(bot))
+async def setup(bot):
+    await bot.add_cog(ShinyDexDisplay(bot))
