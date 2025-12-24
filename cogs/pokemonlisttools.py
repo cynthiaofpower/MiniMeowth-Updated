@@ -4,6 +4,7 @@ from discord import app_commands
 import asyncio
 import re
 import os
+import io
 from datetime import datetime
 from typing import List
 from config import EMBED_COLOR, POKETWO_BOT_ID
