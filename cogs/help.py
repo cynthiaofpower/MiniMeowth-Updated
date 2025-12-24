@@ -56,6 +56,12 @@ class HelpDropdown(discord.ui.Select):
                 emoji="🔍"
             ),
             discord.SelectOption(
+                label="List Tools",
+                description="Compare and manage Pokemon lists",
+                value="listtools",
+                emoji="📋"
+            ),
+            discord.SelectOption(
                 label="Utility",
                 description="Helpful utility commands",
                 value="utility",
@@ -92,6 +98,7 @@ class HelpDropdown(discord.ui.Select):
             "settings": self.help_cog.get_settings_embed,
             "shinydex": self.help_cog.get_shinydex_embed,
             "pokedex": self.help_cog.get_pokedex_embed,
+            "listtools": self.help_cog.get_listtools_embed,
             "utility": self.help_cog.get_utility_embed,
             "context": self.help_cog.get_context_embed
         }
@@ -150,6 +157,15 @@ class HelpView(discord.ui.View):
             await interaction.response.send_message("This is not your help menu!", ephemeral=True)
             return
         embed = self.help_cog.get_utility_embed()
+        await interaction.response.edit_message(embed=embed, view=self)
+
+
+    @discord.ui.button(label="📋List Tools", style=discord.ButtonStyle.success, row=2)
+    async def listtools_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user.id != self.ctx.author.id:
+            await interaction.response.send_message("This is not your help menu!", ephemeral=True)
+            return
+        embed = self.help_cog.get_listtools_embed()
         await interaction.response.edit_message(embed=embed, view=self)
 
     @discord.ui.button(label="🏠Home", style=discord.ButtonStyle.secondary, row=2)
@@ -855,6 +871,81 @@ class HelpCommands(commands.Cog):
         )
 
         embed.set_footer(text="💡 Context commands work even in archived threads!")
+
+        return embed
+
+    def get_listtools_embed(self):
+        """List Tools commands help"""
+        embed = discord.Embed(
+            title="📋 __List Tools Commands__",
+            description="Compare and manage Pokemon lists with powerful filtering",
+            color=config.EMBED_COLOR
+        )
+
+        embed.add_field(
+            name=f"__🔍 Compare Command__",
+            value=(
+                f"`{HELP_PREFIX}compare <message_id_1> <message_id_2>`\n"
+                f"- Compare Pokemon between two messages\n"
+                f"- Shows Pokemon unique to each message\n"
+                f"- Shows Pokemon common to both messages\n"
+                f"- Displays statistics and counts\n"
+                f"- Creates .txt file if output is large"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name=f"__✅ Check Command__",
+            value=(
+                f"`{HELP_PREFIX}check <pokemon names>`\n"
+                f"- Check if specific Pokemon exist in a message\n"
+                f"- Reply to any message containing Pokemon\n"
+                f"- Provide comma-separated Pokemon names\n"
+                f"- Shows which are found and which are missing\n"
+                f"**Example:** Reply to message + `{HELP_PREFIX}check pikachu, charizard, mew`"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name=f"__🗑️ Remove Command__",
+            value=(
+                f"`{HELP_PREFIX}removemons <pokemon names>`\n"
+                f"Aliases: `{HELP_PREFIX}exclude`, `{HELP_PREFIX}filter`\n"
+                f"- Remove specific Pokemon from a list\n"
+                f"- Reply to message with Pokemon list\n"
+                f"- Creates new filtered list without specified Pokemon\n"
+                f"- Outputs as .txt file if list is large\n"
+                f"**Example:** Reply to list + `{HELP_PREFIX}removemons mew, mewtwo`"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name="__📄 Supported Formats__",
+            value=(
+                "All commands support:\n"
+                "> - Message text content\n"
+                "> - Discord embeds\n"
+                "> - .txt file attachments\n"
+                "> - Case-insensitive matching\n"
+                "> - Automatic duplicate removal"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name="__💡 Use Cases__",
+            value=(
+                "> **Compare:** Find missing Pokemon between two collections\n"
+                "> **Check:** Verify if you have specific Pokemon\n"
+                "> **Remove:** Filter out unwanted Pokemon from lists"
+            ),
+            inline=False
+        )
+
+        embed.set_footer(text="💡 Perfect for trading, collecting, and inventory management!")
 
         return embed
 
