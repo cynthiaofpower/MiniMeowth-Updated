@@ -37,141 +37,127 @@ class Database:
         self.shinies = self.db['shinies']
         self.event_shinies = self.db['event_shinies']
 
-        # ===== DROP OLD CONFLICTING INDEXES =====
-        try:
-            existing_indexes = await self.pokemon.index_information()
-
-            # Drop old index if it exists with wrong name
-            if 'user_id_1_pokemon_id_1' in existing_indexes:
-                print("🔧 Dropping old index: user_id_1_pokemon_id_1")
-                await self.pokemon.drop_index('user_id_1_pokemon_id_1')
-
-            # Drop other potentially conflicting indexes
-            conflicting = ['user_id_1', 'pokemon_id_1', 'categories_1', 'dex_number_1']
-            for idx_name in conflicting:
-                if idx_name in existing_indexes:
-                    print(f"🔧 Dropping old index: {idx_name}")
-                    await self.pokemon.drop_index(idx_name)
-        except Exception as e:
-            print(f"⚠️  Could not drop old indexes: {e}")
-
         # ===== CREATE OPTIMIZED INDEXES =====
 
         # Pokemon collection - compound indexes for common queries
-        try:
-            await self.pokemon.create_index([
-                ("user_id", 1), 
-                ("categories", 1), 
-                ("gender", 1)
-            ], name="user_category_gender")
-            print("✅ Created index: user_category_gender")
-        except Exception as e:
-            if "already exists" not in str(e).lower():
-                print(f"⚠️  Index creation error: {e}")
+        await self._create_index_safe(
+            self.pokemon,
+            [("user_id", 1), ("categories", 1), ("gender", 1)],
+            name="user_category_gender"
+        )
 
-        try:
-            await self.pokemon.create_index([
-                ("user_id", 1),
-                ("categories", 1),
-                ("iv_percent", -1)
-            ], name="user_category_iv")
-            print("✅ Created index: user_category_iv")
-        except Exception as e:
-            if "already exists" not in str(e).lower():
-                print(f"⚠️  Index creation error: {e}")
+        await self._create_index_safe(
+            self.pokemon,
+            [("user_id", 1), ("categories", 1), ("iv_percent", -1)],
+            name="user_category_iv"
+        )
 
-        try:
-            await self.pokemon.create_index([
-                ("user_id", 1),
-                ("pokemon_id", 1)
-            ], unique=True, name="user_pokemon_unique")
-            print("✅ Created index: user_pokemon_unique")
-        except Exception as e:
-            if "already exists" not in str(e).lower():
-                print(f"⚠️  Index creation error: {e}")
+        await self._create_index_safe(
+            self.pokemon,
+            [("user_id", 1), ("pokemon_id", 1)],
+            unique=True,
+            name="user_pokemon_unique"
+        )
 
         # Additional indexes for filtering
-        try:
-            await self.pokemon.create_index("user_id", name="user_id_idx")
-            print("✅ Created index: user_id_idx")
-        except Exception as e:
-            if "already exists" not in str(e).lower():
-                print(f"⚠️  Index creation error: {e}")
+        await self._create_index_safe(
+            self.pokemon,
+            "user_id",
+            name="user_id_idx"
+        )
 
-        try:
-            await self.pokemon.create_index("categories", name="categories_idx")
-            print("✅ Created index: categories_idx")
-        except Exception as e:
-            if "already exists" not in str(e).lower():
-                print(f"⚠️  Index creation error: {e}")
+        await self._create_index_safe(
+            self.pokemon,
+            "categories",
+            name="categories_idx"
+        )
 
-        try:
-            await self.pokemon.create_index("dex_number", name="dex_number_idx")
-            print("✅ Created index: dex_number_idx")
-        except Exception as e:
-            if "already exists" not in str(e).lower():
-                print(f"⚠️  Index creation error: {e}")
+        await self._create_index_safe(
+            self.pokemon,
+            "dex_number",
+            name="dex_number_idx"
+        )
 
         # Partial indexes for special types
-        try:
-            await self.pokemon.create_index(
-                [("user_id", 1), ("is_gmax", 1)],
-                partialFilterExpression={"is_gmax": True},
-                name="user_gmax_partial"
-            )
-            print("✅ Created index: user_gmax_partial")
-        except Exception as e:
-            if "already exists" not in str(e).lower():
-                print(f"⚠️  Index creation error: {e}")
+        await self._create_index_safe(
+            self.pokemon,
+            [("user_id", 1), ("is_gmax", 1)],
+            partialFilterExpression={"is_gmax": True},
+            name="user_gmax_partial"
+        )
 
-        try:
-            await self.pokemon.create_index(
-                [("user_id", 1), ("is_regional", 1)],
-                partialFilterExpression={"is_regional": True},
-                name="user_regional_partial"
-            )
-            print("✅ Created index: user_regional_partial")
-        except Exception as e:
-            if "already exists" not in str(e).lower():
-                print(f"⚠️  Index creation error: {e}")
+        await self._create_index_safe(
+            self.pokemon,
+            [("user_id", 1), ("is_regional", 1)],
+            partialFilterExpression={"is_regional": True},
+            name="user_regional_partial"
+        )
 
         # User data collection
-        try:
-            await self.user_data.create_index("user_id", unique=True)
-            print("✅ Created index: user_data.user_id")
-        except Exception as e:
-            if "already exists" not in str(e).lower():
-                print(f"⚠️  Index creation error: {e}")
+        await self._create_index_safe(
+            self.user_data,
+            "user_id",
+            unique=True,
+            name="user_data_user_id"
+        )
 
         # Shiny dex indexes
-        try:
-            await self.shinies.create_index([("user_id", 1), ("pokemon_id", 1)], unique=True)
-            await self.shinies.create_index("user_id")
-            await self.shinies.create_index("dex_number")
-            await self.shinies.create_index([("user_id", 1), ("name", 1)])
-            await self.shinies.create_index([("user_id", 1), ("dex_number", 1)])
-            print("✅ Created shiny dex indexes")
-        except Exception as e:
-            if "already exists" not in str(e).lower():
-                print(f"⚠️  Shiny index creation error: {e}")
+        await self._create_index_safe(
+            self.shinies,
+            [("user_id", 1), ("pokemon_id", 1)],
+            unique=True,
+            name="shiny_user_pokemon"
+        )
+        await self._create_index_safe(
+            self.shinies,
+            "user_id",
+            name="shiny_user_id"
+        )
+        await self._create_index_safe(
+            self.shinies,
+            "dex_number",
+            name="shiny_dex_number"
+        )
+        await self._create_index_safe(
+            self.shinies,
+            [("user_id", 1), ("name", 1)],
+            name="shiny_user_name"
+        )
+        await self._create_index_safe(
+            self.shinies,
+            [("user_id", 1), ("dex_number", 1)],
+            name="shiny_user_dex"
+        )
 
         # Event shinies indexes
-        try:
-            await self.event_shinies.create_index([("user_id", 1), ("pokemon_id", 1)], unique=True)
-            await self.event_shinies.create_index("user_id")
-            await self.event_shinies.create_index([("user_id", 1), ("name", 1)])
-            print("✅ Created event shiny indexes")
-        except Exception as e:
-            if "already exists" not in str(e).lower():
-                print(f"⚠️  Event shiny index creation error: {e}")
+        await self._create_index_safe(
+            self.event_shinies,
+            [("user_id", 1), ("pokemon_id", 1)],
+            unique=True,
+            name="event_shiny_user_pokemon"
+        )
+        await self._create_index_safe(
+            self.event_shinies,
+            "user_id",
+            name="event_shiny_user_id"
+        )
+        await self._create_index_safe(
+            self.event_shinies,
+            [("user_id", 1), ("name", 1)],
+            name="event_shiny_user_name"
+        )
 
         print("✅ Connected to MongoDB with optimized indexes")
 
-    async def close(self):
-        """Close MongoDB connection"""
-        if self.client:
-            self.client.close()
-            print("❌ Disconnected from MongoDB")
+    async def _create_index_safe(self, collection, keys, **kwargs):
+        """Helper method to create indexes with error handling"""
+        try:
+            await collection.create_index(keys, **kwargs)
+            index_name = kwargs.get('name', 'unnamed')
+            print(f"✅ Index ready: {index_name}")
+        except Exception as e:
+            if "already exists" not in str(e).lower():
+                print(f"⚠️  Index creation warning: {e}")
 
     # ========================================
     # POKEMON OPERATIONS (BREEDING BOT)
