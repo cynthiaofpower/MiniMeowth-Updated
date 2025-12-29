@@ -542,6 +542,22 @@ class Utils(commands.Cog):
                 count += 1
         return count
 
+    def is_rare_pokemon(self, pokemon_name: str) -> bool:
+        """Check if a Pokemon is rare"""
+        return pokemon_name in config.RARE_POKEMONS
+
+    def count_rare_shinies(self, shinies_list: list) -> int:
+        """Count rare shinies"""
+        return sum(1 for s in shinies_list if self.is_rare_pokemon(s['name']))
+
+    def count_regional_shinies(self, shinies_list: list) -> int:
+        """Count regional form shinies"""
+        return sum(1 for s in shinies_list if self.is_regional(s['name']))
+
+    def count_mint_shinies(self, shinies_list: list) -> int:
+        """Count level 1 shinies"""
+        return sum(1 for s in shinies_list if s.get('level', 0) == 1)
+
 
 async def setup(bot):
     await bot.add_cog(Utils(bot))
