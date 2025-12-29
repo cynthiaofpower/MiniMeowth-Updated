@@ -63,6 +63,12 @@ class ShinyStatsImage(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.backgrounds_folder = 'shinystats/backgrounds'
+        self.fonts_folder = 'shinystats/fonts'
+        
+        # GitHub repository details
+        self.github_user = 'cynthiaofpower'
+        self.github_repo = 'meowthfonts'
+        self.github_branch = 'main'  # or 'master' - adjust if needed
 
         # Cache for Pokemon name to CDN number mapping
         self.pokemon_cdn_mapping = {}
@@ -81,6 +87,113 @@ class ShinyStatsImage(commands.Cog):
             'black.png': '#000000',
             'gray.png': '#2F4F4F'
         }
+        
+        # Initialize resource download on cog load
+        self.bot.loop.create_task(self.initialize_resources())
+
+    async def initialize_resources(self):
+        """Download fonts and backgrounds from GitHub on startup"""
+        await self.download_fonts()
+        await self.download_backgrounds()
+
+    async def download_file_from_github(self, file_path: str, save_path: str):
+        """Download a single file from GitHub repository"""
+        url = f"https://raw.githubusercontent.com/{self.github_user}/{self.github_repo}/{self.github_branch}/{file_path}"
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as resp:
+                    if resp.status == 200:
+                        content = await resp.read()
+                        
+                        # Create directory if it doesn't exist
+                        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+                        
+                        with open(save_path, 'wb') as f:
+                            f.write(content)
+                        print(f"✅ Downloaded: {file_path}")
+                        return True
+                    else:
+                        print(f"❌ Failed to download {file_path}: Status {resp.status}")
+                        return False
+        except Exception as e:
+            print(f"❌ Error downloading {file_path}: {e}")
+            return False
+
+    async def get_github_directory_contents(self, directory: str):
+        """Get list of files in a GitHub directory"""
+        url = f"https://api.github.com/repos/{self.github_user}/{self.github_repo}/contents/{directory}?ref={self.github_branch}"
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as resp:
+                    if resp.status == 200:
+                        contents = await resp.json()
+                        return [item['name'] for item in contents if item['type'] == 'file']
+                    else:
+                        print(f"❌ Failed to fetch directory contents: Status {resp.status}")
+                        return []
+        except Exception as e:
+            print(f"❌ Error fetching directory contents: {e}")
+            return []
+
+    async def download_fonts(self):
+        """Download all fonts from GitHub repository"""
+        print("📥 Downloading fonts from GitHub...")
+        
+        # Create fonts directory
+        os.makedirs(self.fonts_folder, exist_ok=True)
+        
+        # Get list of font files
+        font_files = await self.get_github_directory_contents('fonts')
+        
+        if not font_files:
+            print("⚠️ No fonts found in repository")
+            return
+        
+        # Download each font
+        for font_file in font_files:
+            if font_file.endswith('.ttf') or font_file.endswith('.otf'):
+                github_path = f"fonts/{font_file}"
+                local_path = os.path.join(self.fonts_folder, font_file)
+                
+                # Skip if already exists
+                if os.path.exists(local_path):
+                    print(f"⏭️ Font already exists: {font_file}")
+                    continue
+                
+                await self.download_file_from_github(github_path, local_path)
+        
+        print("✅ Font download complete!")
+
+    async def download_backgrounds(self):
+        """Download all backgrounds from GitHub repository"""
+        print("📥 Downloading backgrounds from GitHub...")
+        
+        # Create backgrounds directory
+        os.makedirs(self.backgrounds_folder, exist_ok=True)
+        
+        # Get list of background files
+        background_files = await self.get_github_directory_contents('backgrounds')
+        
+        if not background_files:
+            print("⚠️ No backgrounds found in repository")
+            return
+        
+        # Download each background
+        for bg_file in background_files:
+            if bg_file.endswith('.png') or bg_file.endswith('.jpg') or bg_file.endswith('.jpeg'):
+                github_path = f"backgrounds/{bg_file}"
+                local_path = os.path.join(self.backgrounds_folder, bg_file)
+                
+                # Skip if already exists
+                if os.path.exists(local_path):
+                    print(f"⏭️ Background already exists: {bg_file}")
+                    continue
+                
+                await self.download_file_from_github(github_path, local_path)
+        
+        print("✅ Background download complete!")
 
     def load_pokemon_mapping(self):
         """Load Pokemon name to CDN number mapping from CSV file"""
@@ -273,11 +386,11 @@ class ShinyStatsImage(commands.Cog):
 
         # Load fonts
         try:
-            username_font = ImageFont.truetype('shinystats/fonts/Poppins-SemiBold.ttf', 24)
-            title_font = ImageFont.truetype('shinystats/fonts/Poppins-Regular.ttf', 16)
-            header_font = ImageFont.truetype('shinystats/fonts/Poppins-Bold.ttf', 25)
-            stat_font = ImageFont.truetype('shinystats/fonts/Poppins-Medium.ttf', 23)
-            value_font = ImageFont.truetype('shinystats/fonts/Poppins-SemiBold.ttf', 23)
+            username_font = ImageFont.truetype(os.path.join(self.fonts_folder, 'Poppins-SemiBold.ttf'), 24)
+            title_font = ImageFont.truetype(os.path.join(self.fonts_folder, 'Poppins-Regular.ttf'), 16)
+            header_font = ImageFont.truetype(os.path.join(self.fonts_folder, 'Poppins-Bold.ttf'), 25)
+            stat_font = ImageFont.truetype(os.path.join(self.fonts_folder, 'Poppins-Medium.ttf'), 23)
+            value_font = ImageFont.truetype(os.path.join(self.fonts_folder, 'Poppins-SemiBold.ttf'), 23)
         except:
             username_font = ImageFont.load_default()
             title_font = ImageFont.load_default()
@@ -424,7 +537,7 @@ class ShinyStatsImage(commands.Cog):
                 # Draw count badge below pokemon
                 count_text = f"x{count}"
                 try:
-                    count_font = ImageFont.truetype('shinystats/fonts/Poppins-Bold.ttf', 14)
+                    count_font = ImageFont.truetype(os.path.join(self.fonts_folder, 'Poppins-Bold.ttf'), 14)
                 except:
                     count_font = ImageFont.load_default()
 
@@ -457,7 +570,7 @@ class ShinyStatsImage(commands.Cog):
 
         # Draw decorative star symbols on either side
         try:
-            star_font = ImageFont.truetype('shinystats/fonts/Poppins-Bold.ttf', 20)
+            star_font = ImageFont.truetype(os.path.join(self.fonts_folder, 'Poppins-Bold.ttf'), 20)
         except:
             star_font = header_font
 
@@ -475,10 +588,10 @@ class ShinyStatsImage(commands.Cog):
             nickname = showcase_data.get('nickname', 'No Nickname')
 
             try:
-                nickname_font = ImageFont.truetype('shinystats/fonts/Poppins-MediumItalic.ttf', 22)
+                nickname_font = ImageFont.truetype(os.path.join(self.fonts_folder, 'Poppins-MediumItalic.ttf'), 22)
             except:
                 try:
-                    nickname_font = ImageFont.truetype('shinystats/fonts/Poppins-Medium.ttf', 22)
+                    nickname_font = ImageFont.truetype(os.path.join(self.fonts_folder, 'Poppins-Medium.ttf'), 22)
                 except:
                     nickname_font = stat_font
 
@@ -509,7 +622,7 @@ class ShinyStatsImage(commands.Cog):
                 pokemon_name = showcase_data['name']
 
                 try:
-                    name_font = ImageFont.truetype('shinystats/fonts/Poppins-SemiBold.ttf', 24)
+                    name_font = ImageFont.truetype(os.path.join(self.fonts_folder, 'Poppins-SemiBold.ttf'), 24)
                 except:
                     name_font = username_font
 
@@ -536,7 +649,7 @@ class ShinyStatsImage(commands.Cog):
                 stats_text = f"{gender_symbol} | Level {level}  •  {iv:.2f}% IV"
 
                 try:
-                    info_font = ImageFont.truetype('shinystats/fonts/Poppins-Regular.ttf', 18)
+                    info_font = ImageFont.truetype(os.path.join(self.fonts_folder, 'Poppins-Regular.ttf'), 18)
                 except:
                     info_font = stat_font
 
@@ -772,6 +885,17 @@ class ShinyStatsImage(commands.Cog):
         await db.set_pokemon_nickname(user_id, pokemon_id, nickname)
         await ctx.send(f'✅ Set nickname "{nickname}" for **{shiny["name"]}** (ID: {pokemon_id})!', 
                       reference=ctx.message, mention_author=False)
+
+    @commands.hybrid_command(name='refreshresources', aliases=['updateresources'])
+    @commands.is_owner()
+    async def refresh_resources(self, ctx):
+        """Refresh fonts and backgrounds from GitHub (Owner only)"""
+        await ctx.send("🔄 Refreshing resources from GitHub...")
+        
+        await self.download_fonts()
+        await self.download_backgrounds()
+        
+        await ctx.send("✅ Resources refreshed successfully!")
 
 
 async def setup(bot):
