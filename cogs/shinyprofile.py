@@ -537,7 +537,7 @@ class ShinyStatsImage(commands.Cog):
                 # Draw count badge below pokemon
                 count_text = f"x{count}"
                 try:
-                    count_font = ImageFont.truetype(os.path.join(self.fonts_folder, 'Poppins-Bold.ttf'), 14)
+                    count_font = ImageFont.truetype(os.path.join(self.fonts_folder, 'Poppins-Bold.ttf'), 18)
                 except:
                     count_font = ImageFont.load_default()
 
