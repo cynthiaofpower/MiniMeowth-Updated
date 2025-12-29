@@ -31,10 +31,10 @@ class ShinyPokemonView(discord.ui.View):
             description=self.pages[self.current_page],
             color=EMBED_COLOR
         )
-        
+
         footer_text = f"Showing {self.current_page * 20 + 1}–{min((self.current_page + 1) * 20, self.total_count)} out of {self.total_count} • Page {self.current_page + 1}/{len(self.pages)}"
         embed.set_footer(text=footer_text)
-        
+
         return embed
 
     @discord.ui.button(label="Previous", style=discord.ButtonStyle.primary, emoji="◀️")
@@ -119,14 +119,14 @@ class ShinyPokemonViewer(commands.Cog):
                 if name_val:
                     names.append(name_val.title())
                 i += 1
-            
+
             # IV filter
             elif arg.startswith('--iv'):
                 iv_part = arg[4:]  # Get everything after --iv
                 if iv_part:
                     iv_filter = self.parse_iv_filter(iv_part)
                 i += 1
-            
+
             # Type filter (max 2)
             elif arg in ['--type', '--t']:
                 if i + 1 < len(args) and args[i + 1].lower() in valid_types and len(types) < 2:
@@ -139,7 +139,7 @@ class ShinyPokemonViewer(commands.Cog):
                 if type_val in valid_types and len(types) < 2:
                     types.append(type_val.title())
                 i += 1
-            
+
             # Region filter
             elif arg in ['--region', '--r']:
                 if i + 1 < len(args) and args[i + 1].lower() in valid_regions:
@@ -152,7 +152,7 @@ class ShinyPokemonViewer(commands.Cog):
                 if region_val in valid_regions:
                     region = region_val.title()
                 i += 1
-            
+
             # Page filter
             elif arg in ['--page', '--p']:
                 if i + 1 < len(args):
@@ -170,7 +170,7 @@ class ShinyPokemonViewer(commands.Cog):
                 except ValueError:
                     pass
                 i += 1
-            
+
             else:
                 i += 1
 
@@ -182,7 +182,7 @@ class ShinyPokemonViewer(commands.Cog):
         Examples: 50 -> ('exact', 50.0), >50 -> ('gt', 50.0), <50 -> ('lt', 50.0)
         """
         iv_string = iv_string.strip()
-        
+
         if iv_string.startswith('>'):
             try:
                 value = float(iv_string[1:])
@@ -206,9 +206,9 @@ class ShinyPokemonViewer(commands.Cog):
         """Check if IV matches the filter"""
         if not iv_filter:
             return True
-        
+
         filter_type, filter_value = iv_filter
-        
+
         if filter_type == 'exact':
             # Match whole number (e.g., 50 matches 50.0-50.99)
             return int(iv_percent) == int(filter_value)
@@ -216,7 +216,7 @@ class ShinyPokemonViewer(commands.Cog):
             return iv_percent > filter_value
         elif filter_type == 'lt':
             return iv_percent < filter_value
-        
+
         return True
 
     def matches_filters(self, pokemon: dict, utils, names: list, iv_filter, types: list, region: str):
@@ -227,45 +227,42 @@ class ShinyPokemonViewer(commands.Cog):
             matches_any = any(name.lower() in pokemon_name_lower for name in names)
             if not matches_any:
                 return False
-        
+
         # IV filter
         if not self.matches_iv_filter(pokemon['iv_percent'], iv_filter):
             return False
-        
+
         # Type and region filters
         if types or region:
             info = utils.get_pokemon_info(pokemon['name'])
             if not info:
                 return False
-            
+
             if region and info['region'] != region:
                 return False
-            
+
             if types:
                 pokemon_types = [info['type1']]
                 if info['type2']:
                     pokemon_types.append(info['type2'])
-                
+
                 for type_filter in types:
                     if type_filter not in pokemon_types:
                         return False
-        
+
         return True
 
     async def get_user_order(self, user_id: int):
         """Get user's saved order preference"""
-        settings = await db.settings.find_one({"user_id": user_id})
+        user_data = await db.get_user_data(user_id)
+        settings = user_data.get('settings', {})
         if settings and 'shiny_order' in settings:
             return settings['shiny_order']
         return 'iv-'  # Default: high IV to low IV
 
     async def set_user_order(self, user_id: int, order: str):
         """Save user's order preference"""
-        await db.settings.update_one(
-            {"user_id": user_id},
-            {"$set": {"shiny_order": order}},
-            upsert=True
-        )
+        await db.update_settings(user_id, {"shiny_order": order})
 
     def sort_pokemon(self, pokemon_list: list, order: str):
         """Sort Pokemon list based on order preference"""
@@ -301,7 +298,7 @@ class ShinyPokemonViewer(commands.Cog):
             gender_emoji = config.GENDER_FEMALE
         else:
             gender_emoji = config.GENDER_UNKNOWN
-        
+
         # Format: `ID` ✨ Name Gender • Lvl. X • IV%
         return f"`{pokemon['pokemon_id']}`　✨ **{pokemon['name']}**{gender_emoji}　•　Lvl. {pokemon['level']}　•　{pokemon['iv_percent']:.2f}%"
 
