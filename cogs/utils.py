@@ -3,6 +3,7 @@ from discord.ext import commands
 import re
 import csv
 import config
+import os
 
 class Utils(commands.Cog):
     """Utility functions for Pokemon parsing, breeding compatibility, and Shiny Dex"""
@@ -37,6 +38,7 @@ class Utils(commands.Cog):
         self.pokemon_info = Utils._shared_data['pokemon_info']
         self.event_data = Utils._shared_data['event_data']
         self.event_pokemon_list = Utils._shared_data['event_pokemon_list']
+        self.pokemon_cdn_mapping = Utils._shared_data['pokemon_cdn_mapping']  # ADD THIS LINE
 
         # Precompile regex patterns (instance-specific is fine)
         self.id_pattern = re.compile(r'`(\s*\d+\s*)`')
@@ -56,7 +58,8 @@ class Utils(commands.Cog):
             'dex_by_number': {},
             'pokemon_info': {},
             'event_data': {},
-            'event_pokemon_list': []
+            'event_pokemon_list': [],
+            'pokemon_cdn_mapping': {}  # ADD THIS LINE
         }
 
     def _load_all_data(self):
@@ -66,6 +69,7 @@ class Utils(commands.Cog):
         self.load_gender_only_species()
         self.load_pokemon_data()
         self.load_event_pokemon()
+        self.load_pokemon_cdn_mapping()  # ADD THIS LINE
 
     def load_dex_numbers(self):
         """Load both dex_number.csv (breeding) and dex_number_updated.csv (shiny dex)"""
@@ -231,6 +235,43 @@ class Utils(commands.Cog):
             print(f"✅ Loaded {len(event_data)} event pokemon entries")
         except Exception as e:
             print(f"❌ Error loading data/event_pokemon.csv: {e}")
+
+    def load_pokemon_cdn_mapping(self):
+        """Load Pokemon name to CDN number mapping from CSV file"""
+        pokemon_cdn_mapping = Utils._shared_data['pokemon_cdn_mapping']
+        mapping_file = 'data/pokemon_cdn_mapping.csv'
+
+        if not os.path.exists(mapping_file):
+            print(f"⚠️ Warning: Pokemon CDN mapping file not found at {mapping_file}")
+            return
+
+        try:
+            with open(mapping_file, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    pokemon_name = row.get('name', '').strip()
+                    cdn_number = row.get('cdn_number', '').strip()
+
+                    if pokemon_name and cdn_number:
+                        # Store both lowercase and original case for flexible matching
+                        pokemon_cdn_mapping[pokemon_name.lower()] = int(cdn_number)
+
+            print(f"✅ Loaded {len(pokemon_cdn_mapping)} Pokemon CDN mappings")
+        except Exception as e:
+            print(f"❌ Error loading Pokemon CDN mapping: {e}")
+
+    def get_cdn_number(self, pokemon_name: str) -> int:
+        """Get CDN number for a Pokemon name"""
+        pokemon_cdn_mapping = Utils._shared_data['pokemon_cdn_mapping']
+
+        # Try exact match (case-insensitive)
+        cdn_number = pokemon_cdn_mapping.get(pokemon_name.lower())
+
+        if cdn_number is None:
+            print(f"⚠️ Warning: No CDN mapping found for '{pokemon_name}'")
+            return 0
+
+        return cdn_number
 
     # ===== SHARED METHODS =====
 
