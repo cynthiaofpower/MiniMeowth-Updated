@@ -253,6 +253,136 @@ class Inventory(commands.Cog):
         else:
             await ctx.send("❌ No Pokemon found with those IDs", reference=ctx.message, mention_author=False)
 
+    @commands.hybrid_command(name='releaseall')
+    @app_commands.describe(filters="Name filters to release Pokemon (e.g., '--n gigantamax --n pikachu')")
+    async def releaseall_command(self, ctx, *, filters: str = None):
+        """Release all Pokemon matching the name filters"""
+        if not filters:
+            await ctx.send("❌ Please provide name filters using `--n`\nExample: `m!releaseall --n gigantamax pikachu`", reference=ctx.message, mention_author=False)
+            return
+
+        user_id = ctx.author.id
+        args = filters.split() if filters else []
+        name_filters = []
+
+        # Parse name filters
+        i = 0
+        while i < len(args):
+            arg = args[i].lower()
+            if arg in ['--n', '--name']:
+                if i + 1 < len(args):
+                    name_filters.append(args[i + 1])
+                    i += 2
+                else:
+                    await ctx.send("❌ `--n` requires a name", reference=ctx.message, mention_author=False)
+                    return
+            else:
+                i += 1
+
+        if not name_filters:
+            await ctx.send("❌ No name filters provided. Use `--n <name>` to specify Pokemon to release", reference=ctx.message, mention_author=False)
+            return
+
+        # Get all Pokemon for the user
+        all_pokemon = await db.get_pokemon(user_id)
+
+        # Apply name filters (OR logic - match any of the names)
+        matching_pokemon = [
+            p for p in all_pokemon 
+            if any(name.lower() in p['name'].lower() for name in name_filters)
+        ]
+
+        if not matching_pokemon:
+            await ctx.send("❌ No Pokemon found matching the provided filters", reference=ctx.message, mention_author=False)
+            return
+
+        # Create confirmation view
+        class ConfirmView(discord.ui.View):
+            def __init__(self):
+                super().__init__(timeout=30.0)
+                self.value = None
+
+            @discord.ui.button(label="Confirm Release", style=discord.ButtonStyle.danger, emoji="✅")
+            async def confirm_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+                if interaction.user.id != ctx.author.id:
+                    await interaction.response.send_message("❌ Not your confirmation!", ephemeral=True)
+                    return
+                self.value = True
+                self.stop()
+                await interaction.response.defer()
+
+            @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary, emoji="❌")
+            async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+                if interaction.user.id != ctx.author.id:
+                    await interaction.response.send_message("❌ Not your confirmation!", ephemeral=True)
+                    return
+                self.value = False
+                self.stop()
+                await interaction.response.defer()
+
+        # Create preview embed
+        preview_embed = discord.Embed(
+            title="⚠️ Release Confirmation",
+            description=f"You are about to release **{len(matching_pokemon)}** Pokemon matching your filters:",
+            color=discord.Color.orange()
+        )
+
+        # Show filter summary
+        filter_text = ", ".join(f"`{name}`" for name in name_filters)
+        preview_embed.add_field(name="Filters", value=filter_text, inline=False)
+
+        # Show sample of Pokemon (first 10)
+        sample_size = min(10, len(matching_pokemon))
+        sample_lines = []
+        for p in matching_pokemon[:sample_size]:
+            g = config.GENDER_MALE if p['gender'] == 'male' else config.GENDER_FEMALE if p['gender'] == 'female' else config.GENDER_UNKNOWN
+            sample_lines.append(f"`{p['pokemon_id']}` **{p['name']}** {g} • {p['iv_percent']}% IV")
+
+        if len(matching_pokemon) > sample_size:
+            sample_lines.append(f"... and **{len(matching_pokemon) - sample_size}** more")
+
+        preview_embed.add_field(
+            name=f"Preview ({sample_size}/{len(matching_pokemon)})",
+            value="\n".join(sample_lines),
+            inline=False
+        )
+
+        preview_embed.set_footer(text="Click 'Confirm Release' to proceed or 'Cancel' to abort (30s)")
+
+        view = ConfirmView()
+        confirm_msg = await ctx.send(embed=preview_embed, view=view, reference=ctx.message, mention_author=False)
+        await view.wait()
+
+        if view.value is True:
+            # Get Pokemon IDs to remove
+            pokemon_ids = [p['pokemon_id'] for p in matching_pokemon]
+            
+            # Remove from database
+            count = await db.remove_pokemon(user_id, pokemon_ids)
+
+            success_embed = discord.Embed(
+                title="✅ Pokemon Released",
+                description=f"Successfully released **{count}** Pokemon from your inventory",
+                color=discord.Color.green()
+            )
+            success_embed.set_footer(text=f"Filters used: {', '.join(name_filters)}")
+            await confirm_msg.edit(embed=success_embed, view=None)
+
+        elif view.value is False:
+            cancel_embed = discord.Embed(
+                title="❌ Release Cancelled",
+                description="No Pokemon were released",
+                color=discord.Color.red()
+            )
+            await confirm_msg.edit(embed=cancel_embed, view=None)
+        else:
+            timeout_embed = discord.Embed(
+                title="⏰ Confirmation Timed Out",
+                description="No Pokemon were released",
+                color=discord.Color.greyple()
+            )
+            await confirm_msg.edit(embed=timeout_embed, view=None)
+
     @commands.hybrid_command(name='clear')
     @app_commands.describe(category="Which inventory to clear: inv, tripmax, tripzero, or all")
     async def clear_command(self, ctx, category: str = None):
@@ -331,8 +461,8 @@ class Inventory(commands.Cog):
         gender_filter = None
         gmax_filter = False
         regional_filter = False
-        cooldown_filter = None  # None = show all, True = only cooldown, False = only no cooldown
-        name_filters = []  # List of names to filter
+        cooldown_filter = None
+        name_filters = []
 
         i = 0
         while i < len(args):
@@ -385,18 +515,16 @@ class Inventory(commands.Cog):
             db.get_cooldowns(user_id)
         )
 
-        # Apply name filters (OR logic - match any of the names)
         if name_filters:
             pokemon_list = [
                 p for p in pokemon_list 
                 if any(name.lower() in p['name'].lower() for name in name_filters)
             ]
 
-        # Apply cooldown filter
         if cooldown_filter is not None:
-            if cooldown_filter:  # --cd: only show Pokemon on cooldown
+            if cooldown_filter:
                 pokemon_list = [p for p in pokemon_list if p['pokemon_id'] in cooldowns]
-            else:  # --nocd: only show Pokemon not on cooldown
+            else:
                 pokemon_list = [p for p in pokemon_list if p['pokemon_id'] not in cooldowns]
 
         if not pokemon_list:
@@ -456,14 +584,12 @@ class Inventory(commands.Cog):
             db.get_cooldowns(user_id)
         )
 
-        # Apply name filters
         if name_filters:
             pokemon_list = [
                 p for p in pokemon_list 
                 if any(name.lower() in p['name'].lower() for name in name_filters)
             ]
 
-        # Apply cooldown filter
         if cooldown_filter is not None:
             if cooldown_filter:
                 pokemon_list = [p for p in pokemon_list if p['pokemon_id'] in cooldowns]
