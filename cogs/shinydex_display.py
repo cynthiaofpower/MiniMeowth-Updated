@@ -8,6 +8,7 @@ from config import EMBED_COLOR
 from database import db
 from filters import get_filter, get_all_filter_names
 from smartlist_utils import build_smartlist_sections
+from dex_image_generator import DexImageGenerator
 
 
 def normalize_string(s):
@@ -90,10 +91,11 @@ class ShinyDexDisplay(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+        self.image_generator = DexImageGenerator(bot)
 
     def parse_filters(self, filter_string: str):
         """Parse filter string to extract options
-        Returns: (show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names)
+        Returns: (show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image)
         """
         show_caught = True
         show_uncaught = True
@@ -106,9 +108,10 @@ class ShinyDexDisplay(commands.Cog):
         show_smartlist = False
         ignore_gender = False
         exclude_names = []
+        show_image = False
 
         if not filter_string:
-            return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names
+            return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image
 
         args = filter_string.lower().split()
 
@@ -139,6 +142,9 @@ class ShinyDexDisplay(commands.Cog):
                 i += 1
             elif arg in ['--smartlist', '--slist']:
                 show_smartlist = True
+                i += 1
+            elif arg in ['--image', '--img']:
+                show_image = True
                 i += 1
             elif arg in ['--nogender', '--ng', '--ignoregender', '--ig']:
                 ignore_gender = True
@@ -216,7 +222,7 @@ class ShinyDexDisplay(commands.Cog):
             else:
                 i += 1
 
-        return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names
+        return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image
 
     def matches_filters(self, pokemon_name: str, utils, region_filter: str, type_filters: list):
         """Check if a Pokemon matches region and type filters"""
@@ -300,8 +306,50 @@ class ShinyDexDisplay(commands.Cog):
                 mention_author=False
             )
 
+    async def send_dex_image(self, ctx, pokemon_entries: list, utils, page: int = 1, header_info: dict = None):
+        """Generate and send dex image"""
+        # Calculate which 30 Pokemon to show based on page
+        start_idx = (page - 1) * 30
+        end_idx = start_idx + 30
+        page_entries = pokemon_entries[start_idx:end_idx]
+
+        if not page_entries:
+            await ctx.send("❌ No Pokémon on this page!", reference=ctx.message, mention_author=False)
+            return
+
+        # Generate image
+        status_msg = await ctx.send("🎨 Generating dex image...", reference=ctx.message, mention_author=False)
+
+        try:
+            # Build page info
+            total_pages = (len(pokemon_entries) + 29) // 30  # Round up
+            page_info = {
+                'current_page': page,
+                'total_pages': total_pages,
+                'total_count': len(pokemon_entries)
+            }
+
+            img = await self.image_generator.create_dex_image(page_entries, utils, header_info, page_info)
+
+            if img:
+                # Save to bytes
+                img_bytes = io.BytesIO()
+                img.save(img_bytes, format='PNG')
+                img_bytes.seek(0)
+
+                file = discord.File(img_bytes, filename='shinydex.png')
+
+                await status_msg.delete()
+                await ctx.send(file=file, reference=ctx.message, mention_author=False)
+            else:
+                await status_msg.edit(content="❌ Failed to generate image!")
+
+        except Exception as e:
+            await status_msg.edit(content=f"❌ Error generating image: {str(e)}")
+            print(f"Error in dex image generation: {e}")
+
     @commands.hybrid_command(name='shinydex', aliases=['sd','basicdex','bd'])
-    @app_commands.describe(filters="Filters: --caught, --uncaught, --orderd, --ordera, --region, --type, --name, --exclude, --page, --list, --smartlist")
+    @app_commands.describe(filters="Filters: --caught, --uncaught, --orderd, --ordera, --region, --type, --name, --exclude, --page, --list, --smartlist, --image")
     async def shiny_dex(self, ctx, *, filters: str = None):
         """View your basic shiny dex (one Pokemon per dex number, counts all forms)"""
         utils = self.bot.get_cog('Utils')
@@ -312,7 +360,12 @@ class ShinyDexDisplay(commands.Cog):
         user_id = ctx.author.id
 
         # Parse filters
-        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names = self.parse_filters(filters)
+        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image = self.parse_filters(filters)
+
+        # Check conflicting flags
+        if show_image and (show_list or show_smartlist):
+            await ctx.send("❌ Cannot use --image with --list or --smartlist!", reference=ctx.message, mention_author=False)
+            return
 
         # Get user's shinies
         user_shinies = await db.get_all_shinies(user_id)
@@ -369,6 +422,21 @@ class ShinyDexDisplay(commands.Cog):
             await ctx.send("❌ No shinies match your filters!", reference=ctx.message, mention_author=False)
             return
 
+        # If --image flag is set, generate image
+        if show_image:
+            # Convert to format expected by image generator (dex_num, name, gender_key, count)
+            image_entries = [(dex_num, name, None, count) for dex_num, name, count in filtered_entries]
+
+            # Build header info
+            header_info = {'dex_type': 'Basic Shiny Dex'}
+            if type_filters:
+                header_info['types'] = type_filters
+            if region_filter:
+                header_info['regions'] = [region_filter]
+
+            await self.send_dex_image(ctx, image_entries, utils, page or 1, header_info)
+            return
+
         # If --list flag is set, send simple list format
         if show_list:
             pokemon_names = [name for _, name, _ in filtered_entries]
@@ -423,7 +491,7 @@ class ShinyDexDisplay(commands.Cog):
         view.message = message
 
     @commands.hybrid_command(name='shinydexfull', aliases=['sdf','fulldex','fd','fullshinydex','fsd'])
-    @app_commands.describe(filters="Filters: --caught, --unc, --orderd, --ordera, --region, --type, --name, --exclude, --page, --list, --smartlist")
+    @app_commands.describe(filters="Filters: --caught, --unc, --orderd, --ordera, --region, --type, --name, --exclude, --page, --list, --smartlist, --image")
     async def shiny_dex_full(self, ctx, *, filters: str = None):
         """View your full shiny dex (all forms, includes gender differences)"""
         utils = self.bot.get_cog('Utils')
@@ -434,7 +502,12 @@ class ShinyDexDisplay(commands.Cog):
         user_id = ctx.author.id
 
         # Parse filters
-        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names = self.parse_filters(filters)
+        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image = self.parse_filters(filters)
+
+        # Check conflicting flags
+        if show_image and (show_list or show_smartlist):
+            await ctx.send("❌ Cannot use --image with --list or --smartlist!", reference=ctx.message, mention_author=False)
+            return
 
         # Get user's shinies
         user_shinies = await db.get_all_shinies(user_id)
@@ -511,6 +584,18 @@ class ShinyDexDisplay(commands.Cog):
             await ctx.send("❌ No shinies match your filters!", reference=ctx.message, mention_author=False)
             return
 
+        # If --image flag is set, generate image
+        if show_image:
+            # Build header info
+            header_info = {'dex_type': 'Full Shiny Dex'}
+            if type_filters:
+                header_info['types'] = type_filters
+            if region_filter:
+                header_info['regions'] = [region_filter]
+
+            await self.send_dex_image(ctx, filtered_entries, utils, page or 1, header_info)
+            return
+
         # If --list flag is set, send simple list format
         if show_list:
             pokemon_names = [name for _, name, _, _ in filtered_entries]
@@ -581,7 +666,7 @@ class ShinyDexDisplay(commands.Cog):
     @commands.hybrid_command(name='filter', aliases=['f'])
     @app_commands.describe(
         filter_name="Filter name (e.g., eevos, starters, legendaries)",
-        options="Options: --caught, --uncaught, --orderd, --ordera, --region, --type, --exclude, --nogender, --page, --list, --smartlist"
+        options="Options: --caught, --uncaught, --orderd, --ordera, --region, --type, --exclude, --nogender, --page, --list, --smartlist, --image"
     )
     async def filter_dex(self, ctx, filter_name: str = None, *, options: str = None):
         """View your shiny dex with custom filters"""
@@ -616,7 +701,12 @@ class ShinyDexDisplay(commands.Cog):
         user_id = ctx.author.id
 
         # Parse options
-        show_caught, show_uncaught, order, region_filter, type_filters, _, page, show_list, show_smartlist, ignore_gender, exclude_names = self.parse_filters(options)
+        show_caught, show_uncaught, order, region_filter, type_filters, _, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image = self.parse_filters(options)
+
+        # Check conflicting flags
+        if show_image and (show_list or show_smartlist):
+            await ctx.send("❌ Cannot use --image with --list or --smartlist!", reference=ctx.message, mention_author=False)
+            return
 
         # Get user's shinies
         user_shinies = await db.get_all_shinies(user_id)
@@ -713,6 +803,18 @@ class ShinyDexDisplay(commands.Cog):
 
         if not filtered_entries:
             await ctx.send("❌ No shinies match your filters!", reference=ctx.message, mention_author=False)
+            return
+
+        # If --image flag is set, generate image
+        if show_image:
+            # Build header info
+            header_info = {'filter_name': filter_data['name']}
+            if type_filters:
+                header_info['types'] = type_filters
+            if region_filter:
+                header_info['regions'] = [region_filter]
+
+            await self.send_dex_image(ctx, filtered_entries, utils, page or 1, header_info)
             return
 
         # If --list flag is set, send simple list format
