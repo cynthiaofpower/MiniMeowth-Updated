@@ -158,11 +158,11 @@ class DexImageGenerator:
         # Load header font
         try:
             title_font = ImageFont.truetype(os.path.join(self.fonts_folder, 'Poppins-Bold.ttf'), 28)
-            subtitle_font = ImageFont.truetype(os.path.join(self.fonts_folder, 'Poppins-SemiBold.ttf'), 18)
+            filter_font = ImageFont.truetype(os.path.join(self.fonts_folder, 'Poppins-SemiBold.ttf'), 18)
             page_font = ImageFont.truetype(os.path.join(self.fonts_folder, 'Poppins-SemiBold.ttf'), 15)
         except:
             title_font = ImageFont.load_default()
-            subtitle_font = ImageFont.load_default()
+            filter_font = ImageFont.load_default()
             page_font = ImageFont.load_default()
 
         # Draw header background (rounded rectangle)
@@ -189,22 +189,24 @@ class DexImageGenerator:
         types = header_info.get('types', [])
         regions = header_info.get('regions', [])
 
-        # Main title
+        # Main title (unchanged size and style)
         if filter_name:
             main_text = f"Filter - {filter_name}"
         else:
             main_text = dex_type
 
-        # Subtitle with filters
-        subtitle_parts = []
+        # Build filter text separately
+        filter_text = None
+        filter_parts = []
         if types:
             types_text = ", ".join(types)
-            subtitle_parts.append(f"Types: {types_text}")
+            filter_parts.append(f"Types: {types_text}")
         if regions:
             regions_text = ", ".join(regions)
-            subtitle_parts.append(f"Regions: {regions_text}")
+            filter_parts.append(f"Regions: {regions_text}")
 
-        subtitle_text = " | ".join(subtitle_parts) if subtitle_parts else None
+        if filter_parts:
+            filter_text = " | ".join(filter_parts)
 
         # Build page text for right side
         page_text = None
@@ -221,11 +223,20 @@ class DexImageGenerator:
         # Calculate text positions
         title_bbox = draw.textbbox((0, 0), main_text, font=title_font)
         title_width = title_bbox[2] - title_bbox[0]
-        title_x = header_x + (header_w - title_width) // 2
+
+        # If there's filter text, calculate total width for centering
+        if filter_text:
+            filter_bbox = draw.textbbox((0, 0), f" | {filter_text}", font=filter_font)
+            filter_width = filter_bbox[2] - filter_bbox[0]
+            total_width = title_width + filter_width
+            title_x = header_x + (header_w - total_width) // 2
+        else:
+            title_x = header_x + (header_w - title_width) // 2
+
         title_y = header_y + 12
 
         # Draw main title (will be drawn after overlay composite)
-        return main_text, subtitle_text, title_x, title_y, title_font, subtitle_font, header_x, header_w, page_text, page_font
+        return main_text, filter_text, title_x, title_y, title_font, filter_font, header_x, header_w, page_text, page_font
 
     async def create_dex_image(self, pokemon_entries: list, utils, header_info: dict = None, page_info: dict = None):
         """
@@ -273,7 +284,7 @@ class DexImageGenerator:
         # Draw header and get text info
         draw_temp = ImageDraw.Draw(bg)
         header_data = self.draw_header(draw_temp, overlay_draw, header_info, page_info)
-        main_text, subtitle_text, title_x, title_y, title_font, subtitle_font, header_x, header_w, page_text, page_font = header_data
+        main_text, filter_text, title_x, title_y, title_font, filter_font, header_x, header_w, page_text, page_font = header_data
 
         # Process each Pokemon
         for idx, (dex_num, name, gender_key, count) in enumerate(pokemon_entries):
@@ -338,12 +349,14 @@ class DexImageGenerator:
         # Draw header text (after composite)
         draw.text((title_x, title_y), main_text, font=title_font, fill=(255, 255, 255))
 
-        if subtitle_text:
-            subtitle_bbox = draw.textbbox((0, 0), subtitle_text, font=subtitle_font)
-            subtitle_width = subtitle_bbox[2] - subtitle_bbox[0]
-            subtitle_x = header_x + (header_w - subtitle_width) // 2
-            subtitle_y = title_y + 35
-            draw.text((subtitle_x, subtitle_y), subtitle_text, font=subtitle_font, fill=(200, 200, 220))
+        # Draw filter text next to main title if it exists
+        if filter_text:
+            title_bbox = draw.textbbox((0, 0), main_text, font=title_font)
+            title_width = title_bbox[2] - title_bbox[0]
+            filter_x = title_x + title_width
+            # Align filter text vertically with main title (slightly lower to match baseline)
+            filter_y = title_y + 8
+            draw.text((filter_x, filter_y), f" | {filter_text}", font=filter_font, fill=(200, 200, 220))
 
         # Draw page info in top right of header if provided
         if page_text:
