@@ -468,12 +468,9 @@ class DexImageGenerator:
 
             # Get CDN number
             cdn_number = utils.get_cdn_number(name)
-
-            if cdn_number == 0:
-                continue
+            has_gender_diff = utils.has_gender_difference(name)
 
             # Fetch Pokemon image
-            has_gender_diff = utils.has_gender_difference(name)
             poke_img = await self.fetch_pokemon_image(cdn_number, gender_key, has_gender_diff)
 
             if poke_img:
