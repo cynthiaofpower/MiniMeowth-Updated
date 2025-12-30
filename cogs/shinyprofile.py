@@ -70,10 +70,6 @@ class ShinyStatsImage(commands.Cog):
         self.github_repo = 'meowthfonts'
         self.github_branch = 'main'  # or 'master' - adjust if needed
 
-        # Cache for Pokemon name to CDN number mapping
-        self.pokemon_cdn_mapping = {}
-        self.load_pokemon_mapping()
-
         # Predefined solid colors
         self.solid_colors = {
             'red.png': '#8B0000',
@@ -195,42 +191,6 @@ class ShinyStatsImage(commands.Cog):
 
         print("✅ Background download complete!")
 
-    def load_pokemon_mapping(self):
-        """Load Pokemon name to CDN number mapping from CSV file"""
-        mapping_file = 'data/pokemon_cdn_mapping.csv'  # You can change this path
-
-        if not os.path.exists(mapping_file):
-            print(f"⚠️ Warning: Pokemon CDN mapping file not found at {mapping_file}")
-            return
-
-        try:
-            with open(mapping_file, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    # Assuming CSV has columns: 'name' and 'cdn_number'
-                    # Adjust column names based on your actual CSV structure
-                    pokemon_name = row.get('name', '').strip()
-                    cdn_number = row.get('cdn_number', '').strip()
-
-                    if pokemon_name and cdn_number:
-                        # Store both lowercase and original case for flexible matching
-                        self.pokemon_cdn_mapping[pokemon_name.lower()] = int(cdn_number)
-
-            print(f"✅ Loaded {len(self.pokemon_cdn_mapping)} Pokemon CDN mappings")
-        except Exception as e:
-            print(f"❌ Error loading Pokemon CDN mapping: {e}")
-
-    def get_cdn_number(self, pokemon_name: str) -> int:
-        """Get CDN number for a Pokemon name"""
-        # Try exact match (case-insensitive)
-        cdn_number = self.pokemon_cdn_mapping.get(pokemon_name.lower())
-
-        if cdn_number is None:
-            print(f"⚠️ Warning: No CDN mapping found for '{pokemon_name}'")
-            # Return 0 or some default value if not found
-            return 0
-
-        return cdn_number
 
     def get_available_backgrounds(self):
         """Get list of available background files"""
@@ -271,7 +231,8 @@ class ShinyStatsImage(commands.Cog):
 
     async def fetch_pokemon_image(self, pokemon_name: str):
         """Fetch Pokemon image from Poketwo CDN using Pokemon name"""
-        cdn_number = self.get_cdn_number(pokemon_name)
+        utils = self.bot.get_cog('Utils')
+        cdn_number = utils.get_cdn_number(pokemon_name)  # CHANGE THIS LINE
 
         if cdn_number == 0:
             return None
@@ -571,7 +532,7 @@ class ShinyStatsImage(commands.Cog):
         header_x = pokemon_panel_x + (pokemon_panel_width - header_width) // 2
         draw.text((header_x, showcase_header_y), showcase_text, font=header_font, fill=text_gold)
 
-        
+
 
         # Showcase pokemon data
         showcase_data = stats_data.get('showcase_pokemon')
