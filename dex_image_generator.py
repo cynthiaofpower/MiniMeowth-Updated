@@ -10,11 +10,18 @@ class DexImageGenerator:
     def __init__(self, bot):
         self.bot = bot
         self.fonts_folder = 'shinystats/fonts'
+        self.emojis_folder = 'shinystats/emojis'
 
         # GitHub repository details
         self.github_user = 'cynthiaofpower'
         self.github_repo = 'meowthfonts'
         self.github_branch = 'main'
+
+        # Gender symbol URLs
+        self.gender_symbols = {
+            'male': 'https://cdn.discordapp.com/emojis/1207734081585152101.png',
+            'female': 'https://cdn.discordapp.com/emojis/1207734084210532483.png'
+        }
 
         # Glass panel settings (matching shinystatsimage.py)
         self.glass_color = (20, 20, 40, 180)
@@ -38,8 +45,12 @@ class DexImageGenerator:
         self.img_width = (self.cell_width * self.cols) + (self.padding * (self.cols + 1))
         self.img_height = self.header_height + (self.cell_height * self.rows) + (self.padding * (self.rows + 1))
 
-        # Initialize font download on cog load
+        # Gender symbol size
+        self.gender_symbol_size = 24
+
+        # Initialize font and emoji download on cog load
         self.bot.loop.create_task(self.download_fonts())
+        self.bot.loop.create_task(self.download_gender_symbols())
 
     async def download_file_from_github(self, file_path: str, save_path: str):
         """Download a single file from GitHub repository"""
@@ -63,6 +74,28 @@ class DexImageGenerator:
                         return False
         except Exception as e:
             print(f"❌ Error downloading {file_path}: {e}")
+            return False
+
+    async def download_file_from_url(self, url: str, save_path: str):
+        """Download a file from a direct URL"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as resp:
+                    if resp.status == 200:
+                        content = await resp.read()
+
+                        # Create directory if it doesn't exist
+                        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+                        with open(save_path, 'wb') as f:
+                            f.write(content)
+                        print(f"✅ Downloaded gender symbol: {os.path.basename(save_path)}")
+                        return True
+                    else:
+                        print(f"❌ Failed to download from {url}: Status {resp.status}")
+                        return False
+        except Exception as e:
+            print(f"❌ Error downloading from {url}: {e}")
             return False
 
     async def get_github_directory_contents(self, directory: str):
@@ -110,6 +143,39 @@ class DexImageGenerator:
                 await self.download_file_from_github(github_path, local_path)
 
         print("✅ Font download complete for dex images!")
+
+    async def download_gender_symbols(self):
+        """Download gender symbol images from Discord CDN"""
+        print("📥 Downloading gender symbols for dex images...")
+
+        # Create emojis directory
+        os.makedirs(self.emojis_folder, exist_ok=True)
+
+        # Download each gender symbol
+        for gender, url in self.gender_symbols.items():
+            local_path = os.path.join(self.emojis_folder, f"{gender}.png")
+
+            # Skip if already exists
+            if os.path.exists(local_path):
+                print(f"⏭️ Gender symbol already exists: {gender}.png")
+                continue
+
+            await self.download_file_from_url(url, local_path)
+
+        print("✅ Gender symbol download complete for dex images!")
+
+    def load_gender_symbol(self, gender: str):
+        """Load gender symbol from local file"""
+        try:
+            symbol_path = os.path.join(self.emojis_folder, f"{gender}.png")
+            if os.path.exists(symbol_path):
+                img = Image.open(symbol_path).convert('RGBA')
+                # Resize to desired size
+                img.thumbnail((self.gender_symbol_size, self.gender_symbol_size), Image.Resampling.LANCZOS)
+                return img
+        except Exception as e:
+            print(f"❌ Error loading gender symbol for {gender}: {e}")
+        return None
 
     async def fetch_pokemon_image(self, cdn_number: int, gender_key: str = None, has_gender_diff: bool = False):
         """Fetch Pokemon image from Poketwo CDN"""
@@ -426,6 +492,15 @@ class DexImageGenerator:
 
                 # Paste Pokemon image
                 bg.paste(poke_img, (poke_x, poke_y), poke_img)
+
+            # Add gender symbol for gender difference Pokemon (top left corner, inside rectangle)
+            if has_gender_diff and gender_key:
+                gender_symbol = self.load_gender_symbol(gender_key)
+                if gender_symbol:
+                    # Position in top left corner with small padding from edge
+                    symbol_x = x + 8
+                    symbol_y = y + 8
+                    bg.paste(gender_symbol, (symbol_x, symbol_y), gender_symbol)
 
             # Draw count below Pokemon
             if count > 0:
