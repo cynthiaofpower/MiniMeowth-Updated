@@ -652,10 +652,6 @@ class Database:
         return True
 
     async def set_id_overrides_bulk(self, user_id: int, pokemon_ids: list, category: str):
-    """
-    OPTIMIZED: Set multiple ID overrides in a single operation
-    category: 'old' or 'new'
-    """
         if not pokemon_ids or category not in ['old', 'new']:
             return False
 
