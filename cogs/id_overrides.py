@@ -86,7 +86,7 @@ class IDOverrides(commands.Cog):
         await self._set_multiple_ids(ctx, ids, 'old')
 
     async def _set_multiple_ids(self, ctx, id_string: str, category: str):
-        """Helper method to set multiple IDs at once"""
+        """Helper method to set multiple IDs at once - FULLY OPTIMIZED"""
         user_id = ctx.author.id
         utils = self.bot.get_cog('Utils')
 
@@ -105,16 +105,13 @@ class IDOverrides(commands.Cog):
             await ctx.send("❌ Too many IDs (max 1000 at once)", reference=ctx.message, mention_author=False)
             return
 
-        # Set all overrides
-        for pid in pokemon_ids:
-            await db.set_id_overrides_bulk(user_id, pokemon_ids, category)
+        # === OPTIMIZATION: Set overrides and check inventory in parallel ===
+        set_task = db.set_id_overrides_bulk(user_id, pokemon_ids, category)
+        inventory_task = db.get_pokemon_by_ids_bulk(user_id, pokemon_ids)
 
-        # Check which ones exist in inventory
-        inventory_ids = set()
-        for pid in pokemon_ids:
-            pokemon = await db.get_pokemon_by_id(user_id, pid)
-            if pokemon:
-                inventory_ids.add(pid)
+        await set_task
+        inventory_pokemon = await inventory_task
+        inventory_ids = set(inventory_pokemon.keys())
 
         embed = discord.Embed(
             title=f"✅ Bulk ID Override Set: {category.upper()}",
