@@ -651,11 +651,17 @@ class Database:
         )
         return True
 
+    # Add this new method to your Database class:
+
     async def set_id_overrides_bulk(self, user_id: int, pokemon_ids: list, category: str):
+        """
+        OPTIMIZED: Set multiple ID overrides in a single operation
+        category: 'old' or 'new'
+        """
         if not pokemon_ids or category not in ['old', 'new']:
             return False
 
-    # Build update dict for all IDs at once
+        # Build update dict for all IDs at once
         update_dict = {f"id_overrides.{pid}": category for pid in pokemon_ids}
 
         await self.user_data.update_one(
