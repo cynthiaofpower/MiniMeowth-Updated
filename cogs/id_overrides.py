@@ -107,7 +107,7 @@ class IDOverrides(commands.Cog):
 
         # Set all overrides
         for pid in pokemon_ids:
-            await db.set_id_override(user_id, pid, category)
+            await db.set_id_overrides_bulk(user_id, pokemon_ids, category)
 
         # Check which ones exist in inventory
         inventory_ids = set()
