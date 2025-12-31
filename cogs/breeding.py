@@ -40,7 +40,7 @@ class Breeding(commands.Cog):
         selective = mode == 'selective'
         show_info = settings.get('show_info', 'detailed')
 
-        id_overrides = user_data.get('id_overrides', {})
+        id_overrides = {int(k): v for k, v in user_data.get('id_overrides', {}).items()}
         cooldown_ids = set()
 
         # Convert cooldowns to active set
