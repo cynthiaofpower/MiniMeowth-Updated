@@ -128,34 +128,53 @@ class Inventory(commands.Cog):
             return
 
         user_id = ctx.author.id
-        all_pokemon = []  # All Pokemon found in embeds (excluding eggs)
+        all_pokemon = []  # All valid Pokemon collected from embeds
         processed_pokemon_ids = set()
         monitored_message_id = None
+        total_tracked = 0  # Total valid Pokemon found (excluding eggs)
+        total_added = 0    # Total NEW Pokemon added to DB
 
         async def process_embed(embed):
-            """Process embed and return count of valid Pokemon (excluding eggs/events)"""
+            """Process embed and return list of valid Pokemon (excluding eggs)"""
             if not embed or not embed.description:
-                return 0
-            pokemon_list = utils.parse_embed_content(embed.description)
-            count = 0
-            for p in pokemon_list:
-                if p['pokemon_id'] not in processed_pokemon_ids:
-                    egg_groups = p.get('egg_groups', ['Undiscovered'])
-                    # Only count non-egg Pokemon
-                    if 'Undiscovered' not in egg_groups:
-                        all_pokemon.append(p)
-                        processed_pokemon_ids.add(p['pokemon_id'])
-                        count += 1
-            return count
+                return []
 
-        # Initial embed processing
+            pokemon_list = utils.parse_embed_content(embed.description)
+            valid_pokemon = []
+
+            for p in pokemon_list:
+                # Skip if already processed
+                if p['pokemon_id'] in processed_pokemon_ids:
+                    continue
+
+                # Skip eggs (Undiscovered egg group)
+                egg_groups = p.get('egg_groups', ['Undiscovered'])
+                if 'Undiscovered' in egg_groups:
+                    continue
+
+                # Valid Pokemon - add to list
+                valid_pokemon.append(p)
+                processed_pokemon_ids.add(p['pokemon_id'])
+
+            return valid_pokemon
+
+        # Get category display name
+        category_names = {
+            config.NORMAL_CATEGORY: "Normal",
+            config.TRIPMAX_CATEGORY: "TripMax",
+            config.TRIPZERO_CATEGORY: "TripZero"
+        }
+        category_display = category_names.get(category, category)
+
+        # Process initial embed(s)
         if ctx.message.reference and not message_ids_str:
             try:
                 replied_msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
                 if not replied_msg.embeds:
                     await ctx.send("❌ Please reply to a Poketwo message with embeds!", reference=ctx.message, mention_author=False)
                     return
-                await process_embed(replied_msg.embeds[0])
+                initial_pokemon = await process_embed(replied_msg.embeds[0])
+                all_pokemon.extend(initial_pokemon)
                 monitored_message_id = replied_msg.id
             except Exception as e:
                 await ctx.send(f"❌ Error fetching replied message: {str(e)}", reference=ctx.message, mention_author=False)
@@ -165,51 +184,32 @@ class Inventory(commands.Cog):
             for msg_id in message_ids:
                 try:
                     embed = await utils.fetch_embed_by_id(ctx, int(msg_id))
-                    await process_embed(embed)
+                    page_pokemon = await process_embed(embed)
+                    all_pokemon.extend(page_pokemon)
                 except:
                     continue
-
-        category_names = {
-            config.NORMAL_CATEGORY: "Normal",
-            config.TRIPMAX_CATEGORY: "TripMax",
-            config.TRIPZERO_CATEGORY: "TripZero"
-        }
-        category_display = category_names.get(category, category)
 
         if not all_pokemon:
             await ctx.send("❌ No valid Pokemon found to add", reference=ctx.message, mention_author=False)
             return
 
-        # Track totals
-        total_tracked = len(all_pokemon)  # Total Pokemon processed from embeds (excluding eggs)
-        total_added = 0  # Total new Pokemon added to database
+        # Add initial Pokemon and get counts
+        total_tracked = len(all_pokemon)
+        new_count = await db.add_pokemon_bulk(user_id, all_pokemon, category)
+        total_added = new_count
+        current_inventory = await db.count_pokemon(user_id, category=category)
 
-        # Get initial inventory count
-        initial_inventory_count = await db.count_pokemon(user_id, category=category)
-
+        # Send initial status message
         status_msg = await ctx.send(
-            f"🔄 **Pokemon Tracking In Progress**\n"
+            f"✅ **Pokemon Tracking In Progress**\n"
             f"**Total Pokemon Tracked:** {total_tracked}\n"
-            f"**Total Pokemon Added:** {total_added}\n"
-            f"**Currently In Inventory:** {initial_inventory_count}\n"
+            f"**Total Pokemon Added (excluding events):** {total_added}\n"
+            f"**Currently In Inventory:** {current_inventory}\n"
             f"💡 Keep clicking pages, I'll auto-detect more!",
             reference=ctx.message, mention_author=False
         )
 
-        # Add initial Pokemon to database
-        new_count = await db.add_pokemon_bulk(user_id, all_pokemon, category)
-        total_added += new_count
-        current_inventory_count = await db.count_pokemon(user_id, category=category)
-
-        await status_msg.edit(
-            content=f"✅ **Pokemon Tracking In Progress**\n"
-                    f"**Total Pokemon Tracked:** {total_tracked}\n"
-                    f"**Total Pokemon Added:** {total_added}\n"
-                    f"**Currently In Inventory:** {current_inventory_count}\n"
-                    f"💡 Keep clicking pages, I'll auto-detect more!"
-        )
-
-        # Monitor for page changes
+        # Monitor for page updates
         if monitored_message_id:
             def check(before, after):
                 return (after.id == monitored_message_id and after.embeds)
@@ -224,46 +224,43 @@ class Inventory(commands.Cog):
                     wait_time = min(remaining, 30.0)
                     before, after = await self.bot.wait_for('message_edit', timeout=wait_time, check=check)
 
-                    embed = after.embeds[0]
-                    page_pokemon = []
-                    pokemon_list = utils.parse_embed_content(embed.description)
-
-                    # Track new Pokemon from this page
-                    page_tracked_count = 0
-                    for p in pokemon_list:
-                        if p['pokemon_id'] not in processed_pokemon_ids:
-                            egg_groups = p.get('egg_groups', ['Undiscovered'])
-                            if 'Undiscovered' not in egg_groups:
-                                page_pokemon.append(p)
-                                processed_pokemon_ids.add(p['pokemon_id'])
-                                page_tracked_count += 1
+                    # Process the new page
+                    page_pokemon = await process_embed(after.embeds[0])
 
                     if page_pokemon:
-                        # Add to database and track how many were new
-                        page_new_count = await db.add_pokemon_bulk(user_id, page_pokemon, category)
+                        # Update tracking count
+                        page_tracked = len(page_pokemon)
+                        total_tracked += page_tracked
 
-                        # Update totals
-                        total_tracked += page_tracked_count
-                        total_added += page_new_count
+                        # Add to database
+                        page_added = await db.add_pokemon_bulk(user_id, page_pokemon, category)
+                        total_added += page_added
 
+                        # Get updated inventory count
+                        current_inventory = await db.count_pokemon(user_id, category=category)
+
+                        # Update status message
                         last_update = asyncio.get_event_loop().time()
-                        current_inventory_count = await db.count_pokemon(user_id, category=category)
-
                         await status_msg.edit(
                             content=f"✅ **Pokemon Tracking In Progress**\n"
                                     f"**Total Pokemon Tracked:** {total_tracked}\n"
-                                    f"**Total Pokemon Added:** {total_added}\n"
-                                    f"**Currently In Inventory:** {current_inventory_count}\n"
+                                    f"**Total Pokemon Added (excluding events):** {total_added}\n"
+                                    f"**Currently In Inventory:** {current_inventory}\n"
                                     f"💡 Keep clicking pages, I'll auto-detect more!"
                         )
+
                 except asyncio.TimeoutError:
+                    # If no activity for 15 seconds after last update, stop monitoring
                     if asyncio.get_event_loop().time() - last_update > 15:
                         break
                     continue
+                except Exception as e:
+                    print(f"Error during page monitoring: {e}")
+                    break
 
-        # Final summary
+        # Final summary embed
         duplicates = total_tracked - total_added
-        final_inventory_count = await db.count_pokemon(user_id, category=category)
+        final_inventory = await db.count_pokemon(user_id, category=category)
 
         embed = discord.Embed(
             title=f"✅ Pokemon Tracking Complete",
@@ -273,7 +270,7 @@ class Inventory(commands.Cog):
         summary_text = (
             f"**Total Pokemon Tracked:** {total_tracked}\n"
             f"**Total Pokemon Added:** {total_added}\n"
-            f"**Currently In Inventory:** {final_inventory_count}\n"
+            f"**Currently In Inventory:** {final_inventory}\n"
             f"**Duplicates Ignored:** {duplicates}"
         )
 
