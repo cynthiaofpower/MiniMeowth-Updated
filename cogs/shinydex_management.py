@@ -510,6 +510,11 @@ class ShinyDexManagement(commands.Cog):
         basic_completion = (unique_dex / total_unique_dex) * 100 if total_unique_dex > 0 else 0
         full_completion = (unique_forms / total_forms_count) * 100 if total_forms_count > 0 else 0
 
+        # Special categories using utils methods
+        rare_count = utils.count_rare_shinies(all_shinies)
+        regional_count = utils.count_regional_shinies(all_shinies)
+        mint_count = utils.count_mint_shinies(all_shinies)
+
         embed = discord.Embed(
             title="✨ Shiny Collection Statistics",
             color=EMBED_COLOR
@@ -523,7 +528,7 @@ class ShinyDexManagement(commands.Cog):
 
         # Collection Overview field
         embed.add_field(
-            name="📊 Collection Overview",
+            name="",
             value=f"**Total Non-Event Shiny:** {total_tracked}\n"
                   f"> **Basic Dex:** {unique_dex}/{total_unique_dex} ({basic_completion:.1f}%)\n"
                   f"> **Full Dex:** {unique_forms}/{total_forms_count} ({full_completion:.1f}%)\n"
@@ -534,7 +539,7 @@ class ShinyDexManagement(commands.Cog):
         )
 
         # IV Statistics field - only show "Lowest Non-Zero" if different from "Lowest"
-        iv_stats_text = f"**Average:** {avg_iv:.2f}%\n> **Highest:** {max_iv:.2f}%\n> **Lowest:** {min_iv:.2f}%"
+        iv_stats_text = f"> **Average:** {avg_iv:.2f}%\n> **Highest:** {max_iv:.2f}%\n> **Lowest:** {min_iv:.2f}%"
 
         # Only add "Lowest Non-Zero" if it's different from the regular lowest
         if min_non_zero_iv != min_iv:
@@ -546,13 +551,21 @@ class ShinyDexManagement(commands.Cog):
             inline=True
         )
 
+        embed.add_field(
+            name="⭐ Special Categories",
+            value=f"> **Rare Shinies:** {rare_count}\n"
+                  f"> **Regional Forms:** {regional_count}\n"
+                  f"> **Mint Shinies:** {mint_count}",
+            inline=False
+        )
+
         # Find most common shinies
         from collections import Counter
         name_counts = Counter(s['name'] for s in all_shinies)
-        most_common = name_counts.most_common(5)
+        most_common = name_counts.most_common(3)
 
         if most_common:
-            medals = ["> 🥇", "> 🥈", "> 🥉", "> ", "> "]
+            medals = ["> 🥇", "> 🥈", "> 🥉", "> 🏅", "> 🏅"]
             common_str = "\n".join(f"{medals[i]}  **{name}:** {count}x" for i, (name, count) in enumerate(most_common))
             embed.add_field(
                 name="🏆 Most Collected",
