@@ -322,11 +322,21 @@ class ShinyDexDisplay(commands.Cog):
         page_entries = pokemon_entries[start_idx:end_idx]
 
         if not page_entries:
-            await ctx.send("❌ No Pokémon on this page!", reference=ctx.message, mention_author=False)
+            await ctx.send("❌ No Pokémon on this page!", ephemeral=True)
             return
 
-        # Generate image
-        status_msg = await ctx.send("🎨 Generating dex image...", reference=ctx.message, mention_author=False)
+        # Check if this is a slash command (interaction) or regular command
+        is_interaction = hasattr(ctx, 'interaction') and ctx.interaction is not None
+
+        if is_interaction:
+            # For slash commands, defer the response first (this prevents auto-deletion)
+            if not ctx.interaction.response.is_done():
+                await ctx.interaction.response.defer()
+            # Don't send a status message for slash commands - just generate directly
+            status_msg = None
+        else:
+            # For regular commands, send status message
+            status_msg = await ctx.send("🎨 Generating dex image...", reference=ctx.message, mention_author=False)
 
         try:
             # Build page info
@@ -347,13 +357,34 @@ class ShinyDexDisplay(commands.Cog):
 
                 file = discord.File(img_bytes, filename='shinydex.png')
 
-                await status_msg.delete()
-                await ctx.send(file=file, reference=ctx.message, mention_author=False)
+                if is_interaction:
+                    # For slash commands, send image directly as followup
+                    await ctx.interaction.followup.send(file=file)
+                else:
+                    # For regular commands, delete status and send image
+                    if status_msg:
+                        await status_msg.delete()
+                    await ctx.send(file=file, reference=ctx.message, mention_author=False)
             else:
-                await status_msg.edit(content="❌ Failed to generate image!")
+                if is_interaction:
+                    await ctx.interaction.followup.send("❌ Failed to generate image!")
+                else:
+                    if status_msg:
+                        await status_msg.edit(content="❌ Failed to generate image!")
+                    else:
+                        await ctx.send("❌ Failed to generate image!", reference=ctx.message, mention_author=False)
 
         except Exception as e:
-            await status_msg.edit(content=f"❌ Error generating image: {str(e)}")
+            error_msg = f"❌ Error generating image: {str(e)}"
+
+            if is_interaction:
+                await ctx.interaction.followup.send(error_msg)
+            else:
+                if status_msg:
+                    await status_msg.edit(content=error_msg)
+                else:
+                    await ctx.send(error_msg, reference=ctx.message, mention_author=False)
+
             print(f"Error in dex image generation: {e}")
 
     @commands.hybrid_command(name='shinydex', aliases=['sd','basicdex','bd'])
@@ -565,7 +596,7 @@ class ShinyDexDisplay(commands.Cog):
                 if not ignore_male:
                     male_count = form_counts.get((dex_num, pokemon_name, 'male'), 0)
                     form_entries.append((dex_num, pokemon_name, 'male', male_count))
-                
+
                 if not ignore_female:
                     female_count = form_counts.get((dex_num, pokemon_name, 'female'), 0)
                     form_entries.append((dex_num, pokemon_name, 'female', female_count))
@@ -787,7 +818,7 @@ class ShinyDexDisplay(commands.Cog):
                 if not ignore_male:
                     male_count = form_counts.get((dex_num, pokemon_name, 'male'), 0)
                     dex_entries.append((dex_num, pokemon_name, 'male', male_count))
-                
+
                 # Add female entry (unless ignored)
                 if not ignore_female:
                     female_count = form_counts.get((dex_num, pokemon_name, 'female'), 0)
