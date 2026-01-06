@@ -148,7 +148,7 @@ class DexCustomization(commands.Cog):
 
             embed.add_field(
                 name="📐 Grid Layout",
-                value="`/dexcustomize grid 5x4`\n"
+                value="`m!dexcustomize grid 5x4`\n"
                       "Set columns x rows (e.g., 5x4, 6x3, 4x5)\n"
                       "Max: 6x5 (30 Pokémon per page)",
                 inline=False
@@ -156,46 +156,46 @@ class DexCustomization(commands.Cog):
 
             embed.add_field(
                 name="🎨 Background Color",
-                value="`/dexcustomize background #2A2A3C`\n"
-                      "`/dexcustomize background 40,40,60,255`\n"
+                value="`m!dexcustomize background #2A2A3C`\n"
+                      "`m!dexcustomize background 40,40,60,255`\n"
                       "Use hex (#RRGGBB or #RRGGBBAA) or rgba values",
                 inline=False
             )
 
             embed.add_field(
                 name="🖼️ Glass Panel Color",
-                value="`/dexcustomize glass #14142880`\n"
-                      "`/dexcustomize glass 20,20,40,180`\n"
+                value="`m!dexcustomize glass #14142880`\n"
+                      "`m!dexcustomize glass 20,20,40,180`\n"
                       "Color for the Pokemon panel backgrounds",
                 inline=False
             )
 
             embed.add_field(
                 name="🔲 Border Color",
-                value="`/dexcustomize border #FFFFFF50`\n"
-                      "`/dexcustomize border 255,255,255,80`\n"
+                value="`m!dexcustomize border #FFFFFF50`\n"
+                      "`m!dexcustomize border 255,255,255,80`\n"
                       "Color for panel borders (lower alpha = more subtle)",
                 inline=False
             )
 
             embed.add_field(
                 name="👻 Uncaught Pokémon Style",
-                value="`/dexcustomize uncaught faded`\n"
-                      "`/dexcustomize uncaught silhouette`\n"
-                      "`/dexcustomize uncaught grayscale`\n"
-                      "`/dexcustomize uncaught hidden`\n"
+                value="`m!dexcustomize uncaught faded`\n"
+                      "`m!dexcustomize uncaught silhouette`\n"
+                      "`m!dexcustomize uncaught grayscale`\n"
+                      "`m!dexcustomize uncaught hidden`\n"
                       "How uncaught Pokémon appear",
                 inline=False
             )
 
             embed.add_field(
                 name="💫 Fade Opacity (for faded style)",
-                value="`/dexcustomize opacity 128`\n"
+                value="`m!dexcustomize opacity 90`\n"
                       "0-255 (lower = more transparent)",
                 inline=False
             )
 
-            embed.set_footer(text="View current settings: /dexsettings • Reset: /dexreset")
+            embed.set_footer(text="View current settings: m!dexsettings • Reset: m!dexreset")
 
             await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
             return
@@ -374,7 +374,7 @@ class DexCustomization(commands.Cog):
                 # Show overview of all themes
                 embed = discord.Embed(
                     title="🎨 Dex Color Scheme Suggestions",
-                    description="Choose from these pre-made color schemes! Use `/dexsuggestions <theme>` to see the commands for a specific theme, or `/dexapplytheme <theme>` to apply instantly!",
+                    description="Choose from these pre-made color schemes! Use `m!dexsuggestions <theme>` to see the commands for a specific theme, or `m!dexapplytheme <theme>` to apply instantly!",
                     color=EMBED_COLOR
                 )
 
@@ -415,11 +415,11 @@ class DexCustomization(commands.Cog):
 
                 embed.add_field(
                     name="💡 Quick Apply",
-                    value="Use `/dexapplytheme <theme>` to apply any theme instantly!\nExample: `/dexapplytheme burgundy`",
+                    value="Use `m!dexapplytheme <theme>` to apply any theme instantly!\nExample: `m!dat burgundy`",
                     inline=False
                 )
 
-                embed.set_footer(text="200+ themes available! • Example: /dexsuggestions burgundy")
+                embed.set_footer(text="200+ themes available! • Example: m!dexsuggestions burgundy")
                 await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
                 return
 
@@ -495,7 +495,7 @@ class DexCustomization(commands.Cog):
             embed = discord.Embed(
                 title=f"🎨 {theme_name} Theme",
                 description="**Option 1: Quick Apply**\n"
-                           f"```\n/dexapplytheme {theme_name}\n```\n"
+                           f"```\nm!exapplytheme {theme_name}\n```\n"
                            "**Option 2: Manual Commands**\n"
                            "Copy and paste these commands:",
                 color=EMBED_COLOR
@@ -538,7 +538,7 @@ class DexCustomization(commands.Cog):
                     inline=False
                 )
 
-            embed.set_footer(text="💡 Tip: Use /dexapplytheme for instant application!")
+            embed.set_footer(text="💡 Tip: Use m!dexapplytheme for instant application!")
 
             await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
 
