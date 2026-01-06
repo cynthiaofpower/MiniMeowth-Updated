@@ -1025,39 +1025,58 @@ class Database:
         if updates:
             await self.update_settings(user_id, updates)
 
-    # ========================================
-    # DEX IMAGE CUSTOMIZATION
-    # ========================================
+# ========================================
+# REPLACE YOUR EXISTING DEX CUSTOMIZATION METHODS WITH THESE
+# Add these to your database.py file
+# ========================================
 
     async def get_dex_customization(self, user_id: int):
         """
         Get dex image customization settings for a user
         Returns dict or None if no custom settings
         """
+        print(f"DEBUG DB: get_dex_customization called for user {user_id}")
         user_data = await self.get_user_data(user_id)
-        return user_data.get('dex_customization')
+        result = user_data.get('dex_customization')
+        print(f"DEBUG DB: Retrieved settings: {result}")
+        return result
 
     async def set_dex_customization(self, user_id: int, settings: dict):
         """
         Save dex image customization settings
         settings: dict of customization options
         """
-        await self.user_data.update_one(
-            {"user_id": user_id},
-            {"$set": {"dex_customization": settings}},
-            upsert=True
-        )
+        print(f"DEBUG DB: set_dex_customization called for user {user_id}")
+        print(f"DEBUG DB: Settings to save: {settings}")
+
+        try:
+            result = await self.user_data.update_one(
+                {"user_id": user_id},
+                {"$set": {"dex_customization": settings}},
+                upsert=True
+            )
+            print(f"DEBUG DB: Update result - matched: {result.matched_count}, modified: {result.modified_count}, upserted_id: {result.upserted_id}")
+
+            # Verify it was saved
+            check = await self.user_data.find_one({"user_id": user_id}, {"dex_customization": 1})
+            print(f"DEBUG DB: Verification check: {check}")
+
+        except Exception as e:
+            print(f"DEBUG DB ERROR: Failed to save: {e}")
+            raise
 
     async def update_dex_customization(self, user_id: int, updates: dict):
         """
         Update specific dex customization settings (merge with existing)
         updates: dict of settings to update
         """
+        print(f"DEBUG DB: update_dex_customization called for user {user_id}")
         # Get current settings
         current = await self.get_dex_customization(user_id) or {}
 
         # Merge with updates
         current.update(updates)
+        print(f"DEBUG DB: Merged settings: {current}")
 
         # Save back
         await self.set_dex_customization(user_id, current)
@@ -1067,12 +1086,14 @@ class Database:
         Reset dex customization to defaults (remove custom settings)
         Returns True if settings existed, False otherwise
         """
+        print(f"DEBUG DB: reset_dex_customization called for user {user_id}")
         doc = await self.user_data.find_one(
             {"user_id": user_id},
             {"dex_customization": 1}
         )
 
         had_settings = doc and 'dex_customization' in doc
+        print(f"DEBUG DB: User had settings: {had_settings}")
 
         await self.user_data.update_one(
             {"user_id": user_id},
