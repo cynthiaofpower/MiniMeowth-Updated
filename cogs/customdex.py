@@ -117,7 +117,7 @@ class DexCustomization(commands.Cog):
 
         await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
 
-    @commands.hybrid_command(name='dexcustomize', aliases=['dexcust'])
+    @commands.hybrid_command(name='dexcustomize', aliases=['dc'])
     @app_commands.describe(
         setting="Setting to change (grid, background, uncaught)",
         value="New value for the setting"
