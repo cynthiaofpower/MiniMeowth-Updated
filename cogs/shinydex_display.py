@@ -316,9 +316,13 @@ class ShinyDexDisplay(commands.Cog):
 
     async def send_dex_image(self, ctx, pokemon_entries: list, utils, page: int = 1, header_info: dict = None):
         """Generate and send dex image"""
-        # Calculate which 30 Pokemon to show based on page
-        start_idx = (page - 1) * 30
-        end_idx = start_idx + 30
+        # Get user's grid settings to calculate max per page
+        user_settings = await self.image_generator.get_user_settings(ctx.author.id)
+        max_per_page = user_settings['max_pokemon']  # This is grid_cols * grid_rows
+
+        # Calculate which Pokemon to show based on page and user's grid settings
+        start_idx = (page - 1) * max_per_page
+        end_idx = start_idx + max_per_page
         page_entries = pokemon_entries[start_idx:end_idx]
 
         if not page_entries:
@@ -339,21 +343,21 @@ class ShinyDexDisplay(commands.Cog):
             status_msg = await ctx.send("🎨 Generating dex image...", reference=ctx.message, mention_author=False)
 
         try:
-            # Build page info
-            total_pages = (len(pokemon_entries) + 29) // 30  # Round up
+            # Build page info based on user's grid settings
+            total_pages = (len(pokemon_entries) + max_per_page - 1) // max_per_page  # Ceil division
             page_info = {
                 'current_page': page,
                 'total_pages': total_pages,
                 'total_count': len(pokemon_entries)
             }
 
-            # ⭐ THE FIX: Add user_id=ctx.author.id parameter ⭐
+            # Pass user_id so image generator uses their custom settings
             img = await self.image_generator.create_dex_image(
                 page_entries, 
                 utils, 
                 header_info, 
                 page_info, 
-                user_id=ctx.author.id  # ← THIS WAS MISSING!
+                user_id=ctx.author.id
             )
 
             if img:
