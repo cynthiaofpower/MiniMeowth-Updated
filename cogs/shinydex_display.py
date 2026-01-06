@@ -347,7 +347,14 @@ class ShinyDexDisplay(commands.Cog):
                 'total_count': len(pokemon_entries)
             }
 
-            img = await self.image_generator.create_dex_image(page_entries, utils, header_info, page_info)
+            # ⭐ THE FIX: Add user_id=ctx.author.id parameter ⭐
+            img = await self.image_generator.create_dex_image(
+                page_entries, 
+                utils, 
+                header_info, 
+                page_info, 
+                user_id=ctx.author.id  # ← THIS WAS MISSING!
+            )
 
             if img:
                 # Save to bytes
