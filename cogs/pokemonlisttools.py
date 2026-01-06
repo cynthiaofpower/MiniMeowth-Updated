@@ -424,6 +424,88 @@ class PokemonListTools(commands.Cog):
 
         await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
 
+    # ==================== Stop CreateList Command ====================
+
+    @commands.command(name='stoplist', aliases=['stopcreatelist', 'cancellist'])
+    async def stoplist(self, ctx):
+        """
+        Stop all active createlist commands for the current user in this channel
+        Usage: ?stoplist
+
+        This will:
+        - Stop monitoring for updates to createlist messages
+        - Clear the active Pokemon list
+        - Prevent further updates to the list message
+        """
+        list_key = f"{ctx.channel.id}_{ctx.author.id}"
+
+        # Check if user has an active list
+        if list_key not in pokemon_lists:
+            return await self._send_error(ctx, "You don't have any active Pokemon lists in this channel!")
+
+        # Remove the list from tracking
+        del pokemon_lists[list_key]
+
+        # Remove all monitored messages associated with this list
+        removed_count = 0
+        for msg_id in list(monitored_messages.keys()):
+            if monitored_messages[msg_id]['list_key'] == list_key:
+                del monitored_messages[msg_id]
+                removed_count += 1
+
+        embed = discord.Embed(
+            title="🛑 CreateList Stopped",
+            description=f"Successfully stopped your active Pokemon list.\n\n"
+                       f"**Details:**\n"
+                       f"• Stopped monitoring {removed_count} message(s)\n"
+                       f"• Cleared active list data\n"
+                       f"• List messages will no longer be updated",
+            color=EMBED_COLOR
+        )
+
+        await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
+
+    # Optional: Add an admin command to stop ALL lists in the channel
+    @commands.command(name='stopallists', aliases=['clearalllists'])
+    @commands.has_permissions(manage_messages=True)
+    async def stopallists(self, ctx):
+        """
+        [Admin Only] Stop all active createlist commands in this channel
+        Usage: ?stopallists
+
+        Requires: Manage Messages permission
+        """
+        channel_id = ctx.channel.id
+        removed_lists = 0
+        removed_monitors = 0
+
+        # Remove all lists for this channel
+        for list_key in list(pokemon_lists.keys()):
+            if pokemon_lists[list_key]['channel_id'] == channel_id:
+                del pokemon_lists[list_key]
+                removed_lists += 1
+
+        # Remove all monitored messages for this channel
+        for msg_id in list(monitored_messages.keys()):
+            if monitored_messages[msg_id]['channel_id'] == channel_id:
+                del monitored_messages[msg_id]
+                removed_monitors += 1
+
+        if removed_lists == 0:
+            return await self._send_error(ctx, "No active Pokemon lists found in this channel!")
+
+        embed = discord.Embed(
+            title="🛑 All CreateLists Stopped",
+            description=f"Successfully cleared all active Pokemon lists in this channel.\n\n"
+                       f"**Details:**\n"
+                       f"• Stopped {removed_lists} active list(s)\n"
+                       f"• Cleared {removed_monitors} monitored message(s)\n"
+                       f"• All list messages will no longer be updated",
+            color=EMBED_COLOR
+        )
+
+        await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
+
     # ==================== Compare Command ====================
 
     @commands.command(name='compare')
