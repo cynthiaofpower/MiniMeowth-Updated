@@ -2,1623 +2,1232 @@
 # DEX IMAGE COLOR SUGGESTIONS
 # ============================================================================
 # Copy and paste these commands to customize your dex appearance!
-# Format: m!dexcust <setting> <value>
+# Format: m!dc <setting> <value>
 # ============================================================================
 
 ## ═══════════════════════════════════════════════════════════════════════════
-## DEEP RED FAMILY
+## RED FAMILY
 ## ═══════════════════════════════════════════════════════════════════════════
 
 **Burgundy**
-```
-m!dexcust background #321923
-m!dexcust glass #280F19B4
-m!dexcust border 255,150,180,90
-```
-
-**Wine Red**
-```
-m!dexcust background #3C1928
-m!dexcust glass #2D0F1EB4
-m!dexcust border 255,140,170,100
-```
-
-**Crimson Night**
-```
-m!dexcust background #371E28
-m!dexcust glass #2D141EB4
-m!dexcust border 255,120,150,95
-```
+m!dc background #321923
+m!dc glass #280F19B4
+m!dc border 255,150,180,90
+m!dc badgetext #FFB3CC
+m!dc badgebg #28091480
+m!dc badgeborder #FF99B3
+m!dc countcolor #FFB3CC
+m!dc uncaughtcount #804060
 
 **Ruby Shadow**
-```
-m!dexcust background #3C1419
-m!dexcust glass #2D0A0FB4
-m!dexcust border 255,100,120,100
-```
-
-**Scarlet Depths**
-```
-m!dexcust background #411E23
-m!dexcust glass #32141EB4
-m!dexcust border 255,130,140,95
-```
+m!dc background #3C1419
+m!dc glass #2D0A0FB4
+m!dc border 255,100,120,100
+m!dc badgetext #FF6B7A
+m!dc badgebg #2D0A0FE0
+m!dc badgeborder #FF8090
+m!dc countcolor #FF8599
+m!dc uncaughtcount #802D3D
 
 **Blood Moon**
-```
-m!dexcust background #371419
-m!dexcust glass #280A0FB4
-m!dexcust border 255,80,100,105
-```
-
-**Garnet**
-```
-m!dexcust background #3C1E23
-m!dexcust glass #2D1419B4
-m!dexcust border 220,100,120,90
-```
+m!dc background #371419
+m!dc glass #280A0FB4
+m!dc border 255,80,100,105
+m!dc badgetext #FF5066
+m!dc badgebg #280A0FE0
+m!dc badgeborder #FF6B7A
+m!dc countcolor #FF5066
+m!dc uncaughtcount #802833
 
 ## ═══════════════════════════════════════════════════════════════════════════
-## DEEP PURPLE FAMILY
+## PURPLE FAMILY
 ## ═══════════════════════════════════════════════════════════════════════════
 
 **Eggplant**
-```
-m!dexcust background #2D1E37
-m!dexcust glass #1E1428B4
-m!dexcust border 180,140,255,100
-```
-
-**Deep Plum**
-```
-m!dexcust background #32193C
-m!dexcust glass #230F2DB4
-m!dexcust border 200,120,255,105
-```
-
-**Midnight Purple**
-```
-m!dexcust background #281E37
-m!dexcust glass #1E1428B4
-m!dexcust border 160,130,240,90
-```
+m!dc background #2D1E37
+m!dc glass #1E1428B4
+m!dc border 180,140,255,100
+m!dc badgetext #B48CFF
+m!dc badgebg #1E1428E0
+m!dc badgeborder #C09DFF
+m!dc countcolor #B48CFF
+m!dc uncaughtcount #5A4680
 
 **Royal Purple**
-```
-m!dexcust background #2D1E3C
-m!dexcust glass #1E142DB4
-m!dexcust border 180,120,255,100
-```
+m!dc background #2D1E3C
+m!dc glass #1E142DB4
+m!dc border 180,120,255,100
+m!dc badgetext #B478FF
+m!dc badgebg #1E142DE0
+m!dc badgeborder #C599FF
+m!dc countcolor #B478FF
+m!dc uncaughtcount #5A3C80
 
-**Amethyst Shadow**
-```
-m!dexcust background #321E3C
-m!dexcust glass #23142DB4
-m!dexcust border 200,140,255,95
-```
-
-**Violet Dusk**
-```
-m!dexcust background #2D1E41
-m!dexcust glass #1E1432B4
-m!dexcust border 170,130,255,100
-```
-
-**Grape**
-```
-m!dexcust background #371E41
-m!dexcust glass #281437B4
-m!dexcust border 190,120,240,95
-```
-
-**Lavender Night**
-```
-m!dexcust background #2D2341
-m!dexcust glass #1E1932B4
-m!dexcust border 200,170,255,85
-```
+**Amethyst**
+m!dc background #321E3C
+m!dc glass #23142DB4
+m!dc border 200,140,255,95
+m!dc badgetext #C88CFF
+m!dc badgebg #23142DE0
+m!dc badgeborder #D99DFF
+m!dc countcolor #C88CFF
+m!dc uncaughtcount #644680
 
 ## ═══════════════════════════════════════════════════════════════════════════
-## DEEP BLUE FAMILY
+## BLUE FAMILY
 ## ═══════════════════════════════════════════════════════════════════════════
 
 **Navy**
-```
-m!dexcust background #1E2837
-m!dexcust glass #141E2DB4
-m!dexcust border 120,160,220,95
-```
+m!dc background #1E2837
+m!dc glass #141E2DB4
+m!dc border 120,160,220,95
+m!dc badgetext #78A0DC
+m!dc badgebg #141E2DE0
+m!dc badgeborder #8FB3E6
+m!dc countcolor #78A0DC
+m!dc uncaughtcount #3C506E
 
-**Deep Indigo**
-```
-m!dexcust background #1E233C
-m!dexcust glass #14192DB4
-m!dexcust border 140,150,255,100
-```
-
-**Prussian Blue**
-```
-m!dexcust background #192832
-m!dexcust glass #0F1E23B4
-m!dexcust border 100,180,220,90
-```
-
-**Midnight Blue**
-```
-m!dexcust background #1E2341
-m!dexcust glass #141932B4
-m!dexcust border 120,140,255,95
-```
-
-**Sapphire Depths**
-```
-m!dexcust background #19233C
-m!dexcust glass #0F192DB4
-m!dexcust border 100,150,255,100
-```
-
-**Cobalt Shadow**
-```
-m!dexcust background #1E2D3C
-m!dexcust glass #14232DB4
-m!dexcust border 110,170,240,95
-```
-
-**Royal Blue Night**
-```
-m!dexcust background #1E2841
-m!dexcust glass #141E32B4
-m!dexcust border 130,160,255,100
-```
+**Sapphire**
+m!dc background #19233C
+m!dc glass #0F192DB4
+m!dc border 100,150,255,100
+m!dc badgetext #6496FF
+m!dc badgebg #0F192DE0
+m!dc badgeborder #7AA7FF
+m!dc countcolor #6496FF
+m!dc uncaughtcount #324B80
 
 **Azure Abyss**
-```
-m!dexcust background #192841
-m!dexcust glass #0F1E32B4
-m!dexcust border 100,160,255,95
-```
-
-**Steel Blue**
-```
-m!dexcust background #232D37
-m!dexcust glass #19232DB4
-m!dexcust border 150,180,220,90
-```
+m!dc background #192841
+m!dc glass #0F1E32B4
+m!dc border 100,160,255,95
+m!dc badgetext #64A0FF
+m!dc badgebg #0F1E32E0
+m!dc badgeborder #7AB3FF
+m!dc countcolor #64A0FF
+m!dc uncaughtcount #325080
 
 ## ═══════════════════════════════════════════════════════════════════════════
-## DEEP GREEN FAMILY
+## GREEN FAMILY
 ## ═══════════════════════════════════════════════════════════════════════════
 
 **Hunter Green**
-```
-m!dexcust background #1E3228
-m!dexcust glass #14231EB4
-m!dexcust border 120,200,150,95
-```
+m!dc background #1E3228
+m!dc glass #14231EB4
+m!dc border 120,200,150,95
+m!dc badgetext #78C896
+m!dc badgebg #14231EE0
+m!dc badgeborder #8FD9A7
+m!dc countcolor #78C896
+m!dc uncaughtcount #3C6448
 
-**Dark Moss**
-```
-m!dexcust background #232D1E
-m!dexcust glass #19230FB4
-m!dexcust border 150,200,120,90
-```
-
-**Emerald Shadow**
-```
-m!dexcust background #1E372D
-m!dexcust glass #142D23B4
-m!dexcust border 100,220,160,100
-```
+**Emerald**
+m!dc background #1E372D
+m!dc glass #142D23B4
+m!dc border 100,220,160,100
+m!dc badgetext #64DCA0
+m!dc badgebg #142D23E0
+m!dc badgeborder #7AEDB3
+m!dc countcolor #64DCA0
+m!dc uncaughtcount #326E50
 
 **Forest Night**
-```
-m!dexcust background #1E3C28
-m!dexcust glass #142D1EB4
-m!dexcust border 110,230,150,95
-```
-
-**Pine Depths**
-```
-m!dexcust background #19321E
-m!dexcust glass #0F2314B4
-m!dexcust border 130,200,140,90
-```
-
-**Jade Shadow**
-```
-m!dexcust background #1E3C32
-m!dexcust glass #142D23B4
-m!dexcust border 100,220,180,100
-```
-
-**Verdant Abyss**
-```
-m!dexcust background #1E372D
-m!dexcust glass #14281EB4
-m!dexcust border 120,240,160,95
-```
-
-**Olive Night**
-```
-m!dexcust background #28321E
-m!dexcust glass #1E2314B4
-m!dexcust border 160,200,120,85
-```
+m!dc background #1E3C28
+m!dc glass #142D1EB4
+m!dc border 110,230,150,95
+m!dc badgetext #6EE696
+m!dc badgebg #142D1EE0
+m!dc badgeborder #85F7A7
+m!dc countcolor #6EE696
+m!dc uncaughtcount #377850
 
 ## ═══════════════════════════════════════════════════════════════════════════
-## DEEP TEAL/CYAN FAMILY
+## TEAL/CYAN FAMILY
 ## ═══════════════════════════════════════════════════════════════════════════
 
 **Deep Teal**
-```
-m!dexcust background #1E3237
-m!dexcust glass #142328B4
-m!dexcust border 100,200,220,100
-```
-
-**Dark Turquoise**
-```
-m!dexcust background #19373C
-m!dexcust glass #0F282DB4
-m!dexcust border 80,220,240,105
-```
+m!dc background #1E3237
+m!dc glass #142328B4
+m!dc border 100,200,220,100
+m!dc badgetext #64C8DC
+m!dc badgebg #142328E0
+m!dc badgeborder #7AD9ED
+m!dc countcolor #64C8DC
+m!dc uncaughtcount #32646E
 
 **Ocean Depths**
-```
-m!dexcust background #1E2D37
-m!dexcust glass #14232DB4
-m!dexcust border 120,200,240,95
-```
+m!dc background #1E2D37
+m!dc glass #14232DB4
+m!dc border 120,200,240,95
+m!dc badgetext #78C8F0
+m!dc badgebg #14232DE0
+m!dc badgeborder #8FD9FF
+m!dc countcolor #78C8F0
+m!dc uncaughtcount #3C5A6E
 
-**Aquamarine Shadow**
-```
-m!dexcust background #1E3C3C
-m!dexcust glass #142D2DB4
-m!dexcust border 100,240,240,100
-```
-
-**Cyan Abyss**
-```
-m!dexcust background #19323C
-m!dexcust glass #0F232DB4
-m!dexcust border 90,210,240,95
-```
-
-**Teal Night**
-```
-m!dexcust background #1E3732
-m!dexcust glass #142823B4
-m!dexcust border 110,220,200,100
-```
-
-**Caribbean Depths**
-```
-m!dexcust background #1E3741
-m!dexcust glass #142832B4
-m!dexcust border 100,220,255,95
-```
+**Caribbean**
+m!dc background #1E3741
+m!dc glass #142832B4
+m!dc border 100,220,255,95
+m!dc badgetext #64DCFF
+m!dc badgebg #142832E0
+m!dc badgeborder #7AEDFF
+m!dc countcolor #64DCFF
+m!dc uncaughtcount #326E80
 
 ## ═══════════════════════════════════════════════════════════════════════════
-## DEEP BROWN FAMILY
+## BROWN FAMILY
 ## ═══════════════════════════════════════════════════════════════════════════
 
 **Espresso**
-```
-m!dexcust background #2D2319
-m!dexcust glass #23190FB4
-m!dexcust border 200,170,130,85
-```
-
-**Dark Chocolate**
-```
-m!dexcust background #321E14
-m!dexcust glass #28140AB4
-m!dexcust border 220,160,120,90
-```
-
-**Coffee Bean**
-```
-m!dexcust background #372819
-m!dexcust glass #2D1E0FB4
-m!dexcust border 210,180,130,85
-```
+m!dc background #2D2319
+m!dc glass #23190FB4
+m!dc border 200,170,130,85
+m!dc badgetext #C8AA82
+m!dc badgebg #23190FE0
+m!dc badgeborder #D9BB93
+m!dc countcolor #C8AA82
+m!dc uncaughtcount #645541
 
 **Mahogany**
-```
-m!dexcust background #3C1E14
-m!dexcust glass #2D140AB4
-m!dexcust border 220,140,100,90
-```
-
-**Walnut**
-```
-m!dexcust background #322319
-m!dexcust glass #28190FB4
-m!dexcust border 200,160,120,85
-```
-
-**Sepia Shadow**
-```
-m!dexcust background #2D2314
-m!dexcust glass #23190AB4
-m!dexcust border 210,170,120,85
-```
-
-**Chestnut**
-```
-m!dexcust background #37231E
-m!dexcust glass #2D1914B4
-m!dexcust border 220,170,140,85
-```
+m!dc background #3C1E14
+m!dc glass #2D140AB4
+m!dc border 220,140,100,90
+m!dc badgetext #DC8C64
+m!dc badgebg #2D140AE0
+m!dc badgeborder #ED9D75
+m!dc countcolor #DC8C64
+m!dc uncaughtcount #6E4632
 
 **Earth Tone**
-```
-m!dexcust background #322819
-m!dexcust glass #281E0FB4
-m!dexcust border 200,180,140,80
-```
+m!dc background #322819
+m!dc glass #281E0FB4
+m!dc border 200,180,140,80
+m!dc badgetext #C8B48C
+m!dc badgebg #281E0FE0
+m!dc badgeborder #D9C59D
+m!dc countcolor #C8B48C
+m!dc uncaughtcount #645A41
 
 ## ═══════════════════════════════════════════════════════════════════════════
-## DEEP ORANGE/AMBER FAMILY
+## ORANGE/AMBER FAMILY
 ## ═══════════════════════════════════════════════════════════════════════════
 
 **Burnt Sienna**
-```
-m!dexcust background #3C2314
-m!dexcust glass #2D190AB4
-m!dexcust border 255,150,100,95
-```
+m!dc background #3C2314
+m!dc glass #2D190AB4
+m!dc border 255,150,100,95
+m!dc badgetext #FF9664
+m!dc badgebg #2D190AE0
+m!dc badgeborder #FFA775
+m!dc countcolor #FF9664
+m!dc uncaughtcount #804B32
 
-**Dark Rust**
-```
-m!dexcust background #371E14
-m!dexcust glass #2D140AB4
-m!dexcust border 240,130,80,90
-```
-
-**Amber Shadow**
-```
-m!dexcust background #372814
-m!dexcust glass #2D1E0AB4
-m!dexcust border 255,180,100,90
-```
-
-**Copper Night**
-```
-m!dexcust background #3C2819
-m!dexcust glass #2D1E0FB4
-m!dexcust border 255,160,90,95
-```
+**Copper**
+m!dc background #3C2819
+m!dc glass #2D1E0FB4
+m!dc border 255,160,90,95
+m!dc badgetext #FFA05A
+m!dc badgebg #2D1E0FE0
+m!dc badgeborder #FFB36B
+m!dc countcolor #FFA05A
+m!dc uncaughtcount #80502D
 
 **Tiger Eye**
-```
-m!dexcust background #3C2D14
-m!dexcust glass #2D230AB4
-m!dexcust border 255,190,100,85
-```
-
-**Bronze**
-```
-m!dexcust background #372314
-m!dexcust glass #2D190AB4
-m!dexcust border 230,150,80,90
-```
-
-**Autumn Rust**
-```
-m!dexcust background #411E14
-m!dexcust glass #32140AB4
-m!dexcust border 255,140,70,95
-```
+m!dc background #3C2D14
+m!dc glass #2D230AB4
+m!dc border 255,190,100,85
+m!dc badgetext #FFBE64
+m!dc badgebg #2D230AE0
+m!dc badgeborder #FFCF75
+m!dc countcolor #FFBE64
+m!dc uncaughtcount #805F32
 
 ## ═══════════════════════════════════════════════════════════════════════════
-## DEEP MAGENTA/PINK FAMILY
+## PINK/MAGENTA FAMILY
 ## ═══════════════════════════════════════════════════════════════════════════
 
 **Deep Magenta**
-```
-m!dexcust background #371E32
-m!dexcust glass #2D1423B4
-m!dexcust border 255,120,200,100
-```
+m!dc background #371E32
+m!dc glass #2D1423B4
+m!dc border 255,120,200,100
+m!dc badgetext #FF78C8
+m!dc badgebg #2D1423E0
+m!dc badgeborder #FF89D9
+m!dc countcolor #FF78C8
+m!dc uncaughtcount #803C64
 
 **Dark Rose**
-```
-m!dexcust background #3C1E2D
-m!dexcust glass #321423B4
-m!dexcust border 255,140,180,95
-```
+m!dc background #3C1E2D
+m!dc glass #321423B4
+m!dc border 255,140,180,95
+m!dc badgetext #FF8CB4
+m!dc badgebg #321423E0
+m!dc badgeborder #FF9DC5
+m!dc countcolor #FF8CB4
+m!dc uncaughtcount #804659
 
-**Plum Wine**
-```
-m!dexcust background #321E2D
-m!dexcust glass #281419B4
-m!dexcust border 230,130,200,90
-```
-
-**Fuchsia Shadow**
-```
-m!dexcust background #3C1E37
-m!dexcust glass #2D1428B4
-m!dexcust border 255,120,220,100
-```
-
-**Hot Pink Night**
-```
-m!dexcust background #3C1928
-m!dexcust glass #2D0F1EB4
-m!dexcust border 255,130,190,100
-```
-
-**Berry Shadow**
-```
-m!dexcust background #371E2D
-m!dexcust glass #2D1423B4
-m!dexcust border 240,120,180,95
-```
-
-**Raspberry Depths**
-```
-m!dexcust background #411E2D
-m!dexcust glass #321423B4
-m!dexcust border 255,100,170,100
-```
+**Berry**
+m!dc background #371E2D
+m!dc glass #2D1423B4
+m!dc border 240,120,180,95
+m!dc badgetext #F078B4
+m!dc badgebg #2D1423E0
+m!dc badgeborder #FF89C5
+m!dc countcolor #F078B4
+m!dc uncaughtcount #783C5A
 
 ## ═══════════════════════════════════════════════════════════════════════════
-## NEUTRAL/GRAYSCALE FAMILY
+## NEUTRAL/GRAYSCALE
 ## ═══════════════════════════════════════════════════════════════════════════
 
 **Charcoal**
-```
-m!dexcust background #282828
-m!dexcust glass #1E1E1EB4
-m!dexcust border 180,180,180,90
-```
+m!dc background #282828
+m!dc glass #1E1E1EB4
+m!dc border 180,180,180,90
+m!dc badgetext #B4B4B4
+m!dc badgebg #1E1E1EE0
+m!dc badgeborder #C5C5C5
+m!dc countcolor #B4B4B4
+m!dc uncaughtcount #5A5A5A
 
 **Slate Gray**
-```
-m!dexcust background #2D2D32
-m!dexcust glass #232328B4
-m!dexcust border 160,170,180,95
-```
-
-**Graphite**
-```
-m!dexcust background #232328
-m!dexcust glass #19191EB4
-m!dexcust border 150,150,160,90
-```
-
-**Steel Gray**
-```
-m!dexcust background #2D3237
-m!dexcust glass #23282DB4
-m!dexcust border 170,180,190,90
-```
-
-**Silver Shadow**
-```
-m!dexcust background #323237
-m!dexcust glass #28282DB4
-m!dexcust border 190,190,200,85
-```
-
-**Ash**
-```
-m!dexcust background #2D2D2D
-m!dexcust glass #232323B4
-m!dexcust border 170,170,170,85
-```
+m!dc background #2D2D32
+m!dc glass #232328B4
+m!dc border 160,170,180,95
+m!dc badgetext #A0AAB4
+m!dc badgebg #232328E0
+m!dc badgeborder #B3BDC7
+m!dc countcolor #A0AAB4
+m!dc uncaughtcount #505559
 
 **Obsidian**
-```
-m!dexcust background #1E1E1E
-m!dexcust glass #141414B4
-m!dexcust border 140,140,150,95
-```
-
-**Smoke**
-```
-m!dexcust background #323232
-m!dexcust glass #282828B4
-m!dexcust border 180,180,185,80
-```
+m!dc background #1E1E1E
+m!dc glass #141414B4
+m!dc border 140,140,150,95
+m!dc badgetext #8C8C96
+m!dc badgebg #141414E0
+m!dc badgeborder #9D9DA7
+m!dc countcolor #8C8C96
+m!dc uncaughtcount #46464B
 
 ## ═══════════════════════════════════════════════════════════════════════════
 ## POKÉMON TYPE-THEMED
 ## ═══════════════════════════════════════════════════════════════════════════
 
 **Fire Type**
-```
-m!dexcust background #3C1E0F
-m!dexcust glass #2D140AB4
-m!dexcust border 255,140,60,100
-```
+m!dc background #3C1E0F
+m!dc glass #2D140AB4
+m!dc border 255,140,60,100
+m!dc badgetext #FF8C3C
+m!dc badgebg #2D140AE0
+m!dc badgeborder #FF9D4D
+m!dc countcolor #FF8C3C
+m!dc uncaughtcount #80461E
 
 **Water Type**
-```
-m!dexcust background #1E2D3C
-m!dexcust glass #14232DB4
-m!dexcust border 110,180,255,100
-```
+m!dc background #1E2D3C
+m!dc glass #14232DB4
+m!dc border 110,180,255,100
+m!dc badgetext #6EB4FF
+m!dc badgebg #14232DE0
+m!dc badgeborder #85C5FF
+m!dc countcolor #6EB4FF
+m!dc uncaughtcount #375A80
 
 **Grass Type**
-```
-m!dexcust background #1E3228
-m!dexcust glass #14231EB4
-m!dexcust border 120,220,140,100
-```
+m!dc background #1E3228
+m!dc glass #14231EB4
+m!dc border 120,220,140,100
+m!dc badgetext #78DC8C
+m!dc badgebg #14231EE0
+m!dc badgeborder #89ED9D
+m!dc countcolor #78DC8C
+m!dc uncaughtcount #3C6E46
 
 **Electric Type**
-```
-m!dexcust background #3C3C14
-m!dexcust glass #2D2D0AB4
-m!dexcust border 255,230,80,100
-```
+m!dc background #3C3C14
+m!dc glass #2D2D0AB4
+m!dc border 255,230,80,100
+m!dc badgetext #FFE650
+m!dc badgebg #2D2D0AE0
+m!dc badgeborder #FFF761
+m!dc countcolor #FFE650
+m!dc uncaughtcount #807328
 
 **Psychic Type**
-```
-m!dexcust background #3C1E32
-m!dexcust glass #2D1423B4
-m!dexcust border 255,120,200,100
-```
+m!dc background #3C1E32
+m!dc glass #2D1423B4
+m!dc border 255,120,200,100
+m!dc badgetext #FF78C8
+m!dc badgebg #2D1423E0
+m!dc badgeborder #FF89D9
+m!dc countcolor #FF78C8
+m!dc uncaughtcount #803C64
 
 **Dark Type**
-```
-m!dexcust background #1E1E1E
-m!dexcust glass #141414B4
-m!dexcust border 140,140,150,100
-```
+m!dc background #1E1E1E
+m!dc glass #141414B4
+m!dc border 140,140,150,100
+m!dc badgetext #8C8C96
+m!dc badgebg #141414E0
+m!dc badgeborder #9D9DA7
+m!dc countcolor #8C8C96
+m!dc uncaughtcount #46464B
 
 **Dragon Type**
-```
-m!dexcust background #2D1E3C
-m!dexcust glass #1E142DB4
-m!dexcust border 180,140,255,105
-```
+m!dc background #2D1E3C
+m!dc glass #1E142DB4
+m!dc border 180,140,255,105
+m!dc badgetext #B48CFF
+m!dc badgebg #1E142DE0
+m!dc badgeborder #C59DFF
+m!dc countcolor #B48CFF
+m!dc uncaughtcount #5A4680
 
 **Fairy Type**
-```
-m!dexcust background #3C1E32
-m!dexcust glass #2D1423B4
-m!dexcust border 255,180,220,100
-```
+m!dc background #3C1E32
+m!dc glass #2D1423B4
+m!dc border 255,180,220,100
+m!dc badgetext #FFB4DC
+m!dc badgebg #2D1423E0
+m!dc badgeborder #FFC5ED
+m!dc countcolor #FFB4DC
+m!dc uncaughtcount #805A6E
 
 **Steel Type**
-```
-m!dexcust background #2D3237
-m!dexcust glass #23282DB4
-m!dexcust border 180,190,200,95
-```
+m!dc background #2D3237
+m!dc glass #23282DB4
+m!dc border 180,190,200,95
+m!dc badgetext #B4BEC8
+m!dc badgebg #23282DE0
+m!dc badgeborder #C5CFD9
+m!dc countcolor #B4BEC8
+m!dc uncaughtcount #5A5F64
 
 **Ghost Type**
-```
-m!dexcust background #2D1E3C
-m!dexcust glass #1E1428B4
-m!dexcust border 160,130,200,100
-```
+m!dc background #2D1E3C
+m!dc glass #1E1428B4
+m!dc border 160,130,200,100
+m!dc badgetext #A082C8
+m!dc badgebg #1E1428E0
+m!dc badgeborder #B393D9
+m!dc countcolor #A082C8
+m!dc uncaughtcount #504164
 
 **Ice Type**
-```
-m!dexcust background #1E3241
-m!dexcust glass #142832B4
-m!dexcust border 150,220,255,100
-```
+m!dc background #1E3241
+m!dc glass #142832B4
+m!dc border 150,220,255,100
+m!dc badgetext #96DCFF
+m!dc badgebg #142832E0
+m!dc badgeborder #A7EDFF
+m!dc countcolor #96DCFF
+m!dc uncaughtcount #4B6E80
 
 **Fighting Type**
-```
-m!dexcust background #411E14
-m!dexcust glass #32140AB4
-m!dexcust border 255,130,80,100
-```
+m!dc background #411E14
+m!dc glass #32140AB4
+m!dc border 255,130,80,100
+m!dc badgetext #FF8250
+m!dc badgebg #32140AE0
+m!dc badgeborder #FF9361
+m!dc countcolor #FF8250
+m!dc uncaughtcount #804128
 
 **Poison Type**
-```
-m!dexcust background #321E37
-m!dexcust glass #231428B4
-m!dexcust border 200,120,240,100
-```
+m!dc background #321E37
+m!dc glass #231428B4
+m!dc border 200,120,240,100
+m!dc badgetext #C878F0
+m!dc badgebg #231428E0
+m!dc badgeborder #D989FF
+m!dc countcolor #C878F0
+m!dc uncaughtcount #643C78
 
 **Ground Type**
-```
-m!dexcust background #372819
-m!dexcust glass #2D1E0FB4
-m!dexcust border 220,180,110,90
-```
+m!dc background #372819
+m!dc glass #2D1E0FB4
+m!dc border 220,180,110,90
+m!dc badgetext #DCB46E
+m!dc badgebg #2D1E0FE0
+m!dc badgeborder #EDC57F
+m!dc countcolor #DCB46E
+m!dc uncaughtcount #6E5A37
 
 **Flying Type**
-```
-m!dexcust background #2D3241
-m!dexcust glass #232832B4
-m!dexcust border 160,200,255,95
-```
+m!dc background #2D3241
+m!dc glass #232832B4
+m!dc border 160,200,255,95
+m!dc badgetext #A0C8FF
+m!dc badgebg #232832E0
+m!dc badgeborder #B3D9FF
+m!dc countcolor #A0C8FF
+m!dc uncaughtcount #506480
 
 **Bug Type**
-```
-m!dexcust background #2D3219
-m!dexcust glass #23280FB4
-m!dexcust border 180,220,100,95
-```
+m!dc background #2D3219
+m!dc glass #23280FB4
+m!dc border 180,220,100,95
+m!dc badgetext #B4DC64
+m!dc badgebg #23280FE0
+m!dc badgeborder #C5ED75
+m!dc countcolor #B4DC64
+m!dc uncaughtcount #5A6632
 
 **Rock Type**
-```
-m!dexcust background #322819
-m!dexcust glass #281E0FB4
-m!dexcust border 200,170,130,90
-```
+m!dc background #322819
+m!dc glass #281E0FB4
+m!dc border 200,170,130,90
+m!dc badgetext #C8AA82
+m!dc badgebg #281E0FE0
+m!dc badgeborder #D9BB93
+m!dc countcolor #C8AA82
+m!dc uncaughtcount #645541
 
 **Normal Type**
-```
-m!dexcust background #323232
-m!dexcust glass #282828B4
-m!dexcust border 200,200,200,85
-```
+m!dc background #323232
+m!dc glass #282828B4
+m!dc border 200,200,200,85
+m!dc badgetext #C8C8C8
+m!dc badgebg #282828E0
+m!dc badgeborder #D9D9D9
+m!dc countcolor #C8C8C8
+m!dc uncaughtcount #646464
 
 ## ═══════════════════════════════════════════════════════════════════════════
 ## LEGENDARY POKÉMON-THEMED
 ## ═══════════════════════════════════════════════════════════════════════════
 
-**Mewtwo Psychic**
-```
-m!dexcust background #321E3C
-m!dexcust glass #23142DB4
-m!dexcust border 200,150,255,100
-```
+**Mewtwo**
+m!dc background #321E3C
+m!dc glass #23142DB4
+m!dc border 200,150,255,100
+m!dc badgetext #C896FF
+m!dc badgebg #23142DE0
+m!dc badgeborder #D9A7FF
+m!dc countcolor #C896FF
+m!dc uncaughtcount #644B80
 
-**Rayquaza Sky**
-```
-m!dexcust background #1E3C1E
-m!dexcust glass #142D14B4
-m!dexcust border 120,220,120,100
-```
+**Rayquaza**
+m!dc background #1E3C1E
+m!dc glass #142D14B4
+m!dc border 120,220,120,100
+m!dc badgetext #78DC78
+m!dc badgebg #142D14E0
+m!dc badgeborder #89ED89
+m!dc countcolor #78DC78
+m!dc uncaughtcount #3C6E3C
 
-**Lugia Silver**
-```
-m!dexcust background #2D3241
-m!dexcust glass #232832B4
-m!dexcust border 180,200,240,95
-```
+**Lugia**
+m!dc background #2D3241
+m!dc glass #232832B4
+m!dc border 180,200,240,95
+m!dc badgetext #B4C8F0
+m!dc badgebg #232832E0
+m!dc badgeborder #C5D9FF
+m!dc countcolor #B4C8F0
+m!dc uncaughtcount #5A6478
 
-**Ho-Oh Rainbow**
-```
-m!dexcust background #3C2314
-m!dexcust glass #2D190AB4
-m!dexcust border 255,180,100,100
-```
+**Kyogre**
+m!dc background #1E2D41
+m!dc glass #142332B4
+m!dc border 100,170,255,100
+m!dc badgetext #64AAFF
+m!dc badgebg #142332E0
+m!dc badgeborder #75BBFF
+m!dc countcolor #64AAFF
+m!dc uncaughtcount #325580
 
-**Kyogre Ocean**
-```
-m!dexcust background #1E2D41
-m!dexcust glass #142332B4
-m!dexcust border 100,170,255,100
-```
+**Giratina**
+m!dc background #1E1E23
+m!dc glass #141419B4
+m!dc border 160,140,180,95
+m!dc badgetext #A08CB4
+m!dc badgebg #141419E0
+m!dc badgeborder #B39DC5
+m!dc countcolor #A08CB4
+m!dc uncaughtcount #50465A
 
-**Groudon Magma**
-```
-m!dexcust background #411E14
-m!dexcust glass #32140AB4
-m!dexcust border 255,120,70,100
-```
+**Dialga**
+m!dc background #2D3241
+m!dc glass #232832B4
+m!dc border 150,180,220,100
+m!dc badgetext #96B4DC
+m!dc badgebg #232832E0
+m!dc badgeborder #A7C5ED
+m!dc countcolor #96B4DC
+m!dc uncaughtcount #4B5A6E
 
-**Giratina Shadow**
-```
-m!dexcust background #1E1E23
-m!dexcust glass #141419B4
-m!dexcust border 160,140,180,95
-```
+**Palkia**
+m!dc background #321E37
+m!dc glass #231428B4
+m!dc border 220,160,240,100
+m!dc badgetext #DCA0F0
+m!dc badgebg #231428E0
+m!dc badgeborder #EDB3FF
+m!dc countcolor #DCA0F0
+m!dc uncaughtcount #6E5078
 
-**Dialga Steel**
-```
-m!dexcust background #2D3241
-m!dexcust glass #232832B4
-m!dexcust border 150,180,220,100
-```
+**Groudon**
+m!dc background #411E14
+m!dc glass #32140AB4
+m!dc border 255,120,70,100
+m!dc badgetext #FF7846
+m!dc badgebg #32140AE0
+m!dc badgeborder #FF8957
+m!dc countcolor #FF7846
+m!dc uncaughtcount #803C23
 
-**Palkia Pearl**
-```
-m!dexcust background #321E37
-m!dexcust glass #231428B4
-m!dexcust border 220,160,240,100
-```
+**Ho-Oh**
+m!dc background #3C2314
+m!dc glass #2D190AB4
+m!dc border 255,180,100,100
+m!dc badgetext #FFB464
+m!dc badgebg #2D190AE0
+m!dc badgeborder #FFC575
+m!dc countcolor #FFB464
+m!dc uncaughtcount #805A32
 
-**Zekrom Electric**
-```
-m!dexcust background #1E1E28
-m!dexcust glass #14141EB4
-m!dexcust border 140,180,255,100
-```
+**Zekrom**
+m!dc background #1E1E28
+m!dc glass #14141EB4
+m!dc border 140,180,255,100
+m!dc badgetext #8CB4FF
+m!dc badgebg #14141EE0
+m!dc badgeborder #9DC5FF
+m!dc countcolor #8CB4FF
+m!dc uncaughtcount #465A80
 
-**Reshiram Fire**
-```
-m!dexcust background #3C2D1E
-m!dexcust glass #2D2314B4
-m!dexcust border 255,200,150,90
-```
+**Reshiram**
+m!dc background #3C2D1E
+m!dc glass #2D2314B4
+m!dc border 255,200,150,90
+m!dc badgetext #FFC896
+m!dc badgebg #2D2314E0
+m!dc badgeborder #FFD9A7
+m!dc countcolor #FFC896
+m!dc uncaughtcount #80644B
 
-**Xerneas Fairy**
-```
-m!dexcust background #2D1E41
-m!dexcust glass #1E1432B4
-m!dexcust border 200,180,255,100
-```
+**Xerneas**
+m!dc background #2D1E41
+m!dc glass #1E1432B4
+m!dc border 200,180,255,100
+m!dc badgetext #C8B4FF
+m!dc badgebg #1E1432E0
+m!dc badgeborder #D9C5FF
+m!dc countcolor #C8B4FF
+m!dc uncaughtcount #645A80
 
-**Yveltal Dark**
-```
-m!dexcust background #281E23
-m!dexcust glass #1E1419B4
-m!dexcust border 200,100,120,100
-```
+**Yveltal**
+m!dc background #281E23
+m!dc glass #1E1419B4
+m!dc border 200,100,120,100
+m!dc badgetext #C86478
+m!dc badgebg #1E1419E0
+m!dc badgeborder #D97589
+m!dc countcolor #C86478
+m!dc uncaughtcount #64323C
 
 ## ═══════════════════════════════════════════════════════════════════════════
 ## POPULAR POKÉMON-THEMED
 ## ═══════════════════════════════════════════════════════════════════════════
 
-**Gengar Purple**
-```
-m!dexcust background #2D1E3C
-m!dexcust glass #1E1428B4
-m!dexcust border 180,120,220,100
-```
+**Gengar**
+m!dc background #2D1E3C
+m!dc glass #1E1428B4
+m!dc border 180,120,220,100
+m!dc badgetext #B478DC
+m!dc badgebg #1E1428E0
+m!dc badgeborder #C589ED
+m!dc countcolor #B478DC
+m!dc uncaughtcount #5A3C6E
 
-**Charizard Flame**
-```
-m!dexcust background #3C1E0F
-m!dexcust glass #2D140AB4
-m!dexcust border 255,140,60,100
-```
+**Charizard**
+m!dc background #3C1E0F
+m!dc glass #2D140AB4
+m!dc border 255,140,60,100
+m!dc badgetext #FF8C3C
+m!dc badgebg #2D140AE0
+m!dc badgeborder #FF9D4D
+m!dc countcolor #FF8C3C
+m!dc uncaughtcount #80461E
 
-**Umbreon Dark**
-```
-m!dexcust background #1E1E28
-m!dexcust glass #14141EB4
-m!dexcust border 255,215,0,100
-```
+**Umbreon**
+m!dc background #1E1E28
+m!dc glass #14141EB4
+m!dc border 255,215,0,100
+m!dc badgetext #FFD700
+m!dc badgebg #14141EE0
+m!dc badgeborder #FFE633
+m!dc countcolor #FFD700
+m!dc uncaughtcount #806B00
 
-**Corviknight Steel**
-```
-m!dexcust background #232832
-m!dexcust glass #14192DB4
-m!dexcust border 150,170,200,95
-```
+**Sylveon**
+m!dc background #3C1E32
+m!dc glass #2D1423B4
+m!dc border 255,200,230,90
+m!dc badgetext #FFC8E6
+m!dc badgebg #2D1423E0
+m!dc badgeborder #FFD9F7
+m!dc countcolor #FFC8E6
+m!dc uncaughtcount #806473
 
-**Sylveon Fairy**
-```
-m!dexcust background #3C1E32
-m!dexcust glass #2D1423B4
-m!dexcust border 255,200,230,90
-```
+**Greninja**
+m!dc background #1E2841
+m!dc glass #141E32B4
+m!dc border 110,170,255,100
+m!dc badgetext #6EAAFF
+m!dc badgebg #141E32E0
+m!dc badgeborder #85BBFF
+m!dc countcolor #6EAAFF
+m!dc uncaughtcount #375580
 
-**Greninja Water**
-```
-m!dexcust background #1E2841
-m!dexcust glass #141E32B4
-m!dexcust border 110,170,255,100
-```
+**Garchomp**
+m!dc background #2D1E3C
+m!dc glass #1E142DB4
+m!dc border 180,140,255,100
+m!dc badgetext #B48CFF
+m!dc badgebg #1E142DE0
+m!dc badgeborder #C59DFF
+m!dc countcolor #B48CFF
+m!dc uncaughtcount #5A4680
 
-**Garchomp Dragon**
-```
-m!dexcust background #2D1E3C
-m!dexcust glass #1E142DB4
-m!dexcust border 180,140,255,100
-```
+**Lucario**
+m!dc background #2D3241
+m!dc glass #232832B4
+m!dc border 160,200,255,100
+m!dc badgetext #A0C8FF
+m!dc badgebg #232832E0
+m!dc badgeborder #B3D9FF
+m!dc countcolor #A0C8FF
+m!dc uncaughtcount #506480
 
-**Lucario Steel**
-```
-m!dexcust background #2D3241
-m!dexcust glass #232832B4
-m!dexcust border 160,200,255,100
-```
+**Blaziken**
+m!dc background #411E14
+m!dc glass #32140AB4
+m!dc border 255,140,80,100
+m!dc badgetext #FF8C50
+m!dc badgebg #32140AE0
+m!dc badgeborder #FF9D61
+m!dc countcolor #FF8C50
+m!dc uncaughtcount #804628
 
-**Blaziken Fire**
-```
-m!dexcust background #411E14
-m!dexcust glass #32140AB4
-m!dexcust border 255,140,80,100
-```
+**Gardevoir**
+m!dc background #321E37
+m!dc glass #231428B4
+m!dc border 200,180,255,100
+m!dc badgetext #C8B4FF
+m!dc badgebg #231428E0
+m!dc badgeborder #D9C5FF
+m!dc countcolor #C8B4FF
+m!dc uncaughtcount #645A80
 
-**Gardevoir Psychic**
-```
-m!dexcust background #321E37
-m!dexcust glass #231428B4
-m!dexcust border 200,180,255,100
-```
-
-**Metagross Steel**
-```
-m!dexcust background #2D3237
-m!dexcust glass #23282DB4
-m!dexcust border 160,180,200,95
-```
-
-**Absol Dark**
-```
-m!dexcust background #28282D
-m!dexcust glass #1E1E23B4
-m!dexcust border 180,180,200,90
-```
-
-**Milotic Water**
-```
-m!dexcust background #1E3241
-m!dexcust glass #142832B4
-m!dexcust border 150,220,255,100
-```
-
-**Tyranitar Rock**
-```
-m!dexcust background #282319
-m!dexcust glass #1E190FB4
-m!dexcust border 180,160,130,90
-```
-
-**Dragonite Dragon**
-```
-m!dexcust background #372314
-m!dexcust glass #2D190AB4
-m!dexcust border 255,180,110,95
-```
-
-**Sceptile Grass**
-```
-m!dexcust background #1E3C28
-m!dexcust glass #142D1EB4
-m!dexcust border 110,240,150,100
-```
-
-**Alakazam Psychic**
-```
-m!dexcust background #3C2D1E
-m!dexcust glass #2D2314B4
-m!dexcust border 255,200,120,90
-```
-
-**Scizor Steel**
-```
-m!dexcust background #371E14
-m!dexcust glass #2D140AB4
-m!dexcust border 255,100,100,100
-```
-
-**Gyarados Water**
-```
-m!dexcust background #1E2D41
-m!dexcust glass #142332B4
-m!dexcust border 120,180,255,100
-```
-
-**Arcanine Fire**
-```
-m!dexcust background #3C2814
-m!dexcust glass #2D1E0AB4
-m!dexcust border 255,170,90,95
-```
+**Corviknight**
+m!dc background #232832
+m!dc glass #14192DB4
+m!dc border 150,170,200,95
+m!dc badgetext #96AAC8
+m!dc badgebg #14192DE0
+m!dc badgeborder #A7BBD9
+m!dc countcolor #96AAC8
+m!dc uncaughtcount #4B5564
 
 ## ═══════════════════════════════════════════════════════════════════════════
 ## SHINY POKÉMON-THEMED
 ## ═══════════════════════════════════════════════════════════════════════════
 
-**Shiny Umbreon Blue**
-```
-m!dexcust background #1E2841
-m!dexcust glass #141E32B4
-m!dexcust border 100,180,255,100
-```
+**Shiny Umbreon**
+m!dc background #1E2841
+m!dc glass #141E32B4
+m!dc border 100,180,255,100
+m!dc badgetext #64B4FF
+m!dc badgebg #141E32E0
+m!dc badgeborder #75C5FF
+m!dc countcolor #64B4FF
+m!dc uncaughtcount #325A80
 
-**Shiny Charizard Black**
-```
-m!dexcust background #1E1E1E
-m!dexcust glass #141414B4
-m!dexcust border 200,100,100,100
-```
+**Shiny Charizard**
+m!dc background #1E1E1E
+m!dc glass #141414B4
+m!dc border 200,100,100,100
+m!dc badgetext #C86464
+m!dc badgebg #141414E0
+m!dc badgeborder #D97575
+m!dc countcolor #C86464
+m!dc uncaughtcount #643232
 
-**Shiny Rayquaza Black**
-```
-m!dexcust background #1E1E1E
-m!dexcust glass #141414B4
-m!dexcust border 255,200,100,100
-```
+**Shiny Rayquaza**
+m!dc background #1E1E1E
+m!dc glass #141414B4
+m!dc border 255,200,100,100
+m!dc badgetext #FFC864
+m!dc badgebg #141414E0
+m!dc badgeborder #FFD975
+m!dc countcolor #FFC864
+m!dc uncaughtcount #806432
 
-**Shiny Metagross Silver**
-```
-m!dexcust background #2D3237
-m!dexcust glass #23282DB4
-m!dexcust border 200,220,240,95
-```
+**Shiny Metagross**
+m!dc background #2D3237
+m!dc glass #23282DB4
+m!dc border 200,220,240,95
+m!dc badgetext #C8DCF0
+m!dc badgebg #23282DE0
+m!dc badgeborder #D9EDFF
+m!dc countcolor #C8DCF0
+m!dc uncaughtcount #646E78
 
-**Shiny Gengar White**
-```
-m!dexcust background #323237
-m!dexcust glass #28282DB4
-m!dexcust border 220,220,255,90
-```
+**Shiny Gengar**
+m!dc background #323237
+m!dc glass #28282DB4
+m!dc border 220,220,255,90
+m!dc badgetext #DCDCFF
+m!dc badgebg #28282DE0
+m!dc badgeborder #EDEDFF
+m!dc countcolor #DCDCFF
+m!dc uncaughtcount #6E6E80
 
-**Shiny Greninja Black**
-```
-m!dexcust background #1E1E23
-m!dexcust glass #141419B4
-m!dexcust border 150,180,220,95
-```
+**Shiny Greninja**
+m!dc background #1E1E23
+m!dc glass #141419B4
+m!dc border 150,180,220,95
+m!dc badgetext #96B4DC
+m!dc badgebg #141419E0
+m!dc badgeborder #A7C5ED
+m!dc countcolor #96B4DC
+m!dc uncaughtcount #4B5A6E
 
-**Shiny Gardevoir Blue**
-```
-m!dexcust background #1E2841
-m!dexcust glass #141E32B4
-m!dexcust border 150,200,255,100
-```
-
-**Shiny Gyarados Red**
-```
-m!dexcust background #411E14
-m!dexcust glass #32140AB4
-m!dexcust border 255,100,100,100
-```
+**Shiny Gyarados**
+m!dc background #411E14
+m!dc glass #32140AB4
+m!dc border 255,100,100,100
+m!dc badgetext #FF6464
+m!dc badgebg #32140AE0
+m!dc badgeborder #FF7575
+m!dc countcolor #FF6464
+m!dc uncaughtcount #803232
 
 ## ═══════════════════════════════════════════════════════════════════════════
 ## SEASONAL THEMES
 ## ═══════════════════════════════════════════════════════════════════════════
 
 **Spring Blossom**
-```
-m!dexcust background #3C1E2D
-m!dexcust glass #2D1423B4
-m!dexcust border 255,180,220,95
-```
+m!dc background #3C1E2D
+m!dc glass #2D1423B4
+m!dc border 255,180,220,95
+m!dc badgetext #FFB4DC
+m!dc badgebg #2D1423E0
+m!dc badgeborder #FFC5ED
+m!dc countcolor #FFB4DC
+m!dc uncaughtcount #805A6E
 
 **Summer Sunset**
-```
-m!dexcust background #3C2814
-m!dexcust glass #2D1E0AB4
-m!dexcust border 255,180,100,95
-```
+m!dc background #3C2814
+m!dc glass #2D1E0AB4
+m!dc border 255,180,100,95
+m!dc badgetext #FFB464
+m!dc badgebg #2D1E0AE0
+m!dc badgeborder #FFC575
+m!dc countcolor #FFB464
+m!dc uncaughtcount #805A32
 
 **Autumn Forest**
-```
-m!dexcust background #372314
-m!dexcust glass #2D190AB4
-m!dexcust border 220,150,80,90
-```
+m!dc background #372314
+m!dc glass #2D190AB4
+m!dc border 220,150,80,90
+m!dc badgetext #DC9650
+m!dc badgebg #2D190AE0
+m!dc badgeborder #EDA761
+m!dc countcolor #DC9650
+m!dc uncaughtcount #6E4B28
 
 **Winter Snow**
-```
-m!dexcust background #2D3241
-m!dexcust glass #232832B4
-m!dexcust border 200,220,255,90
-```
+m!dc background #2D3241
+m!dc glass #232832B4
+m!dc border 200,220,255,90
+m!dc badgetext #C8DCFF
+m!dc badgebg #232832E0
+m!dc badgeborder #D9EDFF
+m!dc countcolor #C8DCFF
+m!dc uncaughtcount #646E80
 
-**Halloween Night**
-```
-m!dexcust background #2D1E0A
-m!dexcust glass #231405B4
-m!dexcust border 255,150,50,100
-```
+**Halloween**
+m!dc background #2D1E0A
+m!dc glass #231405B4
+m!dc border 255,150,50,100
+m!dc badgetext #FF9632
+m!dc badgebg #231405E0
+m!dc badgeborder #FFA743
+m!dc countcolor #FF9632
+m!dc uncaughtcount #804B19
 
-**Christmas Spirit**
-```
-m!dexcust background #371E1E
-m!dexcust glass #2D1414B4
-m!dexcust border 120,220,120,95
-```
+**Christmas**
+m!dc background #371E1E
+m!dc glass #2D1414B4
+m!dc border 120,220,120,95
+m!dc badgetext #78DC78
+m!dc badgebg #2D1414E0
+m!dc badgeborder #89ED89
+m!dc countcolor #78DC78
+m!dc uncaughtcount #3C6E3C
 
-**Valentine's Day**
-```
-m!dexcust background #3C1E28
-m!dexcust glass #2D1423B4
-m!dexcust border 255,150,200,100
-```
-
-**Easter Pastel**
-```
-m!dexcust background #2D2841
-m!dexcust glass #1E1E32B4
-m!dexcust border 220,200,255,90
-```
-
-**New Year Sparkle**
-```
-m!dexcust background #1E1E28
-m!dexcust glass #14141EB4
-m!dexcust border 255,215,0,100
-```
+**Valentine**
+m!dc background #3C1E28
+m!dc glass #2D1423B4
+m!dc border 255,150,200,100
+m!dc badgetext #FF96C8
+m!dc badgebg #2D1423E0
+m!dc badgeborder #FFA7D9
+m!dc countcolor #FF96C8
+m!dc uncaughtcount #804B64
 
 ## ═══════════════════════════════════════════════════════════════════════════
 ## NATURE-INSPIRED
 ## ═══════════════════════════════════════════════════════════════════════════
 
 **Cherry Blossom**
-```
-m!dexcust background #3C1E2D
-m!dexcust glass #2D1423B4
-m!dexcust border 255,200,230,90
-```
+m!dc background #3C1E2D
+m!dc glass #2D1423B4
+m!dc border 255,200,230,90
+m!dc badgetext #FFC8E6
+m!dc badgebg #2D1423E0
+m!dc badgeborder #FFD9F7
+m!dc countcolor #FFC8E6
+m!dc uncaughtcount #806473
 
 **Midnight Sky**
-```
-m!dexcust background #1E1E2D
-m!dexcust glass #14141EB4
-m!dexcust border 150,180,255,95
-```
+m!dc background #1E1E2D
+m!dc glass #14141EB4
+m!dc border 150,180,255,95
+m!dc badgetext #96B4FF
+m!dc badgebg #14141EE0
+m!dc badgeborder #A7C5FF
+m!dc countcolor #96B4FF
+m!dc uncaughtcount #4B5A80
 
 **Stormy Sea**
-```
-m!dexcust background #1E2832
-m!dexcust glass #141E23B4
-m!dexcust border 120,170,200,95
-```
+m!dc background #1E2832
+m!dc glass #141E23B4
+m!dc border 120,170,200,95
+m!dc badgetext #78AAC8
+m!dc badgebg #141E23E0
+m!dc badgeborder #89BBD9
+m!dc countcolor #78AAC8
+m!dc uncaughtcount #3C5564
 
 **Desert Dusk**
-```
-m!dexcust background #3C2D1E
-m!dexcust glass #2D2314B4
-m!dexcust border 255,200,140,85
-```
+m!dc background #3C2D1E
+m!dc glass #2D2314B4
+m!dc border 255,200,140,85
+m!dc badgetext #FFC88C
+m!dc badgebg #2D2314E0
+m!dc badgeborder #FFD99D
+m!dc countcolor #FFC88C
+m!dc uncaughtcount #806446
 
-**Aurora Borealis**
-```
-m!dexcust background #1E2D3C
-m!dexcust glass #14232DB4
-m!dexcust border 120,255,200,100
-```
+**Aurora**
+m!dc background #1E2D3C
+m!dc glass #14232DB4
+m!dc border 120,255,200,100
+m!dc badgetext #78FFC8
+m!dc badgebg #14232DE0
+m!dc badgeborder #89FFD9
+m!dc countcolor #78FFC8
+m!dc uncaughtcount #3C8064
 
 **Sunset Beach**
-```
-m!dexcust background #3C2819
-m!dexcust glass #2D1E0FB4
-m!dexcust border 255,180,120,95
-```
-
-**Misty Morning**
-```
-m!dexcust background #2D3237
-m!dexcust glass #23282DB4
-m!dexcust border 180,200,220,80
-```
-
-**Volcanic Ash**
-```
-m!dexcust background #2D1E1E
-m!dexcust glass #231414B4
-m!dexcust border 200,120,100,90
-```
-
-**Crystal Cave**
-```
-m!dexcust background #1E2D37
-m!dexcust glass #14232DB4
-m!dexcust border 150,220,255,100
-```
-
-**Rainforest Canopy**
-```
-m!dexcust background #1E2D1E
-m!dexcust glass #142314B4
-m!dexcust border 130,200,130,90
-```
+m!dc background #3C2819
+m!dc glass #2D1E0FB4
+m!dc border 255,180,120,95
+m!dc badgetext #FFB478
+m!dc badgebg #2D1E0FE0
+m!dc badgeborder #FFC589
+m!dc countcolor #FFB478
+m!dc uncaughtcount #805A3C
 
 ## ═══════════════════════════════════════════════════════════════════════════
 ## GEMSTONE-INSPIRED
 ## ═══════════════════════════════════════════════════════════════════════════
 
 **Diamond**
-```
-m!dexcust background #2D3237
-m!dexcust glass #23282DB4
-m!dexcust border 220,230,255,95
-```
+m!dc background #2D3237
+m!dc glass #23282DB4
+m!dc border 220,230,255,95
+m!dc badgetext #DCE6FF
+m!dc badgebg #23282DE0
+m!dc badgeborder #EDF7FF
+m!dc countcolor #DCE6FF
+m!dc uncaughtcount #6E7380
 
 **Emerald**
-```
-m!dexcust background #1E3C2D
-m!dexcust glass #142D23B4
-m!dexcust border 100,255,180,100
-```
+m!dc background #1E3C2D
+m!dc glass #142D23B4
+m!dc border 100,255,180,100
+m!dc badgetext #64FFB4
+m!dc badgebg #142D23E0
+m!dc badgeborder #75FFC5
+m!dc countcolor #64FFB4
+m!dc uncaughtcount #328059
 
 **Ruby**
-```
-m!dexcust background #411E1E
-m!dexcust glass #321414B4
-m!dexcust border 255,100,120,100
-```
+m!dc background #411E1E
+m!dc glass #321414B4
+m!dc border 255,100,120,100
+m!dc badgetext #FF6478
+m!dc badgebg #321414E0
+m!dc badgeborder #FF7589
+m!dc countcolor #FF6478
+m!dc uncaughtcount #80323C
 
 **Sapphire**
-```
-m!dexcust background #1E2341
-m!dexcust glass #141932B4
-m!dexcust border 110,150,255,100
-```
-
-**Amethyst**
-```
-m!dexcust background #321E3C
-m!dexcust glass #23142DB4
-m!dexcust border 200,140,255,100
-```
-
-**Topaz**
-```
-m!dexcust background #3C2D14
-m!dexcust glass #2D230AB4
-m!dexcust border 255,200,100,95
-```
-
-**Opal**
-```
-m!dexcust background #2D2832
-m!dexcust glass #1E1E23B4
-m!dexcust border 200,220,255,90
-```
+m!dc background #1E2341
+m!dc glass #141932B4
+m!dc border 110,150,255,100
+m!dc badgetext #6E96FF
+m!dc badgebg #141932E0
+m!dc badgeborder #85A7FF
+m!dc countcolor #6E96FF
+m!dc uncaughtcount #374B80
 
 **Jade**
-```
-m!dexcust background #1E3C32
-m!dexcust glass #142D23B4
-m!dexcust border 110,240,200,100
-```
+m!dc background #1E3C32
+m!dc glass #142D23B4
+m!dc border 110,240,200,100
+m!dc badgetext #6EF0C8
+m!dc badgebg #142D23E0
+m!dc badgeborder #85FFD9
+m!dc countcolor #6EF0C8
+m!dc uncaughtcount #377864
 
-**Onyx**
-```
-m!dexcust background #1E1E1E
-m!dexcust glass #141414B4
-m!dexcust border 120,120,130,95
-```
-
-**Citrine**
-```
-m!dexcust background #3C3214
-m!dexcust glass #2D280AB4
-m!dexcust border 255,220,100,90
-```
+**Opal**
+m!dc background #2D2832
+m!dc glass #1E1E23B4
+m!dc border 200,220,255,90
+m!dc badgetext #C8DCFF
+m!dc badgebg #1E1E23E0
+m!dc badgeborder #D9EDFF
+m!dc countcolor #C8DCFF
+m!dc uncaughtcount #646E80
 
 ## ═══════════════════════════════════════════════════════════════════════════
 ## FANTASY-INSPIRED
 ## ═══════════════════════════════════════════════════════════════════════════
 
 **Dragon's Lair**
-```
-m!dexcust background #2D1E23
-m!dexcust glass #231419B4
-m!dexcust border 255,140,100,100
-```
+m!dc background #2D1E23
+m!dc glass #231419B4
+m!dc border 255,140,100,100
+m!dc badgetext #FF8C64
+m!dc badgebg #231419E0
+m!dc badgeborder #FF9D75
+m!dc countcolor #FF8C64
+m!dc uncaughtcount #804632
 
 **Wizard's Tower**
-```
-m!dexcust background #2D1E41
-m!dexcust glass #1E1432B4
-m!dexcust border 180,150,255,100
-```
+m!dc background #2D1E41
+m!dc glass #1E1432B4
+m!dc border 180,150,255,100
+m!dc badgetext #B496FF
+m!dc badgebg #1E1432E0
+m!dc badgeborder #C5A7FF
+m!dc countcolor #B496FF
+m!dc uncaughtcount #5A4B80
 
 **Elven Forest**
-```
-m!dexcust background #1E3C28
-m!dexcust glass #142D1EB4
-m!dexcust border 140,255,180,95
-```
-
-**Dwarf Mine**
-```
-m!dexcust background #322319
-m!dexcust glass #28190FB4
-m!dexcust border 200,170,130,85
-```
+m!dc background #1E3C28
+m!dc glass #142D1EB4
+m!dc border 140,255,180,95
+m!dc badgetext #8CFFB4
+m!dc badgebg #142D1EE0
+m!dc badgeborder #9DFFC5
+m!dc countcolor #8CFFB4
+m!dc uncaughtcount #46805A
 
 **Phoenix Flame**
-```
-m!dexcust background #411E0F
-m!dexcust glass #32140AB4
-m!dexcust border 255,150,60,100
-```
+m!dc background #411E0F
+m!dc glass #32140AB4
+m!dc border 255,150,60,100
+m!dc badgetext #FF963C
+m!dc badgebg #32140AE0
+m!dc badgeborder #FFA74D
+m!dc countcolor #FF963C
+m!dc uncaughtcount #804B1E
 
 **Kraken Depths**
-```
-m!dexcust background #1E2832
-m!dexcust glass #141E23B4
-m!dexcust border 100,180,220,100
-```
+m!dc background #1E2832
+m!dc glass #141E23B4
+m!dc border 100,180,220,100
+m!dc badgetext #64B4DC
+m!dc badgebg #141E23E0
+m!dc badgeborder #75C5ED
+m!dc countcolor #64B4DC
+m!dc uncaughtcount #325A6E
 
 **Vampire Castle**
-```
-m!dexcust background #321419
-m!dexcust glass #280F0FB4
-m!dexcust border 200,100,120,100
-```
-
-**Fairy Glade**
-```
-m!dexcust background #282D1E
-m!dexcust glass #1E2314B4
-m!dexcust border 180,255,180,90
-```
-
-**Shadow Realm**
-```
-m!dexcust background #1E1E23
-m!dexcust glass #141419B4
-m!dexcust border 150,130,180,95
-```
-
-**Unicorn Meadow**
-```
-m!dexcust background #2D1E3C
-m!dexcust glass #1E1428B4
-m!dexcust border 255,200,255,90
-```
+m!dc background #321419
+m!dc glass #280F0FB4
+m!dc border 200,100,120,100
+m!dc badgetext #C86478
+m!dc badgebg #280F0FE0
+m!dc badgeborder #D97589
+m!dc countcolor #C86478
+m!dc uncaughtcount #64323C
 
 ## ═══════════════════════════════════════════════════════════════════════════
 ## CYBERPUNK/NEON
 ## ═══════════════════════════════════════════════════════════════════════════
 
 **Neon Pink**
-```
-m!dexcust background #3C1E32
-m!dexcust glass #2D1423B4
-m!dexcust border 255,0,200,110
-```
+m!dc background #3C1E32
+m!dc glass #2D1423B4
+m!dc border 255,0,200,110
+m!dc badgetext #FF00C8
+m!dc badgebg #2D1423E0
+m!dc badgeborder #FF33D9
+m!dc countcolor #FF00C8
+m!dc uncaughtcount #800064
 
 **Cyber Blue**
-```
-m!dexcust background #1E2841
-m!dexcust glass #141E32B4
-m!dexcust border 0,200,255,110
-```
-
-**Electric Lime**
-```
-m!dexcust background #282D1E
-m!dexcust glass #1E2314B4
-m!dexcust border 180,255,0,105
-```
+m!dc background #1E2841
+m!dc glass #141E32B4
+m!dc border 0,200,255,110
+m!dc badgetext #00C8FF
+m!dc badgebg #141E32E0
+m!dc badgeborder #33D9FF
+m!dc countcolor #00C8FF
+m!dc uncaughtcount #006480
 
 **Toxic Green**
-```
-m!dexcust background #1E3C1E
-m!dexcust glass #142D14B4
-m!dexcust border 100,255,100,110
-```
+m!dc background #1E3C1E
+m!dc glass #142D14B4
+m!dc border 100,255,100,110
+m!dc badgetext #64FF64
+m!dc badgebg #142D14E0
+m!dc badgeborder #75FF75
+m!dc countcolor #64FF64
+m!dc uncaughtcount #328032
 
 **Plasma Purple**
-```
-m!dexcust background #2D1E41
-m!dexcust glass #1E1432B4
-m!dexcust border 200,100,255,110
-```
-
-**Neon Orange**
-```
-m!dexcust background #3C2314
-m!dexcust glass #2D190AB4
-m!dexcust border 255,150,0,105
-```
-
-**Cyber Red**
-```
-m!dexcust background #411E1E
-m!dexcust glass #321414B4
-m!dexcust border 255,50,100,110
-```
-
-**Matrix Green**
-```
-m!dexcust background #1E2D1E
-m!dexcust glass #142314B4
-m!dexcust border 0,255,100,110
-```
+m!dc background #2D1E41
+m!dc glass #1E1432B4
+m!dc border 200,100,255,110
+m!dc badgetext #C864FF
+m!dc badgebg #1E1432E0
+m!dc badgeborder #D975FF
+m!dc countcolor #C864FF
+m!dc uncaughtcount #643280
 
 ## ═══════════════════════════════════════════════════════════════════════════
 ## RETRO/VINTAGE
 ## ═══════════════════════════════════════════════════════════════════════════
 
-**Retro Arcade**
-```
-m!dexcust background #2D1E3C
-m!dexcust glass #1E1428B4
-m!dexcust border 255,0,255,100
-```
+**80s Synthwave**
+m!dc background #3C1E41
+m!dc glass #2D1432B4
+m!dc border 255,100,200,105
+m!dc badgetext #FF64C8
+m!dc badgebg #2D1432E0
+m!dc badgeborder #FF75D9
+m!dc countcolor #FF64C8
+m!dc uncaughtcount #803264
 
 **Vintage Sepia**
-```
-m!dexcust background #322819
-m!dexcust glass #281E0FB4
-m!dexcust border 210,180,140,80
-```
+m!dc background #322819
+m!dc glass #281E0FB4
+m!dc border 210,180,140,80
+m!dc badgetext #D2B48C
+m!dc badgebg #281E0FE0
+m!dc badgeborder #E3C59D
+m!dc countcolor #D2B48C
+m!dc uncaughtcount #695A46
 
-**Classic Film**
-```
-m!dexcust background #282828
-m!dexcust glass #1E1E1EB4
-m!dexcust border 180,180,180,85
-```
-
-**80s Synthwave**
-```
-m!dexcust background #3C1E41
-m!dexcust glass #2D1432B4
-m!dexcust border 255,100,200,105
-```
-
-**VHS Tape**
-```
-m!dexcust background #2D2319
-m!dexcust glass #23190FB4
-m!dexcust border 200,180,160,80
-```
-
-**Polaroid**
-```
-m!dexcust background #2D2D32
-m!dexcust glass #232328B4
-m!dexcust border 200,200,210,85
-```
-
-## ═══════════════════════════════════════════════════════════════════════════
-## FOOD-INSPIRED
-## ═══════════════════════════════════════════════════════════════════════════
-
-**Blueberry**
-```
-m!dexcust background #1E2341
-m!dexcust glass #141932B4
-m!dexcust border 120,150,255,100
-```
-
-**Strawberry**
-```
-m!dexcust background #411E1E
-m!dexcust glass #321414B4
-m!dexcust border 255,120,140,100
-```
-
-**Lime**
-```
-m!dexcust background #283214
-m!dexcust glass #1E280AB4
-m!dexcust border 180,255,100,100
-```
-
-**Grape**
-```
-m!dexcust background #321E3C
-m!dexcust glass #23142DB4
-m!dexcust border 180,120,240,100
-```
-
-**Orange**
-```
-m!dexcust background #3C2814
-m!dexcust glass #2D1E0AB4
-m!dexcust border 255,180,80,95
-```
-
-**Watermelon**
-```
-m!dexcust background #371E23
-m!dexcust glass #2D1419B4
-m!dexcust border 120,255,150,95
-```
-
-**Mango**
-```
-m!dexcust background #3C2D14
-m!dexcust glass #2D230AB4
-m!dexcust border 255,200,80,95
-```
-
-**Mint**
-```
-m!dexcust background #1E3C32
-m!dexcust glass #142D23B4
-m!dexcust border 150,255,200,100
-```
-
-## ═══════════════════════════════════════════════════════════════════════════
-## SPACE-THEMED
-## ═══════════════════════════════════════════════════════════════════════════
-
-**Deep Space**
-```
-m!dexcust background #1E1E28
-m!dexcust glass #14141EB4
-m!dexcust border 150,150,200,95
-```
-
-**Nebula Purple**
-```
-m!dexcust background #2D1E41
-m!dexcust glass #1E1432B4
-m!dexcust border 200,150,255,100
-```
-
-**Mars Red**
-```
-m!dexcust background #411E14
-m!dexcust glass #32140AB4
-m!dexcust border 255,130,100,95
-```
-
-**Jupiter Storm**
-```
-m!dexcust background #3C2D1E
-m!dexcust glass #2D2314B4
-m!dexcust border 220,180,140,90
-```
-
-**Saturn Gold**
-```
-m!dexcust background #3C3214
-m!dexcust glass #2D280AB4
-m!dexcust border 255,220,120,95
-```
-
-**Neptune Blue**
-```
-m!dexcust background #1E2D41
-m!dexcust glass #142332B4
-m!dexcust border 110,180,255,100
-```
-
-**Cosmic Void**
-```
-m!dexcust background #1E1E1E
-m!dexcust glass #0F0F0FB4
-m!dexcust border 100,100,120,95
-```
-
-**Galaxy Swirl**
-```
-m!dexcust background #2D1E3C
-m!dexcust glass #1E142DB4
-m!dexcust border 180,140,255,100
-```
-
-**Supernova**
-```
-m!dexcust background #3C1E14
-m!dexcust glass #2D140AB4
-m!dexcust border 255,180,100,100
-```
-
-**Black Hole**
-```
-m!dexcust background #0F0F14
-m!dexcust glass #0A0A0FB4
-m!dexcust border 120,100,150,100
-```
-
-## ═══════════════════════════════════════════════════════════════════════════
-## ELEMENT-THEMED
-## ═══════════════════════════════════════════════════════════════════════════
-
-**Flame**
-```
-m!dexcust background #411E0F
-m!dexcust glass #32140AB4
-m!dexcust border 255,140,60,100
-```
-
-**Tsunami**
-```
-m!dexcust background #1E2D3C
-m!dexcust glass #14232DB4
-m!dexcust border 110,190,255,100
-```
-
-**Earthquake**
-```
-m!dexcust background #322819
-m!dexcust glass #281E0FB4
-m!dexcust border 200,170,130,90
-```
-
-**Cyclone**
-```
-m!dexcust background #2D3241
-m!dexcust glass #232832B4
-m!dexcust border 180,200,240,95
-```
-
-**Lightning**
-```
-m!dexcust background #3C3C1E
-m!dexcust glass #2D2D14B4
-m!dexcust border 255,255,100,105
-```
-
-**Blizzard**
-```
-m!dexcust background #2D3241
-m!dexcust glass #232832B4
-m!dexcust border 200,230,255,95
-```
-
-**Magma**
-```
-m!dexcust background #411E14
-m!dexcust glass #32140AB4
-m!dexcust border 255,120,60,100
-```
-
-**Avalanche**
-```
-m!dexcust background #2D3237
-m!dexcust glass #23282DB4
-m!dexcust border 210,220,240,90
-```
+**Arcade**
+m!dc background #2D1E3C
+m!dc glass #1E1428B4
+m!dc border 255,0,255,100
+m!dc badgetext #FF00FF
+m!dc badgebg #1E1428E0
+m!dc badgeborder #FF33FF
+m!dc countcolor #FF00FF
+m!dc uncaughtcount #800080
 
 ## ═══════════════════════════════════════════════════════════════════════════
 ## CREATOR'S TOP PICKS 🌟
 ## ═══════════════════════════════════════════════════════════════════════════
 
-**The Classic (Original Default)**
-```
-m!dexcust background 45,30,55,255
-m!dexcust glass 30,20,40,180
-m!dexcust border 255,255,255,80
-```
+**The Classic** (Original Default)
+m!dc background 45,30,55,255
+m!dc glass 30,20,40,180
+m!dc border 180,140,255,100
+m!dc badgetext #FFD700
+m!dc badgebg 0,0,0,200
+m!dc badgeborder #FFD700
+m!dc countcolor #64C8FF
+m!dc uncaughtcount #787878
 
 **Dark Elegance**
-```
-m!dexcust background #1E1E23
-m!dexcust glass #141419B4
-m!dexcust border 200,200,220,90
-```
+m!dc background #1E1E23
+m!dc glass #141419B4
+m!dc border 200,200,220,90
+m!dc badgetext #C8C8DC
+m!dc badgebg #141419E0
+m!dc badgeborder #D9D9ED
+m!dc countcolor #C8C8DC
+m!dc uncaughtcount #64646E
 
 **Royal Court**
-```
-m!dexcust background #2D1E3C
-m!dexcust glass #1E1428B4
-m!dexcust border 200,160,255,100
-```
+m!dc background #2D1E3C
+m!dc glass #1E1428B4
+m!dc border 200,160,255,100
+m!dc badgetext #C8A0FF
+m!dc badgebg #1E1428E0
+m!dc badgeborder #D9B3FF
+m!dc countcolor #C8A0FF
+m!dc uncaughtcount #645080
 
 **Ocean Dream**
-```
-m!dexcust background #1E2D3C
-m!dexcust glass #14232DB4
-m!dexcust border 130,200,255,100
-```
-
-**Forest Sanctuary**
-```
-m!dexcust background #1E3C28
-m!dexcust glass #142D1EB4
-m!dexcust border 120,240,160,100
-```
-
-**Sunset Glory**
-```
-m!dexcust background #3C2314
-m!dexcust glass #2D190AB4
-m!dexcust border 255,170,100,95
-```
+m!dc background #1E2D3C
+m!dc glass #14232DB4
+m!dc border 130,200,255,100
+m!dc badgetext #82C8FF
+m!dc badgebg #14232DE0
+m!dc badgeborder #93D9FF
+m!dc countcolor #82C8FF
+m!dc uncaughtcount #416480
 
 **Mystic Purple**
-```
-m!dexcust background #321E3C
-m!dexcust glass #23142DB4
-m!dexcust border 200,140,255,100
-```
+m!dc background #321E3C
+m!dc glass #23142DB4
+m!dc border 200,140,255,100
+m!dc badgetext #C88CFF
+m!dc badgebg #23142DE0
+m!dc badgeborder #D99DFF
+m!dc countcolor #C88CFF
+m!dc uncaughtcount #644680
 
-**Deep Burgundy (Most Popular)**
-```
-m!dexcust background #321923
-m!dexcust glass #280F19B4
-m!dexcust border 255,150,180,90
-```
+**Forest Sanctuary**
+m!dc background #1E3C28
+m!dc glass #142D1EB4
+m!dc border 120,240,160,100
+m!dc badgetext #78F0A0
+m!dc badgebg #142D1EE0
+m!dc badgeborder #89FFB3
+m!dc countcolor #78F0A0
+m!dc uncaughtcount #3C7850
 
 **Midnight Gold**
-```
-m!dexcust background #1E1E28
-m!dexcust glass #14141EB4
-m!dexcust border 255,215,0,100
-```
-
-**Arctic Ice**
-```
-m!dexcust background #1E3241
-m!dexcust glass #142832B4
-m!dexcust border 150,230,255,100
-```
+m!dc background #1E1E28
+m!dc glass #14141EB4
+m!dc border 255,215,0,100
+m!dc badgetext #FFD700
+m!dc badgebg #14141EE0
+m!dc badgeborder #FFE633
+m!dc countcolor #FFD700
+m!dc uncaughtcount #806B00
 
 ## ═══════════════════════════════════════════════════════════════════════════
 ## END OF FILE
 ## ═══════════════════════════════════════════════════════════════════════════
-# Total Themes: 200+
+# Total Themes: 50+ Curated Themes
 # Use /dexsuggestions to browse or /dexapplytheme <name> to apply instantly!
 # Custom combinations? Use /dexcustomize to create your own unique style!
