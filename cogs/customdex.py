@@ -84,10 +84,12 @@ class DexCustomization(commands.Cog):
         # Colors
         bg = settings['bg_color']
         glass = settings['glass_color']
+        border = settings['border_color']
         embed.add_field(
             name="🎨 Colors",
             value=f"**Background:** `{bg[0]},{bg[1]},{bg[2]},{bg[3]}`\n"
-                  f"**Glass panels:** `{glass[0]},{glass[1]},{glass[2]},{glass[3]}`",
+                  f"**Glass panels:** `{glass[0]},{glass[1]},{glass[2]},{glass[3]}`\n"
+                  f"**Borders:** `{border[0]},{border[1]},{border[2]},{border[3]}`",
             inline=False
         )
 
@@ -119,7 +121,7 @@ class DexCustomization(commands.Cog):
 
     @commands.hybrid_command(name='dexcustomize', aliases=['dc', 'dexcust'])
     @app_commands.describe(
-        setting="Setting to change (grid, background, uncaught)",
+        setting="Setting to change (grid, background, glass, border, uncaught)",
         value="New value for the setting"
     )
     async def dex_customize(self, ctx, setting: str = None, *, value: str = None):
@@ -129,8 +131,9 @@ class DexCustomization(commands.Cog):
         /dexcustomize grid 5x4 - Set grid to 5 columns x 4 rows
         /dexcustomize background #2A2A3C - Set background color (hex)
         /dexcustomize background 40,40,60,255 - Set background color (rgba)
+        /dexcustomize glass #14142880 - Set glass panel color
+        /dexcustomize border #FFFFFF50 - Set border color
         /dexcustomize uncaught faded - Set uncaught style to faded
-        /dexcustomize uncaught silhouette - Set uncaught style to silhouette
         /dexcustomize opacity 100 - Set fade opacity (for faded style)
         """
         user_id = ctx.author.id
@@ -164,6 +167,14 @@ class DexCustomization(commands.Cog):
                 value="`/dexcustomize glass #14142880`\n"
                       "`/dexcustomize glass 20,20,40,180`\n"
                       "Color for the Pokemon panel backgrounds",
+                inline=False
+            )
+
+            embed.add_field(
+                name="🔲 Border Color",
+                value="`/dexcustomize border #FFFFFF50`\n"
+                      "`/dexcustomize border 255,255,255,80`\n"
+                      "Color for panel borders (lower alpha = more subtle)",
                 inline=False
             )
 
@@ -231,10 +242,8 @@ class DexCustomization(commands.Cog):
                                  reference=ctx.message, mention_author=False)
                     return
 
-                print(f"DEBUG: Saving bg_color: {color} (type: {type(color)})")
                 user_settings['bg_color'] = color
                 await db.set_dex_customization(user_id, user_settings)
-                print(f"DEBUG: Saved settings: {user_settings}")
                 await ctx.send(f"✅ Background color set to `{color[0]},{color[1]},{color[2]},{color[3]}`", 
                              reference=ctx.message, mention_author=False)
 
@@ -254,6 +263,24 @@ class DexCustomization(commands.Cog):
                 user_settings['glass_color'] = color
                 await db.set_dex_customization(user_id, user_settings)
                 await ctx.send(f"✅ Glass panel color set to `{color[0]},{color[1]},{color[2]},{color[3]}`", 
+                             reference=ctx.message, mention_author=False)
+
+            # Border color (NEW!)
+            elif setting in ['border', 'bordercolor', 'borders']:
+                if not value:
+                    await ctx.send("❌ Please specify a color (hex or rgba)", 
+                                 reference=ctx.message, mention_author=False)
+                    return
+
+                color = self.parse_color(value)
+                if not color:
+                    await ctx.send("❌ Invalid color format! Use `#RRGGBB`, `#RRGGBBAA`, or `r,g,b,a`", 
+                                 reference=ctx.message, mention_author=False)
+                    return
+
+                user_settings['border_color'] = color
+                await db.set_dex_customization(user_id, user_settings)
+                await ctx.send(f"✅ Border color set to `{color[0]},{color[1]},{color[2]},{color[3]}`\n💡 Tip: Use lower alpha values (e.g., 50-100) for subtle borders!", 
                              reference=ctx.message, mention_author=False)
 
             # Uncaught style
