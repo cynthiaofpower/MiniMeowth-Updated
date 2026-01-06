@@ -1025,6 +1025,62 @@ class Database:
         if updates:
             await self.update_settings(user_id, updates)
 
+    # ========================================
+    # DEX IMAGE CUSTOMIZATION
+    # ========================================
+
+    async def get_dex_customization(self, user_id: int):
+        """
+        Get dex image customization settings for a user
+        Returns dict or None if no custom settings
+        """
+        user_data = await self.get_user_data(user_id)
+        return user_data.get('dex_customization')
+
+    async def set_dex_customization(self, user_id: int, settings: dict):
+        """
+        Save dex image customization settings
+        settings: dict of customization options
+        """
+        await self.user_data.update_one(
+            {"user_id": user_id},
+            {"$set": {"dex_customization": settings}},
+            upsert=True
+        )
+
+    async def update_dex_customization(self, user_id: int, updates: dict):
+        """
+        Update specific dex customization settings (merge with existing)
+        updates: dict of settings to update
+        """
+        # Get current settings
+        current = await self.get_dex_customization(user_id) or {}
+
+        # Merge with updates
+        current.update(updates)
+
+        # Save back
+        await self.set_dex_customization(user_id, current)
+
+    async def reset_dex_customization(self, user_id: int):
+        """
+        Reset dex customization to defaults (remove custom settings)
+        Returns True if settings existed, False otherwise
+        """
+        doc = await self.user_data.find_one(
+            {"user_id": user_id},
+            {"dex_customization": 1}
+        )
+
+        had_settings = doc and 'dex_customization' in doc
+
+        await self.user_data.update_one(
+            {"user_id": user_id},
+            {"$unset": {"dex_customization": ""}}
+        )
+
+        return had_settings
+
 
     # Global database instance
 db = Database()
