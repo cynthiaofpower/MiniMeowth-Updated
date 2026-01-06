@@ -49,7 +49,7 @@ class DexCustomization(commands.Cog):
 
         return None
 
-    @commands.hybrid_command(name='dexsettings', aliases=['dexset'])
+    @commands.hybrid_command(name='dexsettings', aliases=['dexset','ds'])
     async def dex_settings(self, ctx):
         """View your current dex image customization settings"""
         user_id = ctx.author.id
