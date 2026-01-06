@@ -81,15 +81,46 @@ class DexCustomization(commands.Cog):
             inline=False
         )
 
-        # Colors
+        # Main colors
         bg = settings['bg_color']
         glass = settings['glass_color']
         border = settings['border_color']
         embed.add_field(
-            name="🎨 Colors",
+            name="🎨 Panel Colors",
             value=f"**Background:** `{bg[0]},{bg[1]},{bg[2]},{bg[3]}`\n"
                   f"**Glass panels:** `{glass[0]},{glass[1]},{glass[2]},{glass[3]}`\n"
                   f"**Borders:** `{border[0]},{border[1]},{border[2]},{border[3]}`",
+            inline=False
+        )
+
+        # Badge settings
+        badge_info = []
+        if settings.get('show_badge_box', True):
+            badge_text = settings['badge_text_color']
+            badge_bg = settings['badge_bg_color']
+            badge_border = settings['badge_border_color']
+            badge_info.append(f"**Status:** Box enabled ✅")
+            badge_info.append(f"**Text:** `{badge_text[0]},{badge_text[1]},{badge_text[2]}`")
+            badge_info.append(f"**Background:** `{badge_bg[0]},{badge_bg[1]},{badge_bg[2]},{badge_bg[3]}`")
+            badge_info.append(f"**Border:** `{badge_border[0]},{badge_border[1]},{badge_border[2]},{badge_border[3]}`")
+        else:
+            badge_text = settings['badge_text_color']
+            badge_info.append(f"**Status:** Box disabled (text only) ⭕")
+            badge_info.append(f"**Text:** `{badge_text[0]},{badge_text[1]},{badge_text[2]}`")
+
+        embed.add_field(
+            name="🏷️ Dex Number Badge",
+            value='\n'.join(badge_info),
+            inline=False
+        )
+
+        # Count text colors
+        count_caught = settings['count_text_color_caught']
+        count_uncaught = settings['count_text_color_uncaught']
+        embed.add_field(
+            name="🔢 Count Text Colors",
+            value=f"**Caught (x1+):** `{count_caught[0]},{count_caught[1]},{count_caught[2]}`\n"
+                  f"**Uncaught (x0):** `{count_uncaught[0]},{count_uncaught[1]},{count_uncaught[2]}`",
             inline=False
         )
 
@@ -121,7 +152,7 @@ class DexCustomization(commands.Cog):
 
     @commands.hybrid_command(name='dexcustomize', aliases=['dc', 'dexcust'])
     @app_commands.describe(
-        setting="Setting to change (grid, background, glass, border, uncaught)",
+        setting="Setting to change",
         value="New value for the setting"
     )
     async def dex_customize(self, ctx, setting: str = None, *, value: str = None):
@@ -129,12 +160,15 @@ class DexCustomization(commands.Cog):
 
         Examples:
         /dexcustomize grid 5x4 - Set grid to 5 columns x 4 rows
-        /dexcustomize background #2A2A3C - Set background color (hex)
-        /dexcustomize background 40,40,60,255 - Set background color (rgba)
+        /dexcustomize background #2A2A3C - Set background color
         /dexcustomize glass #14142880 - Set glass panel color
         /dexcustomize border #FFFFFF50 - Set border color
+        /dexcustomize badgetext #FFD700 - Set dex number text color
+        /dexcustomize badgebg #000000C8 - Set badge background
+        /dexcustomize badge off - Toggle badge box off
+        /dexcustomize countcolor #64C8FF - Set caught count color
+        /dexcustomize uncaughtcount #787878 - Set uncaught count color
         /dexcustomize uncaught faded - Set uncaught style to faded
-        /dexcustomize opacity 100 - Set fade opacity (for faded style)
         """
         user_id = ctx.author.id
 
@@ -148,54 +182,55 @@ class DexCustomization(commands.Cog):
 
             embed.add_field(
                 name="📐 Grid Layout",
-                value="`m!dexcustomize grid 5x4`\n"
-                      "Set columns x rows (e.g., 5x4, 6x3, 4x5)\n"
+                value="`m!dc grid 5x4`\n"
+                      "Set columns x rows (e.g., 5x4, 6x3)\n"
                       "Max: 6x5 (30 Pokémon per page)",
                 inline=False
             )
 
             embed.add_field(
-                name="🎨 Background Color",
-                value="`m!dexcustomize background #2A2A3C`\n"
-                      "`m!dexcustomize background 40,40,60,255`\n"
-                      "Use hex (#RRGGBB or #RRGGBBAA) or rgba values",
+                name="🎨 Panel Colors",
+                value="`m!dc background #2A2A3C` - Background\n"
+                      "`m!dc glass #14142880` - Glass panels\n"
+                      "`m!dc border #FFFFFF50` - Borders\n"
+                      "Use hex (#RRGGBB or #RRGGBBAA) or rgba",
                 inline=False
             )
 
             embed.add_field(
-                name="🖼️ Glass Panel Color",
-                value="`m!dexcustomize glass #14142880`\n"
-                      "`m!dexcustomize glass 20,20,40,180`\n"
-                      "Color for the Pokemon panel backgrounds",
+                name="🏷️ Badge Customization",
+                value="`m!dc badgetext #FFD700` - Number color\n"
+                      "`m!dc badgebg #000000C8` - Box background\n"
+                      "`m!dc badgeborder #FFD700` - Box border\n"
+                      "`m!dc badge off` - Hide box (text only)",
                 inline=False
             )
 
             embed.add_field(
-                name="🔲 Border Color",
-                value="`m!dexcustomize border #FFFFFF50`\n"
-                      "`m!dexcustomize border 255,255,255,80`\n"
-                      "Color for panel borders (lower alpha = more subtle)",
+                name="🔢 Count Colors",
+                value="`m!dc countcolor #64C8FF` - Caught (x1+)\n"
+                      "`m!dc uncaughtcount #787878` - Uncaught (x0)",
                 inline=False
             )
 
             embed.add_field(
-                name="👻 Uncaught Pokémon Style",
-                value="`m!dexcustomize uncaught faded`\n"
-                      "`m!dexcustomize uncaught silhouette`\n"
-                      "`m!dexcustomize uncaught grayscale`\n"
-                      "`m!dexcustomize uncaught hidden`\n"
-                      "How uncaught Pokémon appear",
+                name="👻 Uncaught Pokémon",
+                value="`m!dc uncaught faded` - Semi-transparent\n"
+                      "`m!dc uncaught silhouette` - Dark silhouette\n"
+                      "`m!dc uncaught grayscale` - Grayscale\n"
+                      "`m!dc uncaught hidden` - Completely hidden\n"
+                      "`m!dc opacity 90` - Fade opacity (0-255)",
                 inline=False
             )
 
             embed.add_field(
-                name="💫 Fade Opacity (for faded style)",
-                value="`m!dexcustomize opacity 90`\n"
-                      "0-255 (lower = more transparent)",
+                name="💡 Quick Apply Themes",
+                value="`m!dexsuggestions` - Browse 50+ themes\n"
+                      "`m!dexapplytheme burgundy` - Apply instantly!",
                 inline=False
             )
 
-            embed.set_footer(text="View current settings: m!dexsettings • Reset: m!dexreset")
+            embed.set_footer(text="View current: m!dexsettings • Reset: m!dexreset")
 
             await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
             return
@@ -265,7 +300,7 @@ class DexCustomization(commands.Cog):
                 await ctx.send(f"✅ Glass panel color set to `{color[0]},{color[1]},{color[2]},{color[3]}`", 
                              reference=ctx.message, mention_author=False)
 
-            # Border color (NEW!)
+            # Border color
             elif setting in ['border', 'bordercolor', 'borders']:
                 if not value:
                     await ctx.send("❌ Please specify a color (hex or rgba)", 
@@ -280,7 +315,119 @@ class DexCustomization(commands.Cog):
 
                 user_settings['border_color'] = color
                 await db.set_dex_customization(user_id, user_settings)
-                await ctx.send(f"✅ Border color set to `{color[0]},{color[1]},{color[2]},{color[3]}`\n💡 Tip: Use lower alpha values (e.g., 50-100) for subtle borders!", 
+                await ctx.send(f"✅ Border color set to `{color[0]},{color[1]},{color[2]},{color[3]}`", 
+                             reference=ctx.message, mention_author=False)
+
+            # Badge text color
+            elif setting in ['badgetext', 'badgetextcolor', 'dexnumber', 'dexnumbercolor']:
+                if not value:
+                    await ctx.send("❌ Please specify a color (hex or rgba)", 
+                                 reference=ctx.message, mention_author=False)
+                    return
+
+                color = self.parse_color(value)
+                if not color:
+                    await ctx.send("❌ Invalid color format! Use `#RRGGBB`, `#RRGGBBAA`, or `r,g,b,a`", 
+                                 reference=ctx.message, mention_author=False)
+                    return
+
+                user_settings['badge_text_color'] = color
+                await db.set_dex_customization(user_id, user_settings)
+                await ctx.send(f"✅ Dex number text color set to `{color[0]},{color[1]},{color[2]}`", 
+                             reference=ctx.message, mention_author=False)
+
+            # Badge background color
+            elif setting in ['badgebg', 'badgebackground', 'badgebox']:
+                if not value:
+                    await ctx.send("❌ Please specify a color (hex or rgba)", 
+                                 reference=ctx.message, mention_author=False)
+                    return
+
+                color = self.parse_color(value)
+                if not color:
+                    await ctx.send("❌ Invalid color format! Use `#RRGGBB`, `#RRGGBBAA`, or `r,g,b,a`", 
+                                 reference=ctx.message, mention_author=False)
+                    return
+
+                user_settings['badge_bg_color'] = color
+                await db.set_dex_customization(user_id, user_settings)
+                await ctx.send(f"✅ Badge background color set to `{color[0]},{color[1]},{color[2]},{color[3]}`", 
+                             reference=ctx.message, mention_author=False)
+
+            # Badge border color
+            elif setting in ['badgeborder', 'badgebordercolor']:
+                if not value:
+                    await ctx.send("❌ Please specify a color (hex or rgba)", 
+                                 reference=ctx.message, mention_author=False)
+                    return
+
+                color = self.parse_color(value)
+                if not color:
+                    await ctx.send("❌ Invalid color format! Use `#RRGGBB`, `#RRGGBBAA`, or `r,g,b,a`", 
+                                 reference=ctx.message, mention_author=False)
+                    return
+
+                user_settings['badge_border_color'] = color
+                await db.set_dex_customization(user_id, user_settings)
+                await ctx.send(f"✅ Badge border color set to `{color[0]},{color[1]},{color[2]},{color[3]}`", 
+                             reference=ctx.message, mention_author=False)
+
+            # Toggle badge box
+            elif setting in ['badge', 'showbadge', 'togglebadge']:
+                if not value:
+                    await ctx.send("❌ Please specify: `on`, `off`, `true`, or `false`", 
+                                 reference=ctx.message, mention_author=False)
+                    return
+
+                value_lower = value.lower()
+                if value_lower in ['on', 'true', 'yes', 'show', 'enable']:
+                    user_settings['show_badge_box'] = True
+                    await db.set_dex_customization(user_id, user_settings)
+                    await ctx.send("✅ Badge box enabled! Dex numbers will show with background box.", 
+                                 reference=ctx.message, mention_author=False)
+                elif value_lower in ['off', 'false', 'no', 'hide', 'disable']:
+                    user_settings['show_badge_box'] = False
+                    await db.set_dex_customization(user_id, user_settings)
+                    await ctx.send("✅ Badge box disabled! Dex numbers will show without background box.", 
+                                 reference=ctx.message, mention_author=False)
+                else:
+                    await ctx.send("❌ Invalid value! Use `on` or `off`", 
+                                 reference=ctx.message, mention_author=False)
+
+            # Count text color (caught)
+            elif setting in ['countcolor', 'count', 'countcaught', 'caughtcount']:
+                if not value:
+                    await ctx.send("❌ Please specify a color (hex or rgba)", 
+                                 reference=ctx.message, mention_author=False)
+                    return
+
+                color = self.parse_color(value)
+                if not color:
+                    await ctx.send("❌ Invalid color format! Use `#RRGGBB`, `#RRGGBBAA`, or `r,g,b,a`", 
+                                 reference=ctx.message, mention_author=False)
+                    return
+
+                user_settings['count_text_color_caught'] = color
+                await db.set_dex_customization(user_id, user_settings)
+                await ctx.send(f"✅ Count text color (caught) set to `{color[0]},{color[1]},{color[2]}`", 
+                             reference=ctx.message, mention_author=False)
+
+            # Count text color (uncaught)
+            elif setting in ['uncaughtcount', 'countuncaught', 'zerocount']:
+                if not value:
+                    await ctx.send("❌ Please specify a color (hex or rgba)", 
+                                 reference=ctx.message, mention_author=False)
+                    return
+
+                color = self.parse_color(value)
+                if not color:
+                    await ctx.send("❌ Invalid color format! Use `#RRGGBB`, `#RRGGBBAA`, or `r,g,b,a`", 
+                                 reference=ctx.message, mention_author=False)
+                    return
+
+                user_settings['count_text_color_uncaught'] = color
+                await db.set_dex_customization(user_id, user_settings)
+                await ctx.send(f"✅ Count text color (uncaught) set to `{color[0]},{color[1]},{color[2]}`", 
                              reference=ctx.message, mention_author=False)
 
             # Uncaught style
@@ -363,7 +510,6 @@ class DexCustomization(commands.Cog):
         Examples:
         /dexsuggestions - View all available themes
         /dexsuggestions burgundy - View the Burgundy theme details
-        /dexsuggestions gengar - View Gengar-themed colors
         """
         try:
             # Read the suggestions file
@@ -374,35 +520,32 @@ class DexCustomization(commands.Cog):
                 # Show overview of all themes
                 embed = discord.Embed(
                     title="🎨 Dex Color Scheme Suggestions",
-                    description="Choose from these pre-made color schemes! Use `m!dexsuggestions <theme>` to see the commands for a specific theme, or `m!dexapplytheme <theme>` to apply instantly!",
+                    description="Choose from these curated color schemes! Use `m!dexsuggestions <theme>` to see details, or `m!dexapplytheme <theme>` to apply instantly!",
                     color=EMBED_COLOR
                 )
 
-                # Parse theme names from the file - organized by categories
+                # Parse theme names - organized by categories
                 themes = {
-                    '🔴 **Deep Red Family**': ['Burgundy', 'Wine Red', 'Crimson Night', 'Ruby Shadow', 'Scarlet Depths', 'Blood Moon', 'Garnet'],
-                    '🟣 **Deep Purple Family**': ['Eggplant', 'Deep Plum', 'Midnight Purple', 'Royal Purple', 'Amethyst Shadow', 'Violet Dusk', 'Grape', 'Lavender Night'],
-                    '🔵 **Deep Blue Family**': ['Navy', 'Deep Indigo', 'Prussian Blue', 'Midnight Blue', 'Sapphire Depths', 'Cobalt Shadow', 'Royal Blue Night', 'Azure Abyss', 'Steel Blue'],
-                    '🟢 **Deep Green Family**': ['Hunter Green', 'Dark Moss', 'Emerald Shadow', 'Forest Night', 'Pine Depths', 'Jade Shadow', 'Verdant Abyss', 'Olive Night'],
-                    '🩵 **Deep Teal/Cyan Family**': ['Deep Teal', 'Dark Turquoise', 'Ocean Depths', 'Aquamarine Shadow', 'Cyan Abyss', 'Teal Night', 'Caribbean Depths'],
-                    '🟤 **Deep Brown Family**': ['Espresso', 'Dark Chocolate', 'Coffee Bean', 'Mahogany', 'Walnut', 'Sepia Shadow', 'Chestnut', 'Earth Tone'],
-                    '🟠 **Deep Orange/Amber**': ['Burnt Sienna', 'Dark Rust', 'Amber Shadow', 'Copper Night', 'Tiger Eye', 'Bronze', 'Autumn Rust'],
-                    '🩷 **Deep Magenta/Pink**': ['Deep Magenta', 'Dark Rose', 'Plum Wine', 'Fuchsia Shadow', 'Hot Pink Night', 'Berry Shadow', 'Raspberry Depths'],
-                    '⚪ **Neutral/Grayscale**': ['Charcoal', 'Slate Gray', 'Graphite', 'Steel Gray', 'Silver Shadow', 'Ash', 'Obsidian', 'Smoke'],
-                    '⚡ **Pokémon Types**': ['Fire', 'Water', 'Grass', 'Electric', 'Psychic', 'Dark', 'Dragon', 'Fairy', 'Steel', 'Ghost', 'Ice', '+7 more'],
-                    '🌟 **Legendary Pokémon**': ['Mewtwo', 'Rayquaza', 'Lugia', 'Ho-Oh', 'Kyogre', 'Groudon', 'Giratina', 'Dialga', 'Palkia', '+4 more'],
-                    '🎮 **Popular Pokémon**': ['Gengar', 'Charizard', 'Umbreon', 'Corviknight', 'Sylveon', 'Greninja', 'Garchomp', 'Lucario', '+12 more'],
-                    '✨ **Shiny Pokémon**': ['Shiny Umbreon', 'Shiny Charizard', 'Shiny Rayquaza', 'Shiny Metagross', 'Shiny Gengar', '+3 more'],
-                    '🎃 **Seasonal**': ['Spring Blossom', 'Summer Sunset', 'Autumn Forest', 'Winter Snow', 'Halloween Night', 'Christmas Spirit', '+3 more'],
-                    '🌸 **Nature-Inspired**': ['Cherry Blossom', 'Midnight Sky', 'Stormy Sea', 'Desert Dusk', 'Aurora Borealis', 'Sunset Beach', '+4 more'],
-                    '💎 **Gemstone**': ['Diamond', 'Emerald', 'Ruby', 'Sapphire', 'Amethyst', 'Topaz', 'Opal', 'Jade', 'Onyx', 'Citrine'],
-                    '🐉 **Fantasy**': ['Dragon\'s Lair', 'Wizard\'s Tower', 'Elven Forest', 'Dwarf Mine', 'Phoenix Flame', 'Kraken Depths', '+4 more'],
-                    '💫 **Cyberpunk/Neon**': ['Neon Pink', 'Cyber Blue', 'Electric Lime', 'Toxic Green', 'Plasma Purple', 'Neon Orange', '+2 more'],
-                    '📼 **Retro/Vintage**': ['Retro Arcade', 'Vintage Sepia', 'Classic Film', '80s Synthwave', 'VHS Tape', 'Polaroid'],
-                    '🍓 **Food-Inspired**': ['Blueberry', 'Strawberry', 'Lime', 'Grape', 'Orange', 'Watermelon', 'Mango', 'Mint'],
-                    '🌌 **Space-Themed**': ['Deep Space', 'Nebula Purple', 'Mars Red', 'Jupiter Storm', 'Saturn Gold', 'Neptune Blue', '+4 more'],
-                    '🔥 **Element-Themed**': ['Flame', 'Tsunami', 'Earthquake', 'Cyclone', 'Lightning', 'Blizzard', 'Magma', 'Avalanche'],
-                    '⭐ **Creator\'s Top Picks**': ['The Classic', 'Dark Elegance', 'Royal Court', 'Ocean Dream', 'Forest Sanctuary', 'Sunset Glory', '+4 more']
+                    '🔴 **Red Tones**': ['Burgundy', 'Ruby Shadow', 'Blood Moon'],
+                    '🟣 **Purple Tones**': ['Eggplant', 'Royal Purple', 'Amethyst'],
+                    '🔵 **Blue Tones**': ['Navy', 'Sapphire', 'Azure Abyss'],
+                    '🟢 **Green Tones**': ['Hunter Green', 'Emerald', 'Forest Night'],
+                    '🩵 **Teal/Cyan**': ['Deep Teal', 'Ocean Depths', 'Caribbean'],
+                    '🟤 **Brown Tones**': ['Espresso', 'Mahogany', 'Earth Tone'],
+                    '🟠 **Orange/Amber**': ['Burnt Sienna', 'Copper', 'Tiger Eye'],
+                    '🩷 **Pink/Magenta**': ['Deep Magenta', 'Dark Rose', 'Berry'],
+                    '⚪ **Neutral**': ['Charcoal', 'Slate Gray', 'Obsidian'],
+                    '⚡ **Type-Themed**': ['Fire Type', 'Water Type', 'Grass Type', 'Electric', 'Psychic', 'Dragon', '+12 more'],
+                    '🌟 **Legendary**': ['Mewtwo', 'Rayquaza', 'Lugia', 'Kyogre', 'Giratina', '+8 more'],
+                    '🎮 **Popular Pokémon**': ['Gengar', 'Charizard', 'Umbreon', 'Sylveon', 'Greninja', '+10 more'],
+                    '✨ **Shiny Pokémon**': ['Shiny Umbreon', 'Shiny Charizard', 'Shiny Rayquaza', '+3 more'],
+                    '🎃 **Seasonal**': ['Halloween', 'Christmas', 'Spring Blossom', 'Winter Snow', '+3 more'],
+                    '🌸 **Nature**': ['Cherry Blossom', 'Midnight Sky', 'Aurora', 'Desert Dusk', '+4 more'],
+                    '💎 **Gemstone**': ['Diamond', 'Emerald', 'Ruby', 'Sapphire', 'Jade', '+3 more'],
+                    '🐉 **Fantasy**': ["Dragon's Lair", "Wizard's Tower", 'Phoenix Flame', '+5 more'],
+                    '💫 **Cyberpunk**': ['Neon Pink', 'Cyber Blue', 'Toxic Green', '+3 more'],
+                    '📼 **Retro**': ['80s Synthwave', 'Vintage Sepia', 'Arcade', '+2 more'],
+                    '⭐ **Top Picks**': ['Dark Elegance', 'Royal Court', 'Ocean Dream', 'Mystic Purple', '+3 more']
                 }
 
                 for family, theme_list in themes.items():
@@ -419,11 +562,11 @@ class DexCustomization(commands.Cog):
                     inline=False
                 )
 
-                embed.set_footer(text="200+ themes available! • Example: m!dexsuggestions burgundy")
+                embed.set_footer(text="50+ themes available! • Example: m!dexsuggestions burgundy")
                 await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
                 return
 
-            # Search for the specific theme in the file
+            # Search for specific theme
             theme_lower = theme.lower().replace(' ', '').replace('-', '').replace("'", '')
             lines = content.split('\n')
 
@@ -433,7 +576,6 @@ class DexCustomization(commands.Cog):
             theme_name = None
 
             for i, line in enumerate(lines):
-                # Check if this line is a theme header (bold markdown)
                 if line.startswith('**') and line.endswith('**'):
                     current_theme = line.strip('**').lower().replace(' ', '').replace('-', '').replace("'", '')
 
@@ -442,48 +584,24 @@ class DexCustomization(commands.Cog):
                         theme_name = line.strip('**')
                         continue
                     elif capture:
-                        # We've reached the next theme, stop capturing
                         break
 
                 if capture and line.strip():
                     theme_section.append(line)
 
             if not theme_section:
-                # Theme not found - suggest similar themes
                 embed = discord.Embed(
                     title="❌ Theme Not Found",
-                    description=f"Couldn't find a theme matching `{theme}`.\n\nUse `/dexsuggestions` (without arguments) to see all available themes!",
+                    description=f"Couldn't find a theme matching `{theme}`.\n\nUse `/dexsuggestions` to see all available themes!",
                     color=discord.Color.red()
                 )
-
-                # Try to suggest similar themes
-                all_themes = []
-                for line in lines:
-                    if line.startswith('**') and line.endswith('**'):
-                        all_themes.append(line.strip('**'))
-
-                # Simple fuzzy matching
-                similar = []
-                theme_words = theme.lower().split()
-                for t in all_themes:
-                    t_lower = t.lower()
-                    if any(word in t_lower for word in theme_words):
-                        similar.append(t)
-
-                if similar:
-                    embed.add_field(
-                        name="💡 Did you mean?",
-                        value='\n'.join([f"`{t}`" for t in similar[:5]]),
-                        inline=False
-                    )
-
                 await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
                 return
 
-            # Extract commands from the theme section
+            # Extract commands
             commands = []
             for line in theme_section:
-                if line.strip().startswith('m!dexcust'):
+                if line.strip().startswith('m!dc'):
                     commands.append(line.strip())
 
             if not commands:
@@ -495,13 +613,13 @@ class DexCustomization(commands.Cog):
             embed = discord.Embed(
                 title=f"🎨 {theme_name} Theme",
                 description="**Option 1: Quick Apply**\n"
-                           f"```\nm!exapplytheme {theme_name}\n```\n"
+                           f"```\nm!dexapplytheme {theme_name}\n```\n"
                            "**Option 2: Manual Commands**\n"
                            "Copy and paste these commands:",
                 color=EMBED_COLOR
             )
 
-            # Format commands as a code block
+            # Format commands as code block
             commands_text = '\n'.join(commands)
             embed.add_field(
                 name="Commands",
@@ -509,43 +627,13 @@ class DexCustomization(commands.Cog):
                 inline=False
             )
 
-            # Parse the colors for a preview
-            bg_color = None
-            glass_color = None
-            border_color = None
-
-            for cmd in commands:
-                cmd_lower = cmd.lower()
-                if 'background' in cmd_lower:
-                    bg_color = cmd.split()[-1]
-                elif 'glass' in cmd_lower:
-                    glass_color = cmd.split()[-1]
-                elif 'border' in cmd_lower:
-                    border_color = cmd.split()[-1]
-
-            if bg_color or glass_color or border_color:
-                color_info = []
-                if bg_color:
-                    color_info.append(f"**Background:** `{bg_color}`")
-                if glass_color:
-                    color_info.append(f"**Glass:** `{glass_color}`")
-                if border_color:
-                    color_info.append(f"**Border:** `{border_color}`")
-
-                embed.add_field(
-                    name="Color Preview",
-                    value='\n'.join(color_info),
-                    inline=False
-                )
-
             embed.set_footer(text="💡 Tip: Use m!dexapplytheme for instant application!")
-
             await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
 
         except FileNotFoundError:
             embed = discord.Embed(
                 title="❌ Suggestions File Not Found",
-                description="The color suggestions file (`dex_color_suggestions.txt`) is missing!\n\nPlease contact the bot administrator.",
+                description="The color suggestions file is missing! Please contact the bot administrator.",
                 color=discord.Color.red()
             )
             await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
@@ -569,7 +657,7 @@ class DexCustomization(commands.Cog):
             theme_lower = theme_name.lower().replace(' ', '').replace('-', '').replace("'", '')
             lines = content.split('\n')
 
-            # Find the theme section
+            # Find theme section - use EXACT match to avoid substring issues
             theme_section = []
             capture = False
             found_theme_name = None
@@ -578,7 +666,8 @@ class DexCustomization(commands.Cog):
                 if line.startswith('**') and line.endswith('**'):
                     current_theme = line.strip('**').lower().replace(' ', '').replace('-', '').replace("'", '')
 
-                    if theme_lower in current_theme or current_theme in theme_lower:
+                    # EXACT MATCH: theme must match completely
+                    if theme_lower == current_theme:
                         capture = True
                         found_theme_name = line.strip('**')
                         continue
@@ -589,29 +678,58 @@ class DexCustomization(commands.Cog):
                     theme_section.append(line)
 
             if not theme_section:
-                # Try to find a partial match
                 await ctx.send(f"❌ Theme `{theme_name}` not found! Use `/dexsuggestions` to see all themes.", 
                              reference=ctx.message, mention_author=False)
                 return
 
             # Extract colors from commands
-            bg_color = None
-            glass_color = None
-            border_color = None
+            settings_to_apply = {}
 
             for line in theme_section:
-                line_lower = line.lower()
-                if 'background' in line_lower and 'm!dexcust' in line_lower:
-                    color_str = line.split()[-1]
-                    bg_color = self.parse_color(color_str)
-                elif 'glass' in line_lower and 'm!dexcust' in line_lower:
-                    color_str = line.split()[-1]
-                    glass_color = self.parse_color(color_str)
-                elif 'border' in line_lower and 'm!dexcust' in line_lower:
-                    color_str = line.split()[-1]
-                    border_color = self.parse_color(color_str)
+                if 'm!dc' not in line.lower():
+                    continue
 
-            if not any([bg_color, glass_color, border_color]):
+                # Split and clean the line
+                parts = line.strip().split()
+                if len(parts) < 3:  # Need at least: m!dc setting color
+                    continue
+
+                # The setting name is the second element (after m!dc)
+                setting = parts[1].lower()
+                # The color is the last element
+                color_str = parts[-1]
+
+                # Parse the color
+                parsed_color = self.parse_color(color_str)
+                if not parsed_color:
+                    continue
+
+                # Map setting to database field
+                if setting in ['background', 'bg', 'bgcolor']:
+                    settings_to_apply['bg_color'] = parsed_color
+
+                elif setting in ['glass', 'panel', 'glasspanel']:
+                    settings_to_apply['glass_color'] = parsed_color
+
+                elif setting in ['border', 'bordercolor', 'borders']:
+                    settings_to_apply['border_color'] = parsed_color
+
+                elif setting in ['badgetext', 'badgetextcolor', 'dexnumber', 'dexnumbercolor']:
+                    settings_to_apply['badge_text_color'] = parsed_color
+
+                elif setting in ['badgebg', 'badgebackground', 'badgebox']:
+                    settings_to_apply['badge_bg_color'] = parsed_color
+
+                elif setting in ['badgeborder', 'badgebordercolor']:
+                    settings_to_apply['badge_border_color'] = parsed_color
+
+                elif setting in ['countcolor', 'count', 'countcaught', 'caughtcount']:
+                    settings_to_apply['count_text_color_caught'] = parsed_color
+
+                elif setting in ['uncaughtcount', 'countuncaught', 'zerocount']:
+                    settings_to_apply['count_text_color_uncaught'] = parsed_color
+
+            if not settings_to_apply:
                 await ctx.send(f"❌ Couldn't parse colors from theme `{found_theme_name}`", 
                              reference=ctx.message, mention_author=False)
                 return
@@ -620,38 +738,50 @@ class DexCustomization(commands.Cog):
             user_id = ctx.author.id
             user_settings = await db.get_dex_customization(user_id) or {}
 
-            if bg_color:
-                user_settings['bg_color'] = bg_color
-            if glass_color:
-                user_settings['glass_color'] = glass_color
-            if border_color:
-                user_settings['border_color'] = border_color
-
+            user_settings.update(settings_to_apply)
             await db.set_dex_customization(user_id, user_settings)
 
             # Success message
             embed = discord.Embed(
                 title="✅ Theme Applied!",
-                description=f"Successfully applied the **{found_theme_name}** color scheme to your dex images!",
+                description=f"Successfully applied the **{found_theme_name}** theme!",
                 color=EMBED_COLOR
             )
 
             applied_colors = []
-            if bg_color:
-                applied_colors.append(f"**Background:** `{bg_color[0]},{bg_color[1]},{bg_color[2]},{bg_color[3]}`")
-            if glass_color:
-                applied_colors.append(f"**Glass:** `{glass_color[0]},{glass_color[1]},{glass_color[2]},{glass_color[3]}`")
-            if border_color:
-                applied_colors.append(f"**Border:** `{border_color[0]},{border_color[1]},{border_color[2]},{border_color[3]}`")
+            if 'bg_color' in settings_to_apply:
+                c = settings_to_apply['bg_color']
+                applied_colors.append(f"**Background:** `{c[0]},{c[1]},{c[2]},{c[3]}`")
+            if 'glass_color' in settings_to_apply:
+                c = settings_to_apply['glass_color']
+                applied_colors.append(f"**Glass:** `{c[0]},{c[1]},{c[2]},{c[3]}`")
+            if 'border_color' in settings_to_apply:
+                c = settings_to_apply['border_color']
+                applied_colors.append(f"**Border:** `{c[0]},{c[1]},{c[2]},{c[3]}`")
+            if 'badge_text_color' in settings_to_apply:
+                c = settings_to_apply['badge_text_color']
+                applied_colors.append(f"**Badge Text:** `{c[0]},{c[1]},{c[2]}`")
+            if 'badge_bg_color' in settings_to_apply:
+                c = settings_to_apply['badge_bg_color']
+                applied_colors.append(f"**Badge BG:** `{c[0]},{c[1]},{c[2]},{c[3]}`")
+            if 'badge_border_color' in settings_to_apply:
+                c = settings_to_apply['badge_border_color']
+                applied_colors.append(f"**Badge Border:** `{c[0]},{c[1]},{c[2]},{c[3]}`")
+            if 'count_text_color_caught' in settings_to_apply:
+                c = settings_to_apply['count_text_color_caught']
+                applied_colors.append(f"**Count (Caught):** `{c[0]},{c[1]},{c[2]}`")
+            if 'count_text_color_uncaught' in settings_to_apply:
+                c = settings_to_apply['count_text_color_uncaught']
+                applied_colors.append(f"**Count (Uncaught):** `{c[0]},{c[1]},{c[2]}`")
 
-            embed.add_field(
-                name="Applied Colors",
-                value='\n'.join(applied_colors),
-                inline=False
-            )
+            if applied_colors:
+                embed.add_field(
+                    name="Applied Colors",
+                    value='\n'.join(applied_colors),
+                    inline=False
+                )
 
             embed.set_footer(text="Use a dex command with --image to see your new theme!")
-
             await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
 
         except FileNotFoundError:
@@ -681,8 +811,6 @@ class DexCustomization(commands.Cog):
     @commands.hybrid_command(name='dexpreview', aliases=['dexprev'])
     async def dex_preview(self, ctx):
         """Preview your dex image customization with sample Pokemon"""
-        # This command would generate a small preview image
-        # Implementation would be similar to send_dex_image but with sample data
         await ctx.send("🎨 Preview feature coming soon! Use your dex commands with `--image` to see your customization.", 
                      reference=ctx.message, mention_author=False)
 
