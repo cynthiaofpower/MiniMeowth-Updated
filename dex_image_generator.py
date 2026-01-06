@@ -29,9 +29,10 @@ DEFAULT_SETTINGS = {
     # === UNCAUGHT POKEMON APPEARANCE ===
     'uncaught_style': 'faded',  # Options: 'silhouette', 'grayscale', 'faded', 'hidden'
     'silhouette_color': (100, 110, 130, 255),  # Color for silhouette style
-    'fade_opacity': 80,  # Opacity for faded style (0-255, try 64-200)
+    'fade_opacity': 128,  # Opacity for faded style (0-255, try 64-200)
 
     # === BADGE STYLING ===
+    'show_badge_box': True,  # Toggle badge box on/off
     'badge_bg_color': (0, 0, 0, 200),  # Badge background
     'badge_border_color': (255, 215, 0, 255),  # Badge border (gold)
     'badge_text_color': (255, 215, 0),  # Badge text color
@@ -556,18 +557,20 @@ class DexImageGenerator:
             badge_x = x + cell_width - badge_width - 8
             badge_y = y + 3
 
-            # Draw badge
-            overlay_draw.rounded_rectangle(
-                [(badge_x, badge_y), (badge_x + badge_width, badge_y + badge_height)],
-                radius=badge_height // 2,
-                fill=settings['badge_bg_color']
-            )
-            overlay_draw.rounded_rectangle(
-                [(badge_x, badge_y), (badge_x + badge_width, badge_y + badge_height)],
-                radius=badge_height // 2,
-                outline=settings['badge_border_color'],
-                width=settings['badge_border_width']
-            )
+            # Only draw badge box if enabled
+            if settings['show_badge_box']:
+                # Draw badge
+                overlay_draw.rounded_rectangle(
+                    [(badge_x, badge_y), (badge_x + badge_width, badge_y + badge_height)],
+                    radius=badge_height // 2,
+                    fill=settings['badge_bg_color']
+                )
+                overlay_draw.rounded_rectangle(
+                    [(badge_x, badge_y), (badge_x + badge_width, badge_y + badge_height)],
+                    radius=badge_height // 2,
+                    outline=settings['badge_border_color'],
+                    width=settings['badge_border_width']
+                )
 
         # Composite overlay onto background
         bg = Image.alpha_composite(bg, overlay)
@@ -690,7 +693,7 @@ class DexImageGenerator:
 
             draw.text((count_x, count_y), count_text, font=count_font, fill=count_color)
 
-            # Draw dex number text on badge
+            # Draw dex number text
             if has_gender_diff and gender_key:
                 dex_text = f"#{dex_num}{gender_key[0].upper()}"
             else:
