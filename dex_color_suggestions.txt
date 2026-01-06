@@ -1,0 +1,1624 @@
+# ============================================================================
+# DEX IMAGE COLOR SUGGESTIONS
+# ============================================================================
+# Copy and paste these commands to customize your dex appearance!
+# Format: m!dexcust <setting> <value>
+# ============================================================================
+
+## ═══════════════════════════════════════════════════════════════════════════
+## DEEP RED FAMILY
+## ═══════════════════════════════════════════════════════════════════════════
+
+**Burgundy**
+```
+m!dexcust background #321923
+m!dexcust glass #280F19B4
+m!dexcust border 255,150,180,90
+```
+
+**Wine Red**
+```
+m!dexcust background #3C1928
+m!dexcust glass #2D0F1EB4
+m!dexcust border 255,140,170,100
+```
+
+**Crimson Night**
+```
+m!dexcust background #371E28
+m!dexcust glass #2D141EB4
+m!dexcust border 255,120,150,95
+```
+
+**Ruby Shadow**
+```
+m!dexcust background #3C1419
+m!dexcust glass #2D0A0FB4
+m!dexcust border 255,100,120,100
+```
+
+**Scarlet Depths**
+```
+m!dexcust background #411E23
+m!dexcust glass #32141EB4
+m!dexcust border 255,130,140,95
+```
+
+**Blood Moon**
+```
+m!dexcust background #371419
+m!dexcust glass #280A0FB4
+m!dexcust border 255,80,100,105
+```
+
+**Garnet**
+```
+m!dexcust background #3C1E23
+m!dexcust glass #2D1419B4
+m!dexcust border 220,100,120,90
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## DEEP PURPLE FAMILY
+## ═══════════════════════════════════════════════════════════════════════════
+
+**Eggplant**
+```
+m!dexcust background #2D1E37
+m!dexcust glass #1E1428B4
+m!dexcust border 180,140,255,100
+```
+
+**Deep Plum**
+```
+m!dexcust background #32193C
+m!dexcust glass #230F2DB4
+m!dexcust border 200,120,255,105
+```
+
+**Midnight Purple**
+```
+m!dexcust background #281E37
+m!dexcust glass #1E1428B4
+m!dexcust border 160,130,240,90
+```
+
+**Royal Purple**
+```
+m!dexcust background #2D1E3C
+m!dexcust glass #1E142DB4
+m!dexcust border 180,120,255,100
+```
+
+**Amethyst Shadow**
+```
+m!dexcust background #321E3C
+m!dexcust glass #23142DB4
+m!dexcust border 200,140,255,95
+```
+
+**Violet Dusk**
+```
+m!dexcust background #2D1E41
+m!dexcust glass #1E1432B4
+m!dexcust border 170,130,255,100
+```
+
+**Grape**
+```
+m!dexcust background #371E41
+m!dexcust glass #281437B4
+m!dexcust border 190,120,240,95
+```
+
+**Lavender Night**
+```
+m!dexcust background #2D2341
+m!dexcust glass #1E1932B4
+m!dexcust border 200,170,255,85
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## DEEP BLUE FAMILY
+## ═══════════════════════════════════════════════════════════════════════════
+
+**Navy**
+```
+m!dexcust background #1E2837
+m!dexcust glass #141E2DB4
+m!dexcust border 120,160,220,95
+```
+
+**Deep Indigo**
+```
+m!dexcust background #1E233C
+m!dexcust glass #14192DB4
+m!dexcust border 140,150,255,100
+```
+
+**Prussian Blue**
+```
+m!dexcust background #192832
+m!dexcust glass #0F1E23B4
+m!dexcust border 100,180,220,90
+```
+
+**Midnight Blue**
+```
+m!dexcust background #1E2341
+m!dexcust glass #141932B4
+m!dexcust border 120,140,255,95
+```
+
+**Sapphire Depths**
+```
+m!dexcust background #19233C
+m!dexcust glass #0F192DB4
+m!dexcust border 100,150,255,100
+```
+
+**Cobalt Shadow**
+```
+m!dexcust background #1E2D3C
+m!dexcust glass #14232DB4
+m!dexcust border 110,170,240,95
+```
+
+**Royal Blue Night**
+```
+m!dexcust background #1E2841
+m!dexcust glass #141E32B4
+m!dexcust border 130,160,255,100
+```
+
+**Azure Abyss**
+```
+m!dexcust background #192841
+m!dexcust glass #0F1E32B4
+m!dexcust border 100,160,255,95
+```
+
+**Steel Blue**
+```
+m!dexcust background #232D37
+m!dexcust glass #19232DB4
+m!dexcust border 150,180,220,90
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## DEEP GREEN FAMILY
+## ═══════════════════════════════════════════════════════════════════════════
+
+**Hunter Green**
+```
+m!dexcust background #1E3228
+m!dexcust glass #14231EB4
+m!dexcust border 120,200,150,95
+```
+
+**Dark Moss**
+```
+m!dexcust background #232D1E
+m!dexcust glass #19230FB4
+m!dexcust border 150,200,120,90
+```
+
+**Emerald Shadow**
+```
+m!dexcust background #1E372D
+m!dexcust glass #142D23B4
+m!dexcust border 100,220,160,100
+```
+
+**Forest Night**
+```
+m!dexcust background #1E3C28
+m!dexcust glass #142D1EB4
+m!dexcust border 110,230,150,95
+```
+
+**Pine Depths**
+```
+m!dexcust background #19321E
+m!dexcust glass #0F2314B4
+m!dexcust border 130,200,140,90
+```
+
+**Jade Shadow**
+```
+m!dexcust background #1E3C32
+m!dexcust glass #142D23B4
+m!dexcust border 100,220,180,100
+```
+
+**Verdant Abyss**
+```
+m!dexcust background #1E372D
+m!dexcust glass #14281EB4
+m!dexcust border 120,240,160,95
+```
+
+**Olive Night**
+```
+m!dexcust background #28321E
+m!dexcust glass #1E2314B4
+m!dexcust border 160,200,120,85
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## DEEP TEAL/CYAN FAMILY
+## ═══════════════════════════════════════════════════════════════════════════
+
+**Deep Teal**
+```
+m!dexcust background #1E3237
+m!dexcust glass #142328B4
+m!dexcust border 100,200,220,100
+```
+
+**Dark Turquoise**
+```
+m!dexcust background #19373C
+m!dexcust glass #0F282DB4
+m!dexcust border 80,220,240,105
+```
+
+**Ocean Depths**
+```
+m!dexcust background #1E2D37
+m!dexcust glass #14232DB4
+m!dexcust border 120,200,240,95
+```
+
+**Aquamarine Shadow**
+```
+m!dexcust background #1E3C3C
+m!dexcust glass #142D2DB4
+m!dexcust border 100,240,240,100
+```
+
+**Cyan Abyss**
+```
+m!dexcust background #19323C
+m!dexcust glass #0F232DB4
+m!dexcust border 90,210,240,95
+```
+
+**Teal Night**
+```
+m!dexcust background #1E3732
+m!dexcust glass #142823B4
+m!dexcust border 110,220,200,100
+```
+
+**Caribbean Depths**
+```
+m!dexcust background #1E3741
+m!dexcust glass #142832B4
+m!dexcust border 100,220,255,95
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## DEEP BROWN FAMILY
+## ═══════════════════════════════════════════════════════════════════════════
+
+**Espresso**
+```
+m!dexcust background #2D2319
+m!dexcust glass #23190FB4
+m!dexcust border 200,170,130,85
+```
+
+**Dark Chocolate**
+```
+m!dexcust background #321E14
+m!dexcust glass #28140AB4
+m!dexcust border 220,160,120,90
+```
+
+**Coffee Bean**
+```
+m!dexcust background #372819
+m!dexcust glass #2D1E0FB4
+m!dexcust border 210,180,130,85
+```
+
+**Mahogany**
+```
+m!dexcust background #3C1E14
+m!dexcust glass #2D140AB4
+m!dexcust border 220,140,100,90
+```
+
+**Walnut**
+```
+m!dexcust background #322319
+m!dexcust glass #28190FB4
+m!dexcust border 200,160,120,85
+```
+
+**Sepia Shadow**
+```
+m!dexcust background #2D2314
+m!dexcust glass #23190AB4
+m!dexcust border 210,170,120,85
+```
+
+**Chestnut**
+```
+m!dexcust background #37231E
+m!dexcust glass #2D1914B4
+m!dexcust border 220,170,140,85
+```
+
+**Earth Tone**
+```
+m!dexcust background #322819
+m!dexcust glass #281E0FB4
+m!dexcust border 200,180,140,80
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## DEEP ORANGE/AMBER FAMILY
+## ═══════════════════════════════════════════════════════════════════════════
+
+**Burnt Sienna**
+```
+m!dexcust background #3C2314
+m!dexcust glass #2D190AB4
+m!dexcust border 255,150,100,95
+```
+
+**Dark Rust**
+```
+m!dexcust background #371E14
+m!dexcust glass #2D140AB4
+m!dexcust border 240,130,80,90
+```
+
+**Amber Shadow**
+```
+m!dexcust background #372814
+m!dexcust glass #2D1E0AB4
+m!dexcust border 255,180,100,90
+```
+
+**Copper Night**
+```
+m!dexcust background #3C2819
+m!dexcust glass #2D1E0FB4
+m!dexcust border 255,160,90,95
+```
+
+**Tiger Eye**
+```
+m!dexcust background #3C2D14
+m!dexcust glass #2D230AB4
+m!dexcust border 255,190,100,85
+```
+
+**Bronze**
+```
+m!dexcust background #372314
+m!dexcust glass #2D190AB4
+m!dexcust border 230,150,80,90
+```
+
+**Autumn Rust**
+```
+m!dexcust background #411E14
+m!dexcust glass #32140AB4
+m!dexcust border 255,140,70,95
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## DEEP MAGENTA/PINK FAMILY
+## ═══════════════════════════════════════════════════════════════════════════
+
+**Deep Magenta**
+```
+m!dexcust background #371E32
+m!dexcust glass #2D1423B4
+m!dexcust border 255,120,200,100
+```
+
+**Dark Rose**
+```
+m!dexcust background #3C1E2D
+m!dexcust glass #321423B4
+m!dexcust border 255,140,180,95
+```
+
+**Plum Wine**
+```
+m!dexcust background #321E2D
+m!dexcust glass #281419B4
+m!dexcust border 230,130,200,90
+```
+
+**Fuchsia Shadow**
+```
+m!dexcust background #3C1E37
+m!dexcust glass #2D1428B4
+m!dexcust border 255,120,220,100
+```
+
+**Hot Pink Night**
+```
+m!dexcust background #3C1928
+m!dexcust glass #2D0F1EB4
+m!dexcust border 255,130,190,100
+```
+
+**Berry Shadow**
+```
+m!dexcust background #371E2D
+m!dexcust glass #2D1423B4
+m!dexcust border 240,120,180,95
+```
+
+**Raspberry Depths**
+```
+m!dexcust background #411E2D
+m!dexcust glass #321423B4
+m!dexcust border 255,100,170,100
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## NEUTRAL/GRAYSCALE FAMILY
+## ═══════════════════════════════════════════════════════════════════════════
+
+**Charcoal**
+```
+m!dexcust background #282828
+m!dexcust glass #1E1E1EB4
+m!dexcust border 180,180,180,90
+```
+
+**Slate Gray**
+```
+m!dexcust background #2D2D32
+m!dexcust glass #232328B4
+m!dexcust border 160,170,180,95
+```
+
+**Graphite**
+```
+m!dexcust background #232328
+m!dexcust glass #19191EB4
+m!dexcust border 150,150,160,90
+```
+
+**Steel Gray**
+```
+m!dexcust background #2D3237
+m!dexcust glass #23282DB4
+m!dexcust border 170,180,190,90
+```
+
+**Silver Shadow**
+```
+m!dexcust background #323237
+m!dexcust glass #28282DB4
+m!dexcust border 190,190,200,85
+```
+
+**Ash**
+```
+m!dexcust background #2D2D2D
+m!dexcust glass #232323B4
+m!dexcust border 170,170,170,85
+```
+
+**Obsidian**
+```
+m!dexcust background #1E1E1E
+m!dexcust glass #141414B4
+m!dexcust border 140,140,150,95
+```
+
+**Smoke**
+```
+m!dexcust background #323232
+m!dexcust glass #282828B4
+m!dexcust border 180,180,185,80
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## POKÉMON TYPE-THEMED
+## ═══════════════════════════════════════════════════════════════════════════
+
+**Fire Type**
+```
+m!dexcust background #3C1E0F
+m!dexcust glass #2D140AB4
+m!dexcust border 255,140,60,100
+```
+
+**Water Type**
+```
+m!dexcust background #1E2D3C
+m!dexcust glass #14232DB4
+m!dexcust border 110,180,255,100
+```
+
+**Grass Type**
+```
+m!dexcust background #1E3228
+m!dexcust glass #14231EB4
+m!dexcust border 120,220,140,100
+```
+
+**Electric Type**
+```
+m!dexcust background #3C3C14
+m!dexcust glass #2D2D0AB4
+m!dexcust border 255,230,80,100
+```
+
+**Psychic Type**
+```
+m!dexcust background #3C1E32
+m!dexcust glass #2D1423B4
+m!dexcust border 255,120,200,100
+```
+
+**Dark Type**
+```
+m!dexcust background #1E1E1E
+m!dexcust glass #141414B4
+m!dexcust border 140,140,150,100
+```
+
+**Dragon Type**
+```
+m!dexcust background #2D1E3C
+m!dexcust glass #1E142DB4
+m!dexcust border 180,140,255,105
+```
+
+**Fairy Type**
+```
+m!dexcust background #3C1E32
+m!dexcust glass #2D1423B4
+m!dexcust border 255,180,220,100
+```
+
+**Steel Type**
+```
+m!dexcust background #2D3237
+m!dexcust glass #23282DB4
+m!dexcust border 180,190,200,95
+```
+
+**Ghost Type**
+```
+m!dexcust background #2D1E3C
+m!dexcust glass #1E1428B4
+m!dexcust border 160,130,200,100
+```
+
+**Ice Type**
+```
+m!dexcust background #1E3241
+m!dexcust glass #142832B4
+m!dexcust border 150,220,255,100
+```
+
+**Fighting Type**
+```
+m!dexcust background #411E14
+m!dexcust glass #32140AB4
+m!dexcust border 255,130,80,100
+```
+
+**Poison Type**
+```
+m!dexcust background #321E37
+m!dexcust glass #231428B4
+m!dexcust border 200,120,240,100
+```
+
+**Ground Type**
+```
+m!dexcust background #372819
+m!dexcust glass #2D1E0FB4
+m!dexcust border 220,180,110,90
+```
+
+**Flying Type**
+```
+m!dexcust background #2D3241
+m!dexcust glass #232832B4
+m!dexcust border 160,200,255,95
+```
+
+**Bug Type**
+```
+m!dexcust background #2D3219
+m!dexcust glass #23280FB4
+m!dexcust border 180,220,100,95
+```
+
+**Rock Type**
+```
+m!dexcust background #322819
+m!dexcust glass #281E0FB4
+m!dexcust border 200,170,130,90
+```
+
+**Normal Type**
+```
+m!dexcust background #323232
+m!dexcust glass #282828B4
+m!dexcust border 200,200,200,85
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## LEGENDARY POKÉMON-THEMED
+## ═══════════════════════════════════════════════════════════════════════════
+
+**Mewtwo Psychic**
+```
+m!dexcust background #321E3C
+m!dexcust glass #23142DB4
+m!dexcust border 200,150,255,100
+```
+
+**Rayquaza Sky**
+```
+m!dexcust background #1E3C1E
+m!dexcust glass #142D14B4
+m!dexcust border 120,220,120,100
+```
+
+**Lugia Silver**
+```
+m!dexcust background #2D3241
+m!dexcust glass #232832B4
+m!dexcust border 180,200,240,95
+```
+
+**Ho-Oh Rainbow**
+```
+m!dexcust background #3C2314
+m!dexcust glass #2D190AB4
+m!dexcust border 255,180,100,100
+```
+
+**Kyogre Ocean**
+```
+m!dexcust background #1E2D41
+m!dexcust glass #142332B4
+m!dexcust border 100,170,255,100
+```
+
+**Groudon Magma**
+```
+m!dexcust background #411E14
+m!dexcust glass #32140AB4
+m!dexcust border 255,120,70,100
+```
+
+**Giratina Shadow**
+```
+m!dexcust background #1E1E23
+m!dexcust glass #141419B4
+m!dexcust border 160,140,180,95
+```
+
+**Dialga Steel**
+```
+m!dexcust background #2D3241
+m!dexcust glass #232832B4
+m!dexcust border 150,180,220,100
+```
+
+**Palkia Pearl**
+```
+m!dexcust background #321E37
+m!dexcust glass #231428B4
+m!dexcust border 220,160,240,100
+```
+
+**Zekrom Electric**
+```
+m!dexcust background #1E1E28
+m!dexcust glass #14141EB4
+m!dexcust border 140,180,255,100
+```
+
+**Reshiram Fire**
+```
+m!dexcust background #3C2D1E
+m!dexcust glass #2D2314B4
+m!dexcust border 255,200,150,90
+```
+
+**Xerneas Fairy**
+```
+m!dexcust background #2D1E41
+m!dexcust glass #1E1432B4
+m!dexcust border 200,180,255,100
+```
+
+**Yveltal Dark**
+```
+m!dexcust background #281E23
+m!dexcust glass #1E1419B4
+m!dexcust border 200,100,120,100
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## POPULAR POKÉMON-THEMED
+## ═══════════════════════════════════════════════════════════════════════════
+
+**Gengar Purple**
+```
+m!dexcust background #2D1E3C
+m!dexcust glass #1E1428B4
+m!dexcust border 180,120,220,100
+```
+
+**Charizard Flame**
+```
+m!dexcust background #3C1E0F
+m!dexcust glass #2D140AB4
+m!dexcust border 255,140,60,100
+```
+
+**Umbreon Dark**
+```
+m!dexcust background #1E1E28
+m!dexcust glass #14141EB4
+m!dexcust border 255,215,0,100
+```
+
+**Corviknight Steel**
+```
+m!dexcust background #232832
+m!dexcust glass #14192DB4
+m!dexcust border 150,170,200,95
+```
+
+**Sylveon Fairy**
+```
+m!dexcust background #3C1E32
+m!dexcust glass #2D1423B4
+m!dexcust border 255,200,230,90
+```
+
+**Greninja Water**
+```
+m!dexcust background #1E2841
+m!dexcust glass #141E32B4
+m!dexcust border 110,170,255,100
+```
+
+**Garchomp Dragon**
+```
+m!dexcust background #2D1E3C
+m!dexcust glass #1E142DB4
+m!dexcust border 180,140,255,100
+```
+
+**Lucario Steel**
+```
+m!dexcust background #2D3241
+m!dexcust glass #232832B4
+m!dexcust border 160,200,255,100
+```
+
+**Blaziken Fire**
+```
+m!dexcust background #411E14
+m!dexcust glass #32140AB4
+m!dexcust border 255,140,80,100
+```
+
+**Gardevoir Psychic**
+```
+m!dexcust background #321E37
+m!dexcust glass #231428B4
+m!dexcust border 200,180,255,100
+```
+
+**Metagross Steel**
+```
+m!dexcust background #2D3237
+m!dexcust glass #23282DB4
+m!dexcust border 160,180,200,95
+```
+
+**Absol Dark**
+```
+m!dexcust background #28282D
+m!dexcust glass #1E1E23B4
+m!dexcust border 180,180,200,90
+```
+
+**Milotic Water**
+```
+m!dexcust background #1E3241
+m!dexcust glass #142832B4
+m!dexcust border 150,220,255,100
+```
+
+**Tyranitar Rock**
+```
+m!dexcust background #282319
+m!dexcust glass #1E190FB4
+m!dexcust border 180,160,130,90
+```
+
+**Dragonite Dragon**
+```
+m!dexcust background #372314
+m!dexcust glass #2D190AB4
+m!dexcust border 255,180,110,95
+```
+
+**Sceptile Grass**
+```
+m!dexcust background #1E3C28
+m!dexcust glass #142D1EB4
+m!dexcust border 110,240,150,100
+```
+
+**Alakazam Psychic**
+```
+m!dexcust background #3C2D1E
+m!dexcust glass #2D2314B4
+m!dexcust border 255,200,120,90
+```
+
+**Scizor Steel**
+```
+m!dexcust background #371E14
+m!dexcust glass #2D140AB4
+m!dexcust border 255,100,100,100
+```
+
+**Gyarados Water**
+```
+m!dexcust background #1E2D41
+m!dexcust glass #142332B4
+m!dexcust border 120,180,255,100
+```
+
+**Arcanine Fire**
+```
+m!dexcust background #3C2814
+m!dexcust glass #2D1E0AB4
+m!dexcust border 255,170,90,95
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## SHINY POKÉMON-THEMED
+## ═══════════════════════════════════════════════════════════════════════════
+
+**Shiny Umbreon Blue**
+```
+m!dexcust background #1E2841
+m!dexcust glass #141E32B4
+m!dexcust border 100,180,255,100
+```
+
+**Shiny Charizard Black**
+```
+m!dexcust background #1E1E1E
+m!dexcust glass #141414B4
+m!dexcust border 200,100,100,100
+```
+
+**Shiny Rayquaza Black**
+```
+m!dexcust background #1E1E1E
+m!dexcust glass #141414B4
+m!dexcust border 255,200,100,100
+```
+
+**Shiny Metagross Silver**
+```
+m!dexcust background #2D3237
+m!dexcust glass #23282DB4
+m!dexcust border 200,220,240,95
+```
+
+**Shiny Gengar White**
+```
+m!dexcust background #323237
+m!dexcust glass #28282DB4
+m!dexcust border 220,220,255,90
+```
+
+**Shiny Greninja Black**
+```
+m!dexcust background #1E1E23
+m!dexcust glass #141419B4
+m!dexcust border 150,180,220,95
+```
+
+**Shiny Gardevoir Blue**
+```
+m!dexcust background #1E2841
+m!dexcust glass #141E32B4
+m!dexcust border 150,200,255,100
+```
+
+**Shiny Gyarados Red**
+```
+m!dexcust background #411E14
+m!dexcust glass #32140AB4
+m!dexcust border 255,100,100,100
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## SEASONAL THEMES
+## ═══════════════════════════════════════════════════════════════════════════
+
+**Spring Blossom**
+```
+m!dexcust background #3C1E2D
+m!dexcust glass #2D1423B4
+m!dexcust border 255,180,220,95
+```
+
+**Summer Sunset**
+```
+m!dexcust background #3C2814
+m!dexcust glass #2D1E0AB4
+m!dexcust border 255,180,100,95
+```
+
+**Autumn Forest**
+```
+m!dexcust background #372314
+m!dexcust glass #2D190AB4
+m!dexcust border 220,150,80,90
+```
+
+**Winter Snow**
+```
+m!dexcust background #2D3241
+m!dexcust glass #232832B4
+m!dexcust border 200,220,255,90
+```
+
+**Halloween Night**
+```
+m!dexcust background #2D1E0A
+m!dexcust glass #231405B4
+m!dexcust border 255,150,50,100
+```
+
+**Christmas Spirit**
+```
+m!dexcust background #371E1E
+m!dexcust glass #2D1414B4
+m!dexcust border 120,220,120,95
+```
+
+**Valentine's Day**
+```
+m!dexcust background #3C1E28
+m!dexcust glass #2D1423B4
+m!dexcust border 255,150,200,100
+```
+
+**Easter Pastel**
+```
+m!dexcust background #2D2841
+m!dexcust glass #1E1E32B4
+m!dexcust border 220,200,255,90
+```
+
+**New Year Sparkle**
+```
+m!dexcust background #1E1E28
+m!dexcust glass #14141EB4
+m!dexcust border 255,215,0,100
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## NATURE-INSPIRED
+## ═══════════════════════════════════════════════════════════════════════════
+
+**Cherry Blossom**
+```
+m!dexcust background #3C1E2D
+m!dexcust glass #2D1423B4
+m!dexcust border 255,200,230,90
+```
+
+**Midnight Sky**
+```
+m!dexcust background #1E1E2D
+m!dexcust glass #14141EB4
+m!dexcust border 150,180,255,95
+```
+
+**Stormy Sea**
+```
+m!dexcust background #1E2832
+m!dexcust glass #141E23B4
+m!dexcust border 120,170,200,95
+```
+
+**Desert Dusk**
+```
+m!dexcust background #3C2D1E
+m!dexcust glass #2D2314B4
+m!dexcust border 255,200,140,85
+```
+
+**Aurora Borealis**
+```
+m!dexcust background #1E2D3C
+m!dexcust glass #14232DB4
+m!dexcust border 120,255,200,100
+```
+
+**Sunset Beach**
+```
+m!dexcust background #3C2819
+m!dexcust glass #2D1E0FB4
+m!dexcust border 255,180,120,95
+```
+
+**Misty Morning**
+```
+m!dexcust background #2D3237
+m!dexcust glass #23282DB4
+m!dexcust border 180,200,220,80
+```
+
+**Volcanic Ash**
+```
+m!dexcust background #2D1E1E
+m!dexcust glass #231414B4
+m!dexcust border 200,120,100,90
+```
+
+**Crystal Cave**
+```
+m!dexcust background #1E2D37
+m!dexcust glass #14232DB4
+m!dexcust border 150,220,255,100
+```
+
+**Rainforest Canopy**
+```
+m!dexcust background #1E2D1E
+m!dexcust glass #142314B4
+m!dexcust border 130,200,130,90
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## GEMSTONE-INSPIRED
+## ═══════════════════════════════════════════════════════════════════════════
+
+**Diamond**
+```
+m!dexcust background #2D3237
+m!dexcust glass #23282DB4
+m!dexcust border 220,230,255,95
+```
+
+**Emerald**
+```
+m!dexcust background #1E3C2D
+m!dexcust glass #142D23B4
+m!dexcust border 100,255,180,100
+```
+
+**Ruby**
+```
+m!dexcust background #411E1E
+m!dexcust glass #321414B4
+m!dexcust border 255,100,120,100
+```
+
+**Sapphire**
+```
+m!dexcust background #1E2341
+m!dexcust glass #141932B4
+m!dexcust border 110,150,255,100
+```
+
+**Amethyst**
+```
+m!dexcust background #321E3C
+m!dexcust glass #23142DB4
+m!dexcust border 200,140,255,100
+```
+
+**Topaz**
+```
+m!dexcust background #3C2D14
+m!dexcust glass #2D230AB4
+m!dexcust border 255,200,100,95
+```
+
+**Opal**
+```
+m!dexcust background #2D2832
+m!dexcust glass #1E1E23B4
+m!dexcust border 200,220,255,90
+```
+
+**Jade**
+```
+m!dexcust background #1E3C32
+m!dexcust glass #142D23B4
+m!dexcust border 110,240,200,100
+```
+
+**Onyx**
+```
+m!dexcust background #1E1E1E
+m!dexcust glass #141414B4
+m!dexcust border 120,120,130,95
+```
+
+**Citrine**
+```
+m!dexcust background #3C3214
+m!dexcust glass #2D280AB4
+m!dexcust border 255,220,100,90
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## FANTASY-INSPIRED
+## ═══════════════════════════════════════════════════════════════════════════
+
+**Dragon's Lair**
+```
+m!dexcust background #2D1E23
+m!dexcust glass #231419B4
+m!dexcust border 255,140,100,100
+```
+
+**Wizard's Tower**
+```
+m!dexcust background #2D1E41
+m!dexcust glass #1E1432B4
+m!dexcust border 180,150,255,100
+```
+
+**Elven Forest**
+```
+m!dexcust background #1E3C28
+m!dexcust glass #142D1EB4
+m!dexcust border 140,255,180,95
+```
+
+**Dwarf Mine**
+```
+m!dexcust background #322319
+m!dexcust glass #28190FB4
+m!dexcust border 200,170,130,85
+```
+
+**Phoenix Flame**
+```
+m!dexcust background #411E0F
+m!dexcust glass #32140AB4
+m!dexcust border 255,150,60,100
+```
+
+**Kraken Depths**
+```
+m!dexcust background #1E2832
+m!dexcust glass #141E23B4
+m!dexcust border 100,180,220,100
+```
+
+**Vampire Castle**
+```
+m!dexcust background #321419
+m!dexcust glass #280F0FB4
+m!dexcust border 200,100,120,100
+```
+
+**Fairy Glade**
+```
+m!dexcust background #282D1E
+m!dexcust glass #1E2314B4
+m!dexcust border 180,255,180,90
+```
+
+**Shadow Realm**
+```
+m!dexcust background #1E1E23
+m!dexcust glass #141419B4
+m!dexcust border 150,130,180,95
+```
+
+**Unicorn Meadow**
+```
+m!dexcust background #2D1E3C
+m!dexcust glass #1E1428B4
+m!dexcust border 255,200,255,90
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## CYBERPUNK/NEON
+## ═══════════════════════════════════════════════════════════════════════════
+
+**Neon Pink**
+```
+m!dexcust background #3C1E32
+m!dexcust glass #2D1423B4
+m!dexcust border 255,0,200,110
+```
+
+**Cyber Blue**
+```
+m!dexcust background #1E2841
+m!dexcust glass #141E32B4
+m!dexcust border 0,200,255,110
+```
+
+**Electric Lime**
+```
+m!dexcust background #282D1E
+m!dexcust glass #1E2314B4
+m!dexcust border 180,255,0,105
+```
+
+**Toxic Green**
+```
+m!dexcust background #1E3C1E
+m!dexcust glass #142D14B4
+m!dexcust border 100,255,100,110
+```
+
+**Plasma Purple**
+```
+m!dexcust background #2D1E41
+m!dexcust glass #1E1432B4
+m!dexcust border 200,100,255,110
+```
+
+**Neon Orange**
+```
+m!dexcust background #3C2314
+m!dexcust glass #2D190AB4
+m!dexcust border 255,150,0,105
+```
+
+**Cyber Red**
+```
+m!dexcust background #411E1E
+m!dexcust glass #321414B4
+m!dexcust border 255,50,100,110
+```
+
+**Matrix Green**
+```
+m!dexcust background #1E2D1E
+m!dexcust glass #142314B4
+m!dexcust border 0,255,100,110
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## RETRO/VINTAGE
+## ═══════════════════════════════════════════════════════════════════════════
+
+**Retro Arcade**
+```
+m!dexcust background #2D1E3C
+m!dexcust glass #1E1428B4
+m!dexcust border 255,0,255,100
+```
+
+**Vintage Sepia**
+```
+m!dexcust background #322819
+m!dexcust glass #281E0FB4
+m!dexcust border 210,180,140,80
+```
+
+**Classic Film**
+```
+m!dexcust background #282828
+m!dexcust glass #1E1E1EB4
+m!dexcust border 180,180,180,85
+```
+
+**80s Synthwave**
+```
+m!dexcust background #3C1E41
+m!dexcust glass #2D1432B4
+m!dexcust border 255,100,200,105
+```
+
+**VHS Tape**
+```
+m!dexcust background #2D2319
+m!dexcust glass #23190FB4
+m!dexcust border 200,180,160,80
+```
+
+**Polaroid**
+```
+m!dexcust background #2D2D32
+m!dexcust glass #232328B4
+m!dexcust border 200,200,210,85
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## FOOD-INSPIRED
+## ═══════════════════════════════════════════════════════════════════════════
+
+**Blueberry**
+```
+m!dexcust background #1E2341
+m!dexcust glass #141932B4
+m!dexcust border 120,150,255,100
+```
+
+**Strawberry**
+```
+m!dexcust background #411E1E
+m!dexcust glass #321414B4
+m!dexcust border 255,120,140,100
+```
+
+**Lime**
+```
+m!dexcust background #283214
+m!dexcust glass #1E280AB4
+m!dexcust border 180,255,100,100
+```
+
+**Grape**
+```
+m!dexcust background #321E3C
+m!dexcust glass #23142DB4
+m!dexcust border 180,120,240,100
+```
+
+**Orange**
+```
+m!dexcust background #3C2814
+m!dexcust glass #2D1E0AB4
+m!dexcust border 255,180,80,95
+```
+
+**Watermelon**
+```
+m!dexcust background #371E23
+m!dexcust glass #2D1419B4
+m!dexcust border 120,255,150,95
+```
+
+**Mango**
+```
+m!dexcust background #3C2D14
+m!dexcust glass #2D230AB4
+m!dexcust border 255,200,80,95
+```
+
+**Mint**
+```
+m!dexcust background #1E3C32
+m!dexcust glass #142D23B4
+m!dexcust border 150,255,200,100
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## SPACE-THEMED
+## ═══════════════════════════════════════════════════════════════════════════
+
+**Deep Space**
+```
+m!dexcust background #1E1E28
+m!dexcust glass #14141EB4
+m!dexcust border 150,150,200,95
+```
+
+**Nebula Purple**
+```
+m!dexcust background #2D1E41
+m!dexcust glass #1E1432B4
+m!dexcust border 200,150,255,100
+```
+
+**Mars Red**
+```
+m!dexcust background #411E14
+m!dexcust glass #32140AB4
+m!dexcust border 255,130,100,95
+```
+
+**Jupiter Storm**
+```
+m!dexcust background #3C2D1E
+m!dexcust glass #2D2314B4
+m!dexcust border 220,180,140,90
+```
+
+**Saturn Gold**
+```
+m!dexcust background #3C3214
+m!dexcust glass #2D280AB4
+m!dexcust border 255,220,120,95
+```
+
+**Neptune Blue**
+```
+m!dexcust background #1E2D41
+m!dexcust glass #142332B4
+m!dexcust border 110,180,255,100
+```
+
+**Cosmic Void**
+```
+m!dexcust background #1E1E1E
+m!dexcust glass #0F0F0FB4
+m!dexcust border 100,100,120,95
+```
+
+**Galaxy Swirl**
+```
+m!dexcust background #2D1E3C
+m!dexcust glass #1E142DB4
+m!dexcust border 180,140,255,100
+```
+
+**Supernova**
+```
+m!dexcust background #3C1E14
+m!dexcust glass #2D140AB4
+m!dexcust border 255,180,100,100
+```
+
+**Black Hole**
+```
+m!dexcust background #0F0F14
+m!dexcust glass #0A0A0FB4
+m!dexcust border 120,100,150,100
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## ELEMENT-THEMED
+## ═══════════════════════════════════════════════════════════════════════════
+
+**Flame**
+```
+m!dexcust background #411E0F
+m!dexcust glass #32140AB4
+m!dexcust border 255,140,60,100
+```
+
+**Tsunami**
+```
+m!dexcust background #1E2D3C
+m!dexcust glass #14232DB4
+m!dexcust border 110,190,255,100
+```
+
+**Earthquake**
+```
+m!dexcust background #322819
+m!dexcust glass #281E0FB4
+m!dexcust border 200,170,130,90
+```
+
+**Cyclone**
+```
+m!dexcust background #2D3241
+m!dexcust glass #232832B4
+m!dexcust border 180,200,240,95
+```
+
+**Lightning**
+```
+m!dexcust background #3C3C1E
+m!dexcust glass #2D2D14B4
+m!dexcust border 255,255,100,105
+```
+
+**Blizzard**
+```
+m!dexcust background #2D3241
+m!dexcust glass #232832B4
+m!dexcust border 200,230,255,95
+```
+
+**Magma**
+```
+m!dexcust background #411E14
+m!dexcust glass #32140AB4
+m!dexcust border 255,120,60,100
+```
+
+**Avalanche**
+```
+m!dexcust background #2D3237
+m!dexcust glass #23282DB4
+m!dexcust border 210,220,240,90
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## CREATOR'S TOP PICKS 🌟
+## ═══════════════════════════════════════════════════════════════════════════
+
+**The Classic (Original Default)**
+```
+m!dexcust background 45,30,55,255
+m!dexcust glass 30,20,40,180
+m!dexcust border 255,255,255,80
+```
+
+**Dark Elegance**
+```
+m!dexcust background #1E1E23
+m!dexcust glass #141419B4
+m!dexcust border 200,200,220,90
+```
+
+**Royal Court**
+```
+m!dexcust background #2D1E3C
+m!dexcust glass #1E1428B4
+m!dexcust border 200,160,255,100
+```
+
+**Ocean Dream**
+```
+m!dexcust background #1E2D3C
+m!dexcust glass #14232DB4
+m!dexcust border 130,200,255,100
+```
+
+**Forest Sanctuary**
+```
+m!dexcust background #1E3C28
+m!dexcust glass #142D1EB4
+m!dexcust border 120,240,160,100
+```
+
+**Sunset Glory**
+```
+m!dexcust background #3C2314
+m!dexcust glass #2D190AB4
+m!dexcust border 255,170,100,95
+```
+
+**Mystic Purple**
+```
+m!dexcust background #321E3C
+m!dexcust glass #23142DB4
+m!dexcust border 200,140,255,100
+```
+
+**Deep Burgundy (Most Popular)**
+```
+m!dexcust background #321923
+m!dexcust glass #280F19B4
+m!dexcust border 255,150,180,90
+```
+
+**Midnight Gold**
+```
+m!dexcust background #1E1E28
+m!dexcust glass #14141EB4
+m!dexcust border 255,215,0,100
+```
+
+**Arctic Ice**
+```
+m!dexcust background #1E3241
+m!dexcust glass #142832B4
+m!dexcust border 150,230,255,100
+```
+
+## ═══════════════════════════════════════════════════════════════════════════
+## END OF FILE
+## ═══════════════════════════════════════════════════════════════════════════
+# Total Themes: 200+
+# Use /dexsuggestions to browse or /dexapplytheme <name> to apply instantly!
+# Custom combinations? Use /dexcustomize to create your own unique style!
