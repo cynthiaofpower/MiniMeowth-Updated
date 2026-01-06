@@ -22,8 +22,8 @@ DEFAULT_SETTINGS = {
     'padding': 15,
 
     # === BACKGROUND COLORS ===
-    'bg_color': (50, 25, 35, 255),  # Main background (R, G, B, Alpha)
-    'glass_color': (40, 15, 25, 180),  # Glass panel overlay
+    'bg_color': (45,30,55,255),  # Main background (R, G, B, Alpha)
+    'glass_color': (30,20,40,180),  # Glass panel overlay
     'border_color': (255, 255, 255, 80),  # Panel borders
 
     # === UNCAUGHT POKEMON APPEARANCE ===
