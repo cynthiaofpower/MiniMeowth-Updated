@@ -22,27 +22,27 @@ DEFAULT_SETTINGS = {
     'padding': 15,
 
     # === BACKGROUND COLORS ===
-    'bg_color': (45,30,55,255),  # Main background (R, G, B, Alpha)
-    'glass_color': (30,20,40,180),  # Glass panel overlay
-    'border_color': (180,140,255,100),  # Panel borders
+    'bg_color': (30,30,30,255),  # Main background (R, G, B, Alpha)
+    'glass_color': (20,20,20,180),  # Glass panel overlay
+    'border_color': (255,200,100,100),  # Panel borders
 
     # === UNCAUGHT POKEMON APPEARANCE ===
     'uncaught_style': 'faded',  # Options: 'silhouette', 'grayscale', 'faded', 'hidden'
     'silhouette_color': (100, 110, 130, 255),  # Color for silhouette style
-    'fade_opacity': 128,  # Opacity for faded style (0-255, try 64-200)
+    'fade_opacity': 190,  # Opacity for faded style (0-255, try 64-200)
 
     # === BADGE STYLING ===
     'show_badge_box': True,  # Toggle badge box on/off
-    'badge_bg_color': (0, 0, 0, 200),  # Badge background
-    'badge_border_color': (255, 215, 0, 255),  # Badge border (gold)
-    'badge_text_color': (255, 215, 0),  # Badge text color
+    'badge_bg_color': (20,20,20,224),  # Badge background
+    'badge_border_color': (255,217,117,255),  # Badge border (gold)
+    'badge_text_color': (255,200,100),  # Badge text color
     'badge_border_width': 2,
 
     # === TEXT COLORS ===
     'header_title_color': (255, 255, 255),  # Main header text
     'header_filter_color': (200, 200, 220),  # Filter text in header
-    'count_text_color_caught': (100, 200, 255),  # Count text for caught Pokemon
-    'count_text_color_uncaught': (120, 120, 120),  # Count text for uncaught Pokemon
+    'count_text_color_caught': (255,200,100),  # Count text for caught Pokemon
+    'count_text_color_uncaught': (128,100,50),  # Count text for uncaught Pokemon
 
     # === HEADER SETTINGS ===
     'header_height': 80,
