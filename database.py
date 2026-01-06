@@ -1105,6 +1105,27 @@ class Database:
 
         return result
 
+    async def reset_dex_customization(self, user_id: int):
+        """
+        Reset dex customization to defaults (remove custom settings)
+        Returns True if settings existed, False otherwise
+        """
+        print(f"DEBUG DB: reset_dex_customization called for user {user_id}")
+        doc = await self.user_data.find_one(
+            {"user_id": user_id},
+            {"dex_customization": 1}
+        )
+
+        had_settings = doc and 'dex_customization' in doc
+        print(f"DEBUG DB: User had settings: {had_settings}")
+
+        await self.user_data.update_one(
+            {"user_id": user_id},
+            {"$unset": {"dex_customization": ""}}
+        )
+
+        return had_settings
+
 
     # Global database instance
 db = Database()
