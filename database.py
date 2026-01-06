@@ -1081,26 +1081,29 @@ class Database:
         # Save back
         await self.set_dex_customization(user_id, current)
 
-    async def reset_dex_customization(self, user_id: int):
+    async def get_dex_customization(self, user_id: int):
         """
-        Reset dex customization to defaults (remove custom settings)
-        Returns True if settings existed, False otherwise
+        Get dex image customization settings for a user
+        Returns dict or None if no custom settings
         """
-        print(f"DEBUG DB: reset_dex_customization called for user {user_id}")
+        print(f"DEBUG DB: get_dex_customization called for user {user_id}")
+
+        # Fetch directly from database with projection
         doc = await self.user_data.find_one(
             {"user_id": user_id},
             {"dex_customization": 1}
         )
 
-        had_settings = doc and 'dex_customization' in doc
-        print(f"DEBUG DB: User had settings: {had_settings}")
+        if not doc or 'dex_customization' not in doc:
+            print(f"DEBUG DB: No custom settings found")
+            return None
 
-        await self.user_data.update_one(
-            {"user_id": user_id},
-            {"$unset": {"dex_customization": ""}}
-        )
+        result = doc['dex_customization']
+        print(f"DEBUG DB: Retrieved settings: {result}")
+        print(f"DEBUG DB: Number of settings retrieved: {len(result)}")
+        print(f"DEBUG DB: Setting keys: {list(result.keys())}")
 
-        return had_settings
+        return result
 
 
     # Global database instance
