@@ -24,7 +24,7 @@ DEFAULT_SETTINGS = {
     # === BACKGROUND COLORS ===
     'bg_color': (45,30,55,255),  # Main background (R, G, B, Alpha)
     'glass_color': (30,20,40,180),  # Glass panel overlay
-    'border_color': (255, 255, 255, 80),  # Panel borders
+    'border_color': (180,140,255,100),  # Panel borders
 
     # === UNCAUGHT POKEMON APPEARANCE ===
     'uncaught_style': 'faded',  # Options: 'silhouette', 'grayscale', 'faded', 'hidden'
