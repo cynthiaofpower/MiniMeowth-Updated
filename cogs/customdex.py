@@ -356,6 +356,312 @@ class DexCustomization(commands.Cog):
                          reference=ctx.message, mention_author=False)
             print(f"Error in dex_customize: {e}")
 
+    @commands.hybrid_command(name='dexsuggestions', aliases=['dexcolors', 'dexthemes', 'themes', 'dexsugg'])
+    async def dex_suggestions(self, ctx, *, theme: str = None):
+        """View color scheme suggestions for your dex images
+
+        Examples:
+        /dexsuggestions - View all available themes
+        /dexsuggestions burgundy - View the Burgundy theme details
+        /dexsuggestions gengar - View Gengar-themed colors
+        """
+        try:
+            # Read the suggestions file
+            with open('dex_color_suggestions.txt', 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            if not theme:
+                # Show overview of all themes
+                embed = discord.Embed(
+                    title="🎨 Dex Color Scheme Suggestions",
+                    description="Choose from these pre-made color schemes! Use `/dexsuggestions <theme>` to see the commands for a specific theme, or `/dexapplytheme <theme>` to apply instantly!",
+                    color=EMBED_COLOR
+                )
+
+                # Parse theme names from the file - organized by categories
+                themes = {
+                    '🔴 **Deep Red Family**': ['Burgundy', 'Wine Red', 'Crimson Night', 'Ruby Shadow', 'Scarlet Depths', 'Blood Moon', 'Garnet'],
+                    '🟣 **Deep Purple Family**': ['Eggplant', 'Deep Plum', 'Midnight Purple', 'Royal Purple', 'Amethyst Shadow', 'Violet Dusk', 'Grape', 'Lavender Night'],
+                    '🔵 **Deep Blue Family**': ['Navy', 'Deep Indigo', 'Prussian Blue', 'Midnight Blue', 'Sapphire Depths', 'Cobalt Shadow', 'Royal Blue Night', 'Azure Abyss', 'Steel Blue'],
+                    '🟢 **Deep Green Family**': ['Hunter Green', 'Dark Moss', 'Emerald Shadow', 'Forest Night', 'Pine Depths', 'Jade Shadow', 'Verdant Abyss', 'Olive Night'],
+                    '🩵 **Deep Teal/Cyan Family**': ['Deep Teal', 'Dark Turquoise', 'Ocean Depths', 'Aquamarine Shadow', 'Cyan Abyss', 'Teal Night', 'Caribbean Depths'],
+                    '🟤 **Deep Brown Family**': ['Espresso', 'Dark Chocolate', 'Coffee Bean', 'Mahogany', 'Walnut', 'Sepia Shadow', 'Chestnut', 'Earth Tone'],
+                    '🟠 **Deep Orange/Amber**': ['Burnt Sienna', 'Dark Rust', 'Amber Shadow', 'Copper Night', 'Tiger Eye', 'Bronze', 'Autumn Rust'],
+                    '🩷 **Deep Magenta/Pink**': ['Deep Magenta', 'Dark Rose', 'Plum Wine', 'Fuchsia Shadow', 'Hot Pink Night', 'Berry Shadow', 'Raspberry Depths'],
+                    '⚪ **Neutral/Grayscale**': ['Charcoal', 'Slate Gray', 'Graphite', 'Steel Gray', 'Silver Shadow', 'Ash', 'Obsidian', 'Smoke'],
+                    '⚡ **Pokémon Types**': ['Fire', 'Water', 'Grass', 'Electric', 'Psychic', 'Dark', 'Dragon', 'Fairy', 'Steel', 'Ghost', 'Ice', '+7 more'],
+                    '🌟 **Legendary Pokémon**': ['Mewtwo', 'Rayquaza', 'Lugia', 'Ho-Oh', 'Kyogre', 'Groudon', 'Giratina', 'Dialga', 'Palkia', '+4 more'],
+                    '🎮 **Popular Pokémon**': ['Gengar', 'Charizard', 'Umbreon', 'Corviknight', 'Sylveon', 'Greninja', 'Garchomp', 'Lucario', '+12 more'],
+                    '✨ **Shiny Pokémon**': ['Shiny Umbreon', 'Shiny Charizard', 'Shiny Rayquaza', 'Shiny Metagross', 'Shiny Gengar', '+3 more'],
+                    '🎃 **Seasonal**': ['Spring Blossom', 'Summer Sunset', 'Autumn Forest', 'Winter Snow', 'Halloween Night', 'Christmas Spirit', '+3 more'],
+                    '🌸 **Nature-Inspired**': ['Cherry Blossom', 'Midnight Sky', 'Stormy Sea', 'Desert Dusk', 'Aurora Borealis', 'Sunset Beach', '+4 more'],
+                    '💎 **Gemstone**': ['Diamond', 'Emerald', 'Ruby', 'Sapphire', 'Amethyst', 'Topaz', 'Opal', 'Jade', 'Onyx', 'Citrine'],
+                    '🐉 **Fantasy**': ['Dragon\'s Lair', 'Wizard\'s Tower', 'Elven Forest', 'Dwarf Mine', 'Phoenix Flame', 'Kraken Depths', '+4 more'],
+                    '💫 **Cyberpunk/Neon**': ['Neon Pink', 'Cyber Blue', 'Electric Lime', 'Toxic Green', 'Plasma Purple', 'Neon Orange', '+2 more'],
+                    '📼 **Retro/Vintage**': ['Retro Arcade', 'Vintage Sepia', 'Classic Film', '80s Synthwave', 'VHS Tape', 'Polaroid'],
+                    '🍓 **Food-Inspired**': ['Blueberry', 'Strawberry', 'Lime', 'Grape', 'Orange', 'Watermelon', 'Mango', 'Mint'],
+                    '🌌 **Space-Themed**': ['Deep Space', 'Nebula Purple', 'Mars Red', 'Jupiter Storm', 'Saturn Gold', 'Neptune Blue', '+4 more'],
+                    '🔥 **Element-Themed**': ['Flame', 'Tsunami', 'Earthquake', 'Cyclone', 'Lightning', 'Blizzard', 'Magma', 'Avalanche'],
+                    '⭐ **Creator\'s Top Picks**': ['The Classic', 'Dark Elegance', 'Royal Court', 'Ocean Dream', 'Forest Sanctuary', 'Sunset Glory', '+4 more']
+                }
+
+                for family, theme_list in themes.items():
+                    theme_names = ', '.join([f"`{t}`" for t in theme_list])
+                    embed.add_field(
+                        name=family,
+                        value=theme_names,
+                        inline=False
+                    )
+
+                embed.add_field(
+                    name="💡 Quick Apply",
+                    value="Use `/dexapplytheme <theme>` to apply any theme instantly!\nExample: `/dexapplytheme burgundy`",
+                    inline=False
+                )
+
+                embed.set_footer(text="200+ themes available! • Example: /dexsuggestions burgundy")
+                await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
+                return
+
+            # Search for the specific theme in the file
+            theme_lower = theme.lower().replace(' ', '').replace('-', '').replace("'", '')
+            lines = content.split('\n')
+
+            # Find the theme section
+            theme_section = []
+            capture = False
+            theme_name = None
+
+            for i, line in enumerate(lines):
+                # Check if this line is a theme header (bold markdown)
+                if line.startswith('**') and line.endswith('**'):
+                    current_theme = line.strip('**').lower().replace(' ', '').replace('-', '').replace("'", '')
+
+                    if theme_lower in current_theme or current_theme in theme_lower:
+                        capture = True
+                        theme_name = line.strip('**')
+                        continue
+                    elif capture:
+                        # We've reached the next theme, stop capturing
+                        break
+
+                if capture and line.strip():
+                    theme_section.append(line)
+
+            if not theme_section:
+                # Theme not found - suggest similar themes
+                embed = discord.Embed(
+                    title="❌ Theme Not Found",
+                    description=f"Couldn't find a theme matching `{theme}`.\n\nUse `/dexsuggestions` (without arguments) to see all available themes!",
+                    color=discord.Color.red()
+                )
+
+                # Try to suggest similar themes
+                all_themes = []
+                for line in lines:
+                    if line.startswith('**') and line.endswith('**'):
+                        all_themes.append(line.strip('**'))
+
+                # Simple fuzzy matching
+                similar = []
+                theme_words = theme.lower().split()
+                for t in all_themes:
+                    t_lower = t.lower()
+                    if any(word in t_lower for word in theme_words):
+                        similar.append(t)
+
+                if similar:
+                    embed.add_field(
+                        name="💡 Did you mean?",
+                        value='\n'.join([f"`{t}`" for t in similar[:5]]),
+                        inline=False
+                    )
+
+                await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
+                return
+
+            # Extract commands from the theme section
+            commands = []
+            for line in theme_section:
+                if line.strip().startswith('m!dexcust'):
+                    commands.append(line.strip())
+
+            if not commands:
+                await ctx.send(f"❌ No commands found for theme `{theme_name}`", 
+                             reference=ctx.message, mention_author=False)
+                return
+
+            # Create embed with theme details
+            embed = discord.Embed(
+                title=f"🎨 {theme_name} Theme",
+                description="**Option 1: Quick Apply**\n"
+                           f"```\n/dexapplytheme {theme_name}\n```\n"
+                           "**Option 2: Manual Commands**\n"
+                           "Copy and paste these commands:",
+                color=EMBED_COLOR
+            )
+
+            # Format commands as a code block
+            commands_text = '\n'.join(commands)
+            embed.add_field(
+                name="Commands",
+                value=f"```\n{commands_text}\n```",
+                inline=False
+            )
+
+            # Parse the colors for a preview
+            bg_color = None
+            glass_color = None
+            border_color = None
+
+            for cmd in commands:
+                cmd_lower = cmd.lower()
+                if 'background' in cmd_lower:
+                    bg_color = cmd.split()[-1]
+                elif 'glass' in cmd_lower:
+                    glass_color = cmd.split()[-1]
+                elif 'border' in cmd_lower:
+                    border_color = cmd.split()[-1]
+
+            if bg_color or glass_color or border_color:
+                color_info = []
+                if bg_color:
+                    color_info.append(f"**Background:** `{bg_color}`")
+                if glass_color:
+                    color_info.append(f"**Glass:** `{glass_color}`")
+                if border_color:
+                    color_info.append(f"**Border:** `{border_color}`")
+
+                embed.add_field(
+                    name="Color Preview",
+                    value='\n'.join(color_info),
+                    inline=False
+                )
+
+            embed.set_footer(text="💡 Tip: Use /dexapplytheme for instant application!")
+
+            await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
+
+        except FileNotFoundError:
+            embed = discord.Embed(
+                title="❌ Suggestions File Not Found",
+                description="The color suggestions file (`dex_color_suggestions.txt`) is missing!\n\nPlease contact the bot administrator.",
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
+        except Exception as e:
+            await ctx.send(f"❌ Error loading suggestions: {str(e)}", 
+                         reference=ctx.message, mention_author=False)
+            print(f"Error in dex_suggestions: {e}")
+
+    @commands.hybrid_command(name='dexapplytheme', aliases=['dextheme', 'dexapply','dat'])
+    async def dex_apply_theme(self, ctx, *, theme_name: str):
+        """Apply a pre-made color scheme to your dex images
+
+        Example: /dexapplytheme burgundy
+        """
+        try:
+            # Read the suggestions file
+            with open('dex_color_suggestions.txt', 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            # Search for the theme
+            theme_lower = theme_name.lower().replace(' ', '').replace('-', '').replace("'", '')
+            lines = content.split('\n')
+
+            # Find the theme section
+            theme_section = []
+            capture = False
+            found_theme_name = None
+
+            for line in lines:
+                if line.startswith('**') and line.endswith('**'):
+                    current_theme = line.strip('**').lower().replace(' ', '').replace('-', '').replace("'", '')
+
+                    if theme_lower in current_theme or current_theme in theme_lower:
+                        capture = True
+                        found_theme_name = line.strip('**')
+                        continue
+                    elif capture:
+                        break
+
+                if capture and line.strip():
+                    theme_section.append(line)
+
+            if not theme_section:
+                # Try to find a partial match
+                await ctx.send(f"❌ Theme `{theme_name}` not found! Use `/dexsuggestions` to see all themes.", 
+                             reference=ctx.message, mention_author=False)
+                return
+
+            # Extract colors from commands
+            bg_color = None
+            glass_color = None
+            border_color = None
+
+            for line in theme_section:
+                line_lower = line.lower()
+                if 'background' in line_lower and 'm!dexcust' in line_lower:
+                    color_str = line.split()[-1]
+                    bg_color = self.parse_color(color_str)
+                elif 'glass' in line_lower and 'm!dexcust' in line_lower:
+                    color_str = line.split()[-1]
+                    glass_color = self.parse_color(color_str)
+                elif 'border' in line_lower and 'm!dexcust' in line_lower:
+                    color_str = line.split()[-1]
+                    border_color = self.parse_color(color_str)
+
+            if not any([bg_color, glass_color, border_color]):
+                await ctx.send(f"❌ Couldn't parse colors from theme `{found_theme_name}`", 
+                             reference=ctx.message, mention_author=False)
+                return
+
+            # Apply the theme
+            user_id = ctx.author.id
+            user_settings = await db.get_dex_customization(user_id) or {}
+
+            if bg_color:
+                user_settings['bg_color'] = bg_color
+            if glass_color:
+                user_settings['glass_color'] = glass_color
+            if border_color:
+                user_settings['border_color'] = border_color
+
+            await db.set_dex_customization(user_id, user_settings)
+
+            # Success message
+            embed = discord.Embed(
+                title="✅ Theme Applied!",
+                description=f"Successfully applied the **{found_theme_name}** color scheme to your dex images!",
+                color=EMBED_COLOR
+            )
+
+            applied_colors = []
+            if bg_color:
+                applied_colors.append(f"**Background:** `{bg_color[0]},{bg_color[1]},{bg_color[2]},{bg_color[3]}`")
+            if glass_color:
+                applied_colors.append(f"**Glass:** `{glass_color[0]},{glass_color[1]},{glass_color[2]},{glass_color[3]}`")
+            if border_color:
+                applied_colors.append(f"**Border:** `{border_color[0]},{border_color[1]},{border_color[2]},{border_color[3]}`")
+
+            embed.add_field(
+                name="Applied Colors",
+                value='\n'.join(applied_colors),
+                inline=False
+            )
+
+            embed.set_footer(text="Use a dex command with --image to see your new theme!")
+
+            await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
+
+        except FileNotFoundError:
+            await ctx.send("❌ Color suggestions file not found! Please contact the bot administrator.", 
+                         reference=ctx.message, mention_author=False)
+        except Exception as e:
+            await ctx.send(f"❌ Error applying theme: {str(e)}", 
+                         reference=ctx.message, mention_author=False)
+            print(f"Error in dex_apply_theme: {e}")
+
     @commands.hybrid_command(name='dexreset')
     async def dex_reset(self, ctx):
         """Reset your dex image settings to defaults"""
