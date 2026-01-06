@@ -52,14 +52,14 @@ DEFAULT_SETTINGS = {
     'font_size_filter': 18,
     'font_size_page': 15,
     'font_size_badge': 16,
-    'font_size_count': 18,
+    'font_size_count': 20,
 
     # === SPRITE SETTINGS ===
-    'sprite_max_size': 120,  # Max size for Pokemon sprites
+    'sprite_max_size': 124,  # Max size for Pokemon sprites
     'sprite_y_offset': 32,  # Vertical offset from top of cell
 
     # === GENDER SYMBOL ===
-    'gender_symbol_size': 24,
+    'gender_symbol_size': 26,
     'gender_symbol_padding': 8,  # Distance from cell edge
 
     # === MISC ===
