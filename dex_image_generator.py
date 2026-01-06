@@ -29,7 +29,7 @@ DEFAULT_SETTINGS = {
     # === UNCAUGHT POKEMON APPEARANCE ===
     'uncaught_style': 'faded',  # Options: 'silhouette', 'grayscale', 'faded', 'hidden'
     'silhouette_color': (100, 110, 130, 255),  # Color for silhouette style
-    'fade_opacity': 128,  # Opacity for faded style (0-255, try 64-200)
+    'fade_opacity': 80,  # Opacity for faded style (0-255, try 64-200)
 
     # === BADGE STYLING ===
     'badge_bg_color': (0, 0, 0, 200),  # Badge background
