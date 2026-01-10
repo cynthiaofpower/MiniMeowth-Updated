@@ -120,6 +120,7 @@ async def on_ready():
     # Load cogs
     cogs = [
         'cogs.utils',
+        'cogs.chainbreeding',
         'cogs.pokedex',
         'cogs.customimage',
         'cogs.id_overrides',
