@@ -354,65 +354,116 @@ class Breeding(commands.Cog):
 
         return pairs
 
-    async def handle_mychoice_breeding_optimized(self, user_id, category, settings, 
-                                                 utils, selective, count, overrides, cooldown_ids):
-        """Handle MyChoice - OPTIMIZED"""
-        mychoice_male = settings.get('mychoice_male')
-        mychoice_female = settings.get('mychoice_female')
+    async def handle_mychoice_breeding_optimized(
+        self,
+        user_id,
+        category,
+        settings,
+        utils,
+        selective,
+        count,
+        overrides,
+        cooldown_ids,
+    ):
+        """Handle MyChoice - OPTIMIZED - supports multiple males and females"""
 
-        if not mychoice_male or not mychoice_female:
+        mychoice_males = settings.get("mychoice_male", [])
+        mychoice_females = settings.get("mychoice_female", [])
+
+        # Handle legacy single-value format (string instead of list)
+        if isinstance(mychoice_males, str):
+            mychoice_males = [mychoice_males] if mychoice_males else []
+
+        if isinstance(mychoice_females, str):
+            mychoice_females = [mychoice_females] if mychoice_females else []
+
+        if not mychoice_males or not mychoice_females:
             return []
 
         # Fetch all available Pokemon once
         all_pokemon = await db.get_pokemon_for_breeding(
-            user_id, category, cooldown_ids=cooldown_ids
+            user_id,
+            category,
+            cooldown_ids=cooldown_ids,
         )
 
         male_species_pokemon = []
         female_species_pokemon = []
 
-        is_male_ditto = 'ditto' in mychoice_male.lower()
-        is_female_ditto = 'ditto' in mychoice_female.lower()
+        # Check if any males or females are Ditto
+        any_male_ditto = any("ditto" in m.lower() for m in mychoice_males)
+        any_female_ditto = any("ditto" in f.lower() for f in mychoice_females)
 
         for pokemon in all_pokemon:
-            if is_male_ditto and pokemon.get('is_ditto', False):
-                male_species_pokemon.append(pokemon)
-            elif not is_male_ditto and pokemon['gender'] == 'male' and self.matches_target(pokemon, mychoice_male, utils):
-                male_species_pokemon.append(pokemon)
+            # Match male species
+            for male_species in mychoice_males:
+                is_male_ditto = "ditto" in male_species.lower()
 
-            if is_female_ditto and pokemon.get('is_ditto', False):
-                female_species_pokemon.append(pokemon)
-            elif not is_female_ditto and pokemon['gender'] == 'female' and self.matches_target(pokemon, mychoice_female, utils):
-                female_species_pokemon.append(pokemon)
+                if is_male_ditto and pokemon.get("is_ditto", False):
+                    male_species_pokemon.append(pokemon)
+                    break
+                elif (
+                    not is_male_ditto
+                    and pokemon["gender"] == "male"
+                    and self.matches_target(pokemon, male_species, utils)
+                ):
+                    male_species_pokemon.append(pokemon)
+                    break
+
+            # Match female species
+            for female_species in mychoice_females:
+                is_female_ditto = "ditto" in female_species.lower()
+
+                if is_female_ditto and pokemon.get("is_ditto", False):
+                    female_species_pokemon.append(pokemon)
+                    break
+                elif (
+                    not is_female_ditto
+                    and pokemon["gender"] == "female"
+                    and self.matches_target(pokemon, female_species, utils)
+                ):
+                    female_species_pokemon.append(pokemon)
+                    break
 
         if not male_species_pokemon or not female_species_pokemon:
             return []
 
-        # Already sorted by IV from query
+        # Sort by IV (highest first)
+        male_species_pokemon.sort(key=lambda x: x["iv_percent"], reverse=True)
+        female_species_pokemon.sort(key=lambda x: x["iv_percent"], reverse=True)
+
         pairs = []
         used_male_ids = set()
         used_female_ids = set()
 
+        # Pair highest-IV females with highest-IV males
         for female in female_species_pokemon:
             if len(pairs) >= count:
                 break
 
-            if female['pokemon_id'] in used_female_ids:
+            if female["pokemon_id"] in used_female_ids:
                 continue
 
             for male in male_species_pokemon:
-                if male['pokemon_id'] in used_male_ids:
+                if male["pokemon_id"] in used_male_ids:
                     continue
 
-                if selective and not utils.can_pair_ids(female['pokemon_id'], male['pokemon_id'], overrides):
+                if not self.can_pair_pokemon(
+                    female,
+                    male,
+                    utils,
+                    selective,
+                    overrides,
+                ):
                     continue
 
-                pairs.append({'female': female, 'male': male})
-                used_female_ids.add(female['pokemon_id'])
-                used_male_ids.add(male['pokemon_id'])
+                pairs.append({"female": female, "male": male})
+                used_female_ids.add(female["pokemon_id"])
+                used_male_ids.add(male["pokemon_id"])
                 break
 
         return pairs
+
 
     async def handle_specific_targets_breeding_optimized(self, user_id, category, targets, 
                                                         utils, selective, count, overrides, cooldown_ids):
