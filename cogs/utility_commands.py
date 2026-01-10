@@ -60,7 +60,16 @@ class UtilityCommands(commands.Cog):
             for embed in message.embeds:
                 if embed.description and embed.description.startswith("Are you sure you want to buy"):
                     return
-
+        # Check for level up/evolution embed - don't proceed to next command
+        if message.embeds:
+            for embed in message.embeds:
+                # Check if title starts with "Congratulations" (level up message)
+                if embed.title and embed.title.startswith("Congratulations"):
+                    return
+                # Also check for "is now level" in description as backup
+                if embed.description and "is now level" in embed.description:
+                    return
+                    
         # Handle next command in sequence
         command_data['current_index'] += 1
 
@@ -124,16 +133,16 @@ class UtilityCommands(commands.Cog):
                 if embed.title and ("pokémon" in embed.title.lower() or "marketplace" in embed.title.lower()):
                     if embed.description:
                         is_poketwo_embed = True
-            
+
             pokemon_ids = []
-            
+
             if is_poketwo_embed:
                 # Extract IDs from Pokétwo embed
                 pokemon_ids = self._extract_pokemon_ids(replied_message.embeds[0].description)
             elif replied_message.content:
                 # Extract IDs from plain text
                 pokemon_ids = self._extract_ids_from_plain_text(replied_message.content)
-            
+
             if not pokemon_ids:
                 return await self._send_error(ctx, "No Pokemon IDs found in the replied message!")
 
@@ -378,20 +387,20 @@ class UtilityCommands(commands.Cog):
             # 1. **`33384252`** (with backticks and bold)
             # 2. 33384252　 (plain with Japanese space)
             # 3. `38749770`　 (with backticks, no bold)
-            
+
             # Try to find ID in backticks first
             backtick_match = re.search(r'`(\d+)`', line)
             if backtick_match:
                 pokemon_ids.append(backtick_match.group(1))
                 continue
-            
+
             # Try to find ID at start of line with Japanese space
             if '　' in line or '•' in line:
                 id_part = line.split('　')[0] if '　' in line else line.split()[0]
                 id_match = id_part.replace('**', '').replace('`', '').strip()
                 if id_match.isdigit():
                     pokemon_ids.append(id_match)
-        
+
         return pokemon_ids
 
     def _extract_ids_from_plain_text(self, text: str) -> list:
@@ -408,7 +417,7 @@ class UtilityCommands(commands.Cog):
                 continue
 
             new_ids = []
-            
+
             # Handle plain text messages
             if track_data.get('is_plain_text'):
                 if message.content:
@@ -422,7 +431,7 @@ class UtilityCommands(commands.Cog):
                 # Check for both list and marketplace embeds
                 if not embed.title or not embed.description:
                     continue
-                
+
                 if "pokémon" not in embed.title.lower() and "marketplace" not in embed.title.lower():
                     continue
 
@@ -465,7 +474,7 @@ class UtilityCommands(commands.Cog):
 
         first_id = command_data['pokemon_ids'][0]
         command = command_data['template'].replace('(id)', first_id)
-        
+
         embed = discord.Embed(
             description=f"```{command}```",
             color=EMBED_COLOR
@@ -483,7 +492,7 @@ class UtilityCommands(commands.Cog):
         next_id = command_data['pokemon_ids'][command_data['current_index']]
         template = command_data['template']
         command = template.replace('(id)', next_id)
-        
+
         embed = discord.Embed(
             description=f"```{command}```",
             color=EMBED_COLOR
