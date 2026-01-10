@@ -232,14 +232,6 @@ class ChainBreeding(commands.Cog):
             # This is complex - for now, return None
             return None
 
-        # Validate all moves are egg moves for target
-        target_breeding_moves = self.movesets[target_species].get('breeding', [])
-        target_breeding_moves_lower = [m.lower() for m in target_breeding_moves]
-
-        for move in target_moves:
-            if move.lower() not in target_breeding_moves_lower:
-                return None  # Not an egg move
-
         # Strategy 1: Try to find a single Pokemon that learns all moves naturally
         bridge_candidates = self.get_bridge_pokemon(target_species, target_moves)
 
@@ -262,190 +254,269 @@ class ChainBreeding(commands.Cog):
         best_chain = self._bfs_breeding_chain(target_species, target_moves, bridge_candidates)
 
         return best_chain
-
-    def _bfs_breeding_chain(self, target_species: str, target_moves: List[str], 
-                           initial_bridges: List[Tuple[str, int, List[str]]]) -> Optional[BreedingChain]:
+        
+    def _find_chain_for_single_move(self, target_species: str, move: str, max_depth: int = 4) -> Optional[BreedingChain]:
         """
-        BFS search for optimal breeding chain
-        Optimized to reuse offspring and avoid unnecessary steps
+        Recursive backward-chaining to find how to get a single move onto target
         """
-        # Strategy: If we need multiple moves, breed separately then combine offspring
-        # Example: For 4 moves, breed 2 males (each with 2 moves), then breed their offspring
+        # Use recursive helper
+        chain_steps = self._recursive_find_move_chain(target_species, move, depth=0, max_depth=max_depth, visited=set())
 
-        # Check if we can split moves into groups and combine
-        if len(target_moves) > 2:
-            optimized_chain = self._try_split_and_combine_strategy(
-                target_species, target_moves, initial_bridges
-            )
-            if optimized_chain:
-                return optimized_chain
-
-        # Fallback to original BFS if split strategy doesn't work
-        # Priority queue: (total_cost, step_count, chain)
-        queue = []
-        visited = set()  # (species, frozenset(moves))
-
-        # Initialize with direct bridges
-        for bridge, cost, learned_moves in initial_bridges[:10]:  # Limit initial candidates
-            chain = BreedingChain()
-            chain.add_step(
-                male=bridge,
-                female=target_species,
-                moves=learned_moves,
-                offspring=target_species,
-                cost=cost + 1
-            )
-
-            if len(chain.moves_achieved) == len(target_moves):
-                return chain  # Already complete
-
-            state_key = (target_species, frozenset(chain.moves_achieved))
-            if state_key not in visited:
-                visited.add(state_key)
-                heapq.heappush(queue, (chain.total_cost, len(chain.steps), chain))
-
-        # BFS expansion
-        max_steps = 5  # Limit chain length
-
-        while queue:
-            _, step_count, current_chain = heapq.heappop(queue)
-
-            if step_count >= max_steps:
-                continue
-
-            # Get current species and missing moves
-            current_species = current_chain.steps[-1]['offspring']
-            missing_moves = [m for m in target_moves if m not in current_chain.moves_achieved]
-
-            if not missing_moves:
-                return current_chain  # Found complete chain
-
-            # Find intermediate Pokemon that can learn missing moves
-            for intermediate in self.pokemon_list[:200]:
-                if not self.can_be_female_parent(intermediate):
-                    continue
-
-                intermediate_breeding = self.movesets[intermediate].get('breeding', [])
-                intermediate_can_learn = []
-                for move in missing_moves:
-                    if any(move.lower() == bm.lower() for bm in intermediate_breeding):
-                        intermediate_can_learn.append(move)
-
-                if not intermediate_can_learn:
-                    continue
-
-                for male_candidate in self.pokemon_list[:100]:
-                    if not self.can_be_male_parent(male_candidate):
-                        continue
-
-                    if not self.can_breed(male_candidate, intermediate):
-                        continue
-
-                    male_teaches = []
-                    for move in intermediate_can_learn:
-                        if self.learns_move_naturally(male_candidate, move):
-                            male_teaches.append(move)
-
-                    if not male_teaches:
-                        continue
-
-                    new_chain = current_chain.copy()
-                    male_cost = self.get_spawn_cost(male_candidate)
-                    new_chain.add_step(
-                        male=male_candidate,
-                        female=intermediate,
-                        moves=male_teaches,
-                        offspring=intermediate,
-                        cost=male_cost + 1
-                    )
-
-                    if self.can_breed(intermediate, current_species):
-                        final_chain = new_chain.copy()
-                        final_chain.add_step(
-                            male=intermediate,
-                            female=current_species,
-                            moves=male_teaches,
-                            offspring=current_species,
-                            cost=1
-                        )
-
-                        if len(final_chain.moves_achieved) == len(target_moves):
-                            return final_chain
-
-                        state_key = (current_species, frozenset(final_chain.moves_achieved))
-                        if state_key not in visited:
-                            visited.add(state_key)
-                            heapq.heappush(queue, (final_chain.total_cost, len(final_chain.steps), final_chain))
-
-        return None
-
-    def _try_split_and_combine_strategy(self, target_species: str, target_moves: List[str],
-                                        initial_bridges: List[Tuple[str, int, List[str]]]) -> Optional[BreedingChain]:
-        """
-        Try to split moves into groups, breed separately, then combine offspring
-        Example: For 4 moves, breed 2 males (each with 2 moves), then breed offspring together
-        This avoids the unnecessary 3rd step!
-        """
-        if len(target_moves) < 3:
+        if not chain_steps:
             return None
 
-        # Try to find two bridges that together cover all moves
-        for i, (bridge1, cost1, moves1) in enumerate(initial_bridges[:20]):
-            if not moves1:  # Skip if no moves
+        # Convert steps to BreedingChain
+        chain = BreedingChain()
+        for male, female, moves, offspring in chain_steps:
+            cost = self.get_spawn_cost(male) if male not in ['(offspring)', '(bred)'] else 1
+            chain.add_step(
+                male=male,
+                female=female,
+                moves=moves,
+                offspring=offspring,
+                cost=cost
+            )
+
+        return chain
+
+    def _recursive_find_move_chain(self, species: str, move: str, depth: int, max_depth: int, visited: Set[str]) -> Optional[List[Tuple]]:
+        """
+        Recursively find breeding chain to get move onto species
+        Returns: List of (male, female, moves, offspring) tuples
+        """
+        if depth > max_depth:
+            return None
+
+        # Avoid infinite loops
+        state_key = f"{species}:{move}:{depth}"
+        if state_key in visited:
+            return None
+        visited.add(state_key)
+
+        # Check if species can learn this move as egg move
+        species_breeding = self.movesets.get(species, {}).get('breeding', [])
+        if not any(move.lower() == bm.lower() for bm in species_breeding):
+            return None  # Can't learn as egg move
+
+        # LEVEL 0: Check if any Pokemon that shares egg group can learn it NATURALLY
+        species_egg_groups = self.egg_groups.get(species, [])
+
+        for male_candidate in self.pokemon_list:
+            if not self.can_be_male_parent(male_candidate):
                 continue
 
-            moves1_set = set(m.lower() for m in moves1)
-            remaining_moves = [m for m in target_moves if m.lower() not in moves1_set]
-
-            if not remaining_moves:
-                # First bridge covers all moves - single step solution
+            # Check if shares egg group
+            if not self.can_breed(male_candidate, species):
                 continue
 
-            # Find second bridge that covers remaining moves
-            for bridge2, cost2, moves2 in initial_bridges[:20]:
-                if bridge2 == bridge1:
-                    continue
+            # Check if learns move naturally
+            if self.learns_move_naturally(male_candidate, move):
+                # FOUND! Direct breeding
+                spawn_cost = self.get_spawn_cost(male_candidate)
+                return [(male_candidate, species, [move], species)]
 
-                moves2_set = set(m.lower() for m in moves2)
+        # LEVEL 1+: Need intermediate species (chain breeding)
+        # Find intermediates that:
+        # 1. Share egg group with target
+        # 2. Can learn move as egg move
+        # 3. We can recursively get the move onto them
 
-                # Check if together they cover all moves
-                combined_moves = moves1_set | moves2_set
-                target_moves_lower = set(m.lower() for m in target_moves)
+        best_chain = None
+        best_cost = float('inf')
 
-                if combined_moves >= target_moves_lower:
-                    # Found a split! Create optimized 2-step chain
+        for intermediate in self.pokemon_list:
+            if intermediate == species:
+                continue
+
+            # Check if intermediate can breed with target
+            if not self.can_breed(intermediate, species):
+                continue
+
+            # Check if intermediate can be female parent (to receive move)
+            if not self.can_be_female_parent(intermediate):
+                continue
+
+            # Check if intermediate can learn this move as egg move
+            inter_breeding = self.movesets.get(intermediate, {}).get('breeding', [])
+            if not any(move.lower() == bm.lower() for bm in inter_breeding):
+                continue
+
+            # Recursively find how to get move onto intermediate
+            sub_chain = self._recursive_find_move_chain(
+                intermediate, 
+                move, 
+                depth + 1, 
+                max_depth, 
+                visited.copy()  # New visited set for this branch
+            )
+
+            if sub_chain:
+                # Calculate cost
+                total_cost = sum(self.get_spawn_cost(step[0]) for step in sub_chain)
+
+                if total_cost < best_cost:
+                    best_cost = total_cost
+                    # Add final step: intermediate (with move) + target = target (with move)
+                    best_chain = sub_chain + [(intermediate, species, [move], species)]
+
+        return best_chain
+
+    def _find_chain_for_multiple_moves(self, target_species: str, target_moves: List[str]) -> Optional[BreedingChain]:
+        """
+        Find breeding chain for multiple moves
+        Strategy: Find chains for each move, then combine optimally
+        """
+        # Find individual chains for each move
+        move_chains = {}
+        for move in target_moves:
+            chain = self._find_chain_for_single_move(target_species, move, max_depth=4)
+            if chain:
+                move_chains[move] = chain
+
+        # If we couldn't find chains for all moves, fail
+        if len(move_chains) != len(target_moves):
+            return None
+
+        # Strategy 1: Check if any single Pokemon can teach multiple moves
+        # (This is the "bridge" strategy from before)
+        for male_candidate in self.pokemon_list[:300]:
+            if not self.can_be_male_parent(male_candidate):
+                continue
+            if not self.can_breed(male_candidate, target_species):
+                continue
+
+            # Check how many moves this male can teach
+            taught_moves = []
+            for move in target_moves:
+                if self.learns_move_naturally(male_candidate, move):
+                    taught_moves.append(move)
+
+            if len(taught_moves) == len(target_moves):
+                # Single step solution!
+                chain = BreedingChain()
+                cost = self.get_spawn_cost(male_candidate)
+                chain.add_step(
+                    male=male_candidate,
+                    female=target_species,
+                    moves=taught_moves,
+                    offspring=target_species,
+                    cost=cost + 1
+                )
+                return chain
+
+        # Strategy 2: Combine chains optimally
+        # For simplicity, use a 2-step approach if possible
+        if len(target_moves) <= 4:
+            # Try to split into 2 groups
+            return self._combine_move_chains(target_species, target_moves, move_chains)
+
+        # Fallback: Sequential breeding (one move at a time)
+        combined_chain = BreedingChain()
+        for move in target_moves:
+            chain = move_chains[move]
+            for step in chain.steps:
+                combined_chain.add_step(
+                    male=step['male'],
+                    female=step['female'],
+                    moves=step['moves'],
+                    offspring=step['offspring'],
+                    cost=step.get('cost', 1)
+                )
+
+        return combined_chain
+
+    def _combine_move_chains(self, target_species: str, target_moves: List[str], move_chains: Dict) -> Optional[BreedingChain]:
+        """
+        Combine multiple move chains optimally
+        Try to find 2 males that together can teach all moves
+        """
+        # Find males that can teach subsets of moves
+        male_to_moves = defaultdict(list)
+
+        for male in self.pokemon_list[:400]:
+            if not self.can_be_male_parent(male):
+                continue
+            if not self.can_breed(male, target_species):
+                continue
+
+            taught = []
+            for move in target_moves:
+                if self.learns_move_naturally(male, move):
+                    taught.append(move)
+
+            if taught:
+                male_to_moves[male] = taught
+
+        # Try to find 2 males that cover all moves
+        males = list(male_to_moves.keys())
+        for i, male1 in enumerate(males):
+            moves1 = set(male_to_moves[male1])
+            remaining = [m for m in target_moves if m not in moves1]
+
+            if not remaining:
+                continue  # male1 already covers all
+
+            for male2 in males[i+1:]:
+                moves2 = set(male_to_moves[male2])
+
+                if moves1 | moves2 >= set(target_moves):
+                    # Found pair that covers all moves!
                     chain = BreedingChain()
 
-                    # Step 1: Breed bridge1 with target (get moves from bridge1)
+                    # Step 1: male1 + target
+                    cost1 = self.get_spawn_cost(male1)
                     chain.add_step(
-                        male=bridge1,
+                        male=male1,
                         female=target_species,
-                        moves=moves1,
+                        moves=list(moves1),
                         offspring=target_species,
                         cost=cost1 + 1
                     )
 
-                    # Step 2: Breed bridge2 with offspring from step 1
-                    # Offspring inherits moves from BOTH parents (accumulated)
-                    all_inherited_moves = list(set(moves1 + moves2))
-                    # Filter to only target moves
-                    final_moves = [m for m in all_inherited_moves if m in target_moves]
-
+                    # Step 2: male2 + target (from step 1)
+                    cost2 = self.get_spawn_cost(male2)
                     chain.add_step(
-                        male=bridge2,
+                        male=male2,
                         female=f"{target_species} (from Step 1)",
-                        moves=moves2,
+                        moves=list(moves2),
                         offspring=target_species,
                         cost=cost2 + 1
                     )
 
-                    # Update moves achieved
-                    chain.moves_achieved = set(final_moves)
+                    return chain
 
-                    # Verify we got all moves
-                    if len(chain.moves_achieved) == len(target_moves):
-                        return chain
+        # Fallback: Use chain breeding for each move
+        # Build incrementally
+        combined = BreedingChain()
+        accumulated_moves = set()
 
+        for i, move in enumerate(target_moves):
+            chain = move_chains[move]
+
+            # Add all steps from this chain
+            for step in chain.steps:
+                # Adjust female if using offspring from previous
+                female = step['female']
+                if i > 0 and female == target_species:
+                    female = f"{target_species} (from previous steps)"
+
+                combined.add_step(
+                    male=step['male'],
+                    female=female,
+                    moves=step['moves'],
+                    offspring=step['offspring'],
+                    cost=step.get('cost', 1)
+                )
+
+            accumulated_moves.add(move)
+
+        return combined
+
+    def _try_split_and_combine_strategy(self, target_species: str, target_moves: List[str],
+                                        initial_bridges: List[Tuple[str, int, List[str]]]) -> Optional[BreedingChain]:
+        """
+        DEPRECATED: Kept for compatibility but not used in new recursive algorithm
+        """
         return None
 
     @commands.hybrid_command(name='iwant', aliases=['chainbreed', 'cb'])
@@ -521,7 +592,7 @@ class ChainBreeding(commands.Cog):
                           reference=ctx.message, mention_author=False)
             return
 
-        # Validate moves
+        # Validate moves - but be helpful even if they're not egg moves
         target_breeding_moves = self.movesets[target_species].get('breeding', [])
         invalid_moves = []
         valid_moves = []
@@ -532,32 +603,43 @@ class ChainBreeding(commands.Cog):
             else:
                 invalid_moves.append(move)
 
+        # If some moves aren't egg moves, warn but continue anyway
+        warning_msg = None
         if invalid_moves:
-            error_msg = f"❌ `{target_species}` cannot learn these moves through breeding:\n"
-            error_msg += ", ".join(f"`{m}`" for m in invalid_moves)
-            await ctx.send(error_msg, reference=ctx.message, mention_author=False)
-            return
+            warning_msg = f"⚠️ **Note:** `{target_species}` cannot normally learn these moves as egg moves:\n"
+            warning_msg += ", ".join(f"`{m}`" for m in invalid_moves)
+            warning_msg += f"\n\n**Proceeding anyway** to find if there's a breeding path...\n"
 
-        if not valid_moves:
+        if not target_moves:
             await ctx.send(f"❌ No valid egg moves specified!", 
                           reference=ctx.message, mention_author=False)
             return
 
-        # Send "searching" message
-        search_msg = await ctx.send(
-            f"🔍 Searching for optimal breeding chain for **{target_species}** with {len(valid_moves)} moves...",
-            reference=ctx.message, mention_author=False
-        )
+        # Send "searching" message (with warning if applicable)
+        if warning_msg:
+            search_msg = await ctx.send(
+                warning_msg + f"🔍 Searching for breeding chain for **{target_species}** with {len(target_moves)} moves...",
+                reference=ctx.message, mention_author=False
+            )
+        else:
+            search_msg = await ctx.send(
+                f"🔍 Searching for optimal breeding chain for **{target_species}** with {len(target_moves)} moves...",
+                reference=ctx.message, mention_author=False
+            )
 
-        # Find breeding chain
-        chain = self.find_breeding_chain(target_species, valid_moves)
+        # Find breeding chain (use ALL target_moves, not just valid_moves)
+        chain = self.find_breeding_chain(target_species, target_moves)
 
         if not chain:
-            await search_msg.edit(content=f"❌ No breeding chain found for **{target_species}** with the specified moves. This might be impossible or require complex chains beyond current search depth.")
+            await search_msg.edit(content=f"❌ No breeding chain found for **{target_species}** with the specified moves.\n\n"
+                                         f"**This is likely impossible** because:\n"
+                                         f"• The moves may not be egg moves for {target_species}\n"
+                                         f"• No compatible Pokemon can pass these moves\n"
+                                         f"• The chain may require steps beyond current search depth")
             return
 
         # Create result embed
-        embed = self.create_chain_embed(target_species, valid_moves, chain)
+        embed = self.create_chain_embed(target_species, target_moves, chain)
 
         await search_msg.edit(content=None, embed=embed)
 
