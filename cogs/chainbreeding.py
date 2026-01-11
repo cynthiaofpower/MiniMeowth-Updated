@@ -387,6 +387,8 @@ class ChainBreeding(commands.Cog):
         2. Female parent determines the offspring species
         3. Offspring inherits egg moves from male if female's species can learn them as egg moves
         4. Once offspring has a move, breeding it again (as female) passes moves to next offspring
+
+        OPTIMIZATION: Prioritize males that can teach multiple moves at once!
         """
         # Normalize inputs
         target_species = target_species.strip()
@@ -408,107 +410,142 @@ class ChainBreeding(commands.Cog):
             if move.lower() not in target_breeding_moves_lower:
                 return None  # Not an egg move
 
-        # Find best males for each move
-        move_to_solution = {}
-        for move in target_moves:
-            males = self.find_male_parents_for_move(target_species, move)
-            if males:
-                # Found direct males - use best one
-                move_to_solution[move] = ('direct', males[0])  # (name, cost)
+        # OPTIMIZATION: Find all males that can breed with target and which moves they know
+        males_with_moves = {}  # {male_name: [moves_it_can_teach]}
+
+        for male_candidate in self.pokemon_list:
+            if not self.can_be_male_parent(male_candidate):
+                continue
+            if not self.can_breed(male_candidate, target_species):
+                continue
+
+            moves_known = []
+            for move in target_moves:
+                if self.learns_move_naturally(male_candidate, move):
+                    moves_known.append(move)
+
+            if moves_known:
+                males_with_moves[male_candidate] = moves_known
+
+        # Sort males by: number of moves (desc), then spawn cost (asc)
+        males_sorted = sorted(
+            males_with_moves.items(),
+            key=lambda x: (-len(x[1]), self.get_spawn_cost(x[0]))
+        )
+
+        # Strategy 1: Single male that learns ALL moves
+        if males_sorted and len(males_sorted[0][1]) == len(target_moves):
+            male_name = males_sorted[0][0]
+            chain = BreedingChain()
+            cost = self.get_spawn_cost(male_name)
+            chain.add_step(
+                male=male_name,
+                female=target_species,
+                moves=target_moves,
+                offspring=target_species,
+                cost=cost
+            )
+            return chain
+
+        # Strategy 2: Greedy approach - use males that teach the MOST moves at once
+        remaining_moves = set(target_moves)
+        breeding_steps = []
+
+        while remaining_moves:
+            # Find the best male for remaining moves
+            best_male = None
+            best_moves = []
+            best_cost = float('inf')
+
+            # Check direct males that can teach multiple remaining moves
+            for male_name, all_moves_list in males_sorted:
+                # Which remaining moves can this male teach?
+                teachable = [m for m in all_moves_list if m in remaining_moves]
+                if not teachable:
+                    continue
+
+                cost = self.get_spawn_cost(male_name)
+
+                # Prefer males that teach MORE moves, then lower cost
+                if len(teachable) > len(best_moves) or (len(teachable) == len(best_moves) and cost < best_cost):
+                    best_male = male_name
+                    best_moves = teachable
+                    best_cost = cost
+
+            if best_male:
+                # Found a direct male that can teach one or more moves
+                breeding_steps.append({
+                    'type': 'direct',
+                    'male': best_male,
+                    'moves': best_moves,
+                    'cost': best_cost
+                })
+                remaining_moves -= set(best_moves)
             else:
-                # No direct male found - try intermediate breeding
-                bridge_result = self.find_intermediate_bridge(target_species, move, max_depth=5)
+                # No direct male found for any remaining moves - try intermediate breeding
+                # Pick one move to try
+                move_to_try = list(remaining_moves)[0]
+                bridge_result = self.find_intermediate_bridge(target_species, move_to_try, max_depth=5)
+
                 if bridge_result:
-                    move_to_solution[move] = ('bridge', bridge_result)
+                    breeding_steps.append({
+                        'type': 'bridge',
+                        'moves': [move_to_try],
+                        'bridge_data': bridge_result
+                    })
+                    remaining_moves.remove(move_to_try)
                 else:
-                    # Cannot find any way to get this move
-                    move_to_solution[move] = None
+                    # Cannot find this move at all
+                    return None
 
-        # Check if any moves are impossible
-        if any(v is None for v in move_to_solution.values()):
-            return None
-
-        # Strategy 1: Single male that learns all moves
-        if len(target_moves) > 1:
-            for male_candidate in self.pokemon_list:
-                if not self.can_be_male_parent(male_candidate):
-                    continue
-                if not self.can_breed(male_candidate, target_species):
-                    continue
-
-                learns_all = all(self.learns_move_naturally(male_candidate, move) for move in target_moves)
-                if learns_all:
-                    chain = BreedingChain()
-                    cost = self.get_spawn_cost(male_candidate)
-                    chain.add_step(
-                        male=male_candidate,
-                        female=target_species,
-                        moves=target_moves,
-                        offspring=target_species,
-                        cost=cost
-                    )
-                    return chain
-
-        # Strategy 2: Sequential breeding - accumulate moves one at a time
-        # Sort moves by cost (direct < bridge, and within each, by spawn cost)
-
-        move_costs = []
-        for move in target_moves:
-            solution_type, solution_data = move_to_solution[move]
-            if solution_type == 'direct':
-                male_name, male_cost = solution_data
-                move_costs.append((move, male_cost, solution_type, solution_data))
-            else:  # bridge
-                total_cost = solution_data['total_cost']
-                move_costs.append((move, total_cost, solution_type, solution_data))
-
-        # Sort by cost (cheapest first)
-        move_costs.sort(key=lambda x: x[1])
-
-        # Build chain sequentially
+        # Build the final chain from breeding steps
         chain = BreedingChain()
         current_female = target_species
 
-        for move, cost, solution_type, solution_data in move_costs:
-            if solution_type == 'direct':
-                # Direct breeding: just one step
-                male_name, male_cost = solution_data
-
+        for step_data in breeding_steps:
+            if step_data['type'] == 'direct':
+                # Direct breeding step
                 chain.add_step(
-                    male=male_name,
+                    male=step_data['male'],
                     female=current_female,
-                    moves=[move],
+                    moves=step_data['moves'],  # Can be multiple moves!
                     offspring=target_species,
-                    cost=male_cost
+                    cost=step_data['cost']
                 )
-
-                # Next move will use offspring from this step
                 current_female = f"{target_species} (from Step {len(chain.steps)})"
 
-            else:  # bridge - multiple steps
-                bridge_steps = solution_data['steps']
+            else:  # bridge - intermediate breeding
+                bridge_steps = step_data['bridge_data']['steps']
+                move = step_data['moves'][0]
 
-                # Add all bridge steps except the last one
-                for i, step in enumerate(bridge_steps[:-1]):
+                # Add all bridge steps
+                for i, step in enumerate(bridge_steps):
+                    is_last_step = (i == len(bridge_steps) - 1)
+
+                    # Adjust male name if it references a previous step
+                    male_name = step['male']
+                    if '(from Step' in male_name and len(chain.steps) > 0:
+                        import re
+                        match = re.search(r'\(from Step (\d+)\)', male_name)
+                        if match:
+                            bridge_step_num = int(match.group(1))
+                            actual_step_num = len(chain.steps) + bridge_step_num
+                            male_name = re.sub(r'\(from Step \d+\)', f'(from Step {actual_step_num})', male_name)
+
+                    # Adjust female name if this is the last step
+                    female_name = step['female']
+                    if is_last_step and len(chain.steps) > 0:
+                        female_name = current_female
+
                     chain.add_step(
-                        male=step['male'],
-                        female=step['female'],
+                        male=male_name,
+                        female=female_name,
                         moves=[move],
                         offspring=step['offspring'],
                         cost=step['cost']
                     )
 
-                # Last step: breed intermediate (with move) × current_female → target
-                last_step = bridge_steps[-1]
-                chain.add_step(
-                    male=last_step['male'].replace(target_species, f"{bridge_steps[-2]['offspring']} (from Step {len(chain.steps)})"),
-                    female=current_female,
-                    moves=[move],
-                    offspring=target_species,
-                    cost=0  # Cost already counted
-                )
-
-                # Update for next move
+                # Update current female
                 current_female = f"{target_species} (from Step {len(chain.steps)})"
 
         return chain
