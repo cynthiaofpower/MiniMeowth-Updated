@@ -220,61 +220,125 @@ class ChainBreeding(commands.Cog):
         candidates.sort(key=lambda x: x[1])
         return candidates
 
-    def find_intermediate_bridge(self, target_species: str, move: str) -> Optional[Dict]:
+    def find_intermediate_bridge(self, target_species: str, move: str, max_depth: int = 5) -> Optional[Dict]:
         """
-        Find an intermediate Pokemon that:
-        1. Can learn the move as an egg move
-        2. Shares at least one egg group with target
-        3. Can be female parent
+        Find intermediate breeding chain using BFS
 
-        Then find a male parent that can teach it the move
+        The idea is to work backwards from target:
+        - Start with target species
+        - Find intermediates that can learn the move as egg move AND share egg groups
+        - Keep going until we find something that can breed with a male that knows the move naturally
 
         Returns: {
-            'intermediate': pokemon_name,
-            'intermediate_egg_groups': [group1, group2],
-            'male_parent': pokemon_name,
-            'male_cost': spawn_cost
+            'steps': [
+                {'male': pokemon, 'female': pokemon, 'move': move, 'offspring': pokemon},
+                ...
+            ],
+            'total_cost': float
         } or None
         """
-        target_egg_groups = self.egg_groups.get(target_species, [])
+        from collections import deque
 
-        # Find intermediate Pokemon
+        # BFS: (species_to_breed_with_target, path_to_get_there, cost)
+        # path_to_get_there is a list of breeding steps to create that species with the move
+        queue = deque()
+        visited = set()
+
+        # First, find all intermediates that:
+        # 1. Can learn the move as egg move
+        # 2. Share egg group with target
+        target_groups = self.egg_groups.get(target_species, [])
+
         for intermediate in self.pokemon_list:
-            # Must be able to learn move through breeding
             if not self.learns_move_breeding(intermediate, move):
                 continue
-
-            # Must be able to be female parent
             if not self.can_be_female_parent(intermediate):
                 continue
 
-            # Must share at least one egg group with target
             intermediate_groups = self.egg_groups.get(intermediate, [])
-            if not any(group in target_egg_groups for group in intermediate_groups):
+            if not any(g in target_groups for g in intermediate_groups):
                 continue
 
-            # Find male parent that can teach this intermediate the move
-            # Male must learn move naturally and share egg group with intermediate
+            # This intermediate can breed with target
+            # Now see if we can get this intermediate with the move
+            queue.append((intermediate, [], 0))
+            visited.add(intermediate)
+
+        # BFS to find how to get the move into these intermediates
+        while queue:
+            current_species, path, cost = queue.popleft()
+
+            if len(path) >= max_depth:
+                continue
+
+            # Try to find a male that knows the move naturally and can breed with current
             for male in self.pokemon_list:
                 if not self.learns_move_naturally(male, move):
                     continue
-
                 if not self.can_be_male_parent(male):
                     continue
-
-                if not self.can_breed(male, intermediate):
+                if not self.can_breed(male, current_species):
                     continue
 
+                # Found it! Build the complete chain
                 male_cost = self.get_spawn_cost(male)
-                intermediate_cost = self.get_spawn_cost(intermediate)
+                current_cost = self.get_spawn_cost(current_species)
+
+                # The complete chain is:
+                # 1. All steps in 'path' to create earlier intermediates
+                # 2. Male × current_species → current_species (with move)
+                # 3. current_species (with move, as male) × target → target (with move)
+
+                complete_path = path + [{
+                    'male': male,
+                    'female': current_species,
+                    'move': move,
+                    'offspring': current_species,
+                    'cost': male_cost + current_cost
+                }]
+
+                # Add final step to get back to target
+                complete_path.append({
+                    'male': f"{current_species} (with {move})",
+                    'female': target_species,
+                    'move': move,
+                    'offspring': target_species,
+                    'cost': 0  # Already counted current_cost
+                })
 
                 return {
-                    'intermediate': intermediate,
-                    'intermediate_egg_groups': intermediate_groups,
-                    'intermediate_cost': intermediate_cost,
-                    'male_parent': male,
-                    'male_cost': male_cost
+                    'steps': complete_path,
+                    'total_cost': cost + male_cost + current_cost
                 }
+
+            # Expand to further intermediates
+            for next_intermediate in self.pokemon_list:
+                if next_intermediate in visited:
+                    continue
+                if not self.learns_move_breeding(next_intermediate, move):
+                    continue
+                if not self.can_be_female_parent(next_intermediate):
+                    continue
+
+                # Must share egg group with current
+                current_groups = self.egg_groups.get(current_species, [])
+                next_groups = self.egg_groups.get(next_intermediate, [])
+                if not any(g in current_groups for g in next_groups):
+                    continue
+
+                visited.add(next_intermediate)
+                next_cost = self.get_spawn_cost(next_intermediate)
+
+                # Add a breeding step: next_intermediate × current_species → current_species
+                new_path = path + [{
+                    'male': f"{next_intermediate} (to be bred)",
+                    'female': current_species,
+                    'move': move,
+                    'offspring': current_species,
+                    'cost': next_cost
+                }]
+
+                queue.append((next_intermediate, new_path, cost + next_cost))
 
         return None
 
@@ -309,23 +373,23 @@ class ChainBreeding(commands.Cog):
                 return None  # Not an egg move
 
         # Find best males for each move
-        move_to_males = {}
+        move_to_solution = {}
         for move in target_moves:
             males = self.find_male_parents_for_move(target_species, move)
-            if not males:
+            if males:
+                # Found direct males - use best one
+                move_to_solution[move] = ('direct', males[0])  # (name, cost)
+            else:
                 # No direct male found - try intermediate breeding
-                bridge_result = self.find_intermediate_bridge(target_species, move)
+                bridge_result = self.find_intermediate_bridge(target_species, move, max_depth=5)
                 if bridge_result:
-                    move_to_males[move] = ('bridge', bridge_result)
+                    move_to_solution[move] = ('bridge', bridge_result)
                 else:
                     # Cannot find any way to get this move
-                    move_to_males[move] = None
-            else:
-                # Found direct males
-                move_to_males[move] = ('direct', males)
+                    move_to_solution[move] = None
 
         # Check if any moves are impossible
-        if any(v is None for v in move_to_males.values()):
+        if any(v is None for v in move_to_solution.values()):
             return None
 
         # Strategy 1: Single male that learns all moves
@@ -350,21 +414,17 @@ class ChainBreeding(commands.Cog):
                     return chain
 
         # Strategy 2: Sequential breeding - accumulate moves one at a time
-        # Pick the best order based on spawn costs
+        # Sort moves by cost (direct < bridge, and within each, by spawn cost)
 
-        # Calculate total cost for each move (including bridge costs)
         move_costs = []
         for move in target_moves:
-            result = move_to_males[move]
-            if result[0] == 'direct':
-                # Best direct male cost
-                cost = result[1][0][1] if result[1] else 9999
-                move_costs.append((move, cost, result))
+            solution_type, solution_data = move_to_solution[move]
+            if solution_type == 'direct':
+                male_name, male_cost = solution_data
+                move_costs.append((move, male_cost, solution_type, solution_data))
             else:  # bridge
-                # Bridge costs more (intermediate + male)
-                bridge_info = result[1]
-                cost = bridge_info['intermediate_cost'] + bridge_info['male_cost']
-                move_costs.append((move, cost, result))
+                total_cost = solution_data['total_cost']
+                move_costs.append((move, total_cost, solution_type, solution_data))
 
         # Sort by cost (cheapest first)
         move_costs.sort(key=lambda x: x[1])
@@ -373,52 +433,47 @@ class ChainBreeding(commands.Cog):
         chain = BreedingChain()
         current_female = target_species
 
-        for move, cost, result in move_costs:
-            if result[0] == 'direct':
-                # Direct breeding
-                male = result[1][0][0]  # Best male
-                male_cost = result[1][0][1]
+        for move, cost, solution_type, solution_data in move_costs:
+            if solution_type == 'direct':
+                # Direct breeding: just one step
+                male_name, male_cost = solution_data
 
                 chain.add_step(
-                    male=male,
+                    male=male_name,
                     female=current_female,
                     moves=[move],
                     offspring=target_species,
                     cost=male_cost
                 )
 
-                # Next step will use offspring from this step (which now has this move)
-                if len(chain.steps) < len(target_moves):
-                    current_female = f"{target_species} (from Step {len(chain.steps)})"
+                # Next move will use offspring from this step
+                current_female = f"{target_species} (from Step {len(chain.steps)})"
 
-            else:  # bridge
-                bridge_info = result[1]
-                intermediate = bridge_info['intermediate']
-                male = bridge_info['male_parent']
-                male_cost = bridge_info['male_cost']
-                intermediate_cost = bridge_info['intermediate_cost']
+            else:  # bridge - multiple steps
+                bridge_steps = solution_data['steps']
 
-                # Step 1: Breed male with intermediate to get intermediate with move
+                # Add all bridge steps except the last one
+                for i, step in enumerate(bridge_steps[:-1]):
+                    chain.add_step(
+                        male=step['male'],
+                        female=step['female'],
+                        moves=[move],
+                        offspring=step['offspring'],
+                        cost=step['cost']
+                    )
+
+                # Last step: breed intermediate (with move) × current_female → target
+                last_step = bridge_steps[-1]
                 chain.add_step(
-                    male=male,
-                    female=intermediate,
-                    moves=[move],
-                    offspring=intermediate,
-                    cost=male_cost + intermediate_cost
-                )
-
-                # Step 2: Breed intermediate offspring (now male) with target female
-                chain.add_step(
-                    male=f"{intermediate} (from Step {len(chain.steps)})",
+                    male=last_step['male'].replace(target_species, f"{bridge_steps[-2]['offspring']} (from Step {len(chain.steps)})"),
                     female=current_female,
                     moves=[move],
                     offspring=target_species,
-                    cost=0  # Already counted
+                    cost=0  # Cost already counted
                 )
 
-                # Update current female for next move
-                if len(chain.steps) < len(target_moves) + len([m for m in move_costs if m[2][0] == 'bridge']):
-                    current_female = f"{target_species} (from Step {len(chain.steps)})"
+                # Update for next move
+                current_female = f"{target_species} (from Step {len(chain.steps)})"
 
         return chain
 
