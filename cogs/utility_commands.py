@@ -73,7 +73,7 @@ class UtilityCommands(commands.Cog):
         # Handle next command in sequence
         command_data['current_index'] += 1
 
-        if command_data['current_index'] < len(command_data['pokemon_ids']):
+        if command_data['current_index'] < len(command_data['pokemon_data']):
             await self._send_next_track_command(message.channel, command_data)
         else:
             await self._finish_track_sequence(message.channel, command_data)
@@ -134,21 +134,21 @@ class UtilityCommands(commands.Cog):
                     if embed.description:
                         is_poketwo_embed = True
 
-            pokemon_ids = []
+            pokemon_data = []
 
             if is_poketwo_embed:
                 # Extract IDs from Pokétwo embed
-                pokemon_ids = self._extract_pokemon_ids(replied_message.embeds[0].description)
+                pokemon_data = [{'id': pid} for pid in self._extract_pokemon_ids(replied_message.embeds[0].description)]
             elif replied_message.content:
                 # Extract IDs from plain text
-                pokemon_ids = self._extract_ids_from_plain_text(replied_message.content)
+                pokemon_data = [{'id': pid} for pid in self._extract_ids_from_plain_text(replied_message.content)]
 
-            if not pokemon_ids:
+            if not pokemon_data:
                 return await self._send_error(ctx, "No Pokemon IDs found in the replied message!")
 
             # Create tracking message
             embed = discord.Embed(
-                description=f"{EMOJI_TICK} Started tracking! React with ✅ when done editing.\nCommand: `{command_template}`\nIDs collected: {len(pokemon_ids)}",
+                description=f"{EMOJI_TICK} Started tracking! React with ✅ when done editing.\nCommand: `{command_template}`\nIDs collected: {len(pokemon_data)}",
                 color=EMBED_COLOR
             )
             tracking_msg = await ctx.reply(embed=embed, mention_author=False)
@@ -156,7 +156,7 @@ class UtilityCommands(commands.Cog):
 
             # Store track command data
             active_track_commands[ctx.channel.id] = {
-                'pokemon_ids': pokemon_ids.copy(),
+                'pokemon_data': pokemon_data.copy(),
                 'template': command_template,
                 'user_id': ctx.author.id,
                 'monitoring_message_id': replied_message.id,
@@ -164,7 +164,83 @@ class UtilityCommands(commands.Cog):
                 'status': 'tracking',
                 'current_index': 0,
                 'total_count': 0,
-                'is_plain_text': not is_poketwo_embed
+                'is_plain_text': not is_poketwo_embed,
+                'command_type': 'track'
+            }
+
+            # Set timeout
+            asyncio.create_task(self._track_timeout(ctx.channel.id, tracking_msg))
+
+        except Exception as e:
+            await self._send_error(ctx, f"An error occurred: {str(e)}")
+
+    @commands.command(name='rarecandylevel')
+    async def rarecandylevel(self, ctx, target_level: int):
+        """
+        Auto-buy rare candies to level Pokemon to a target level
+        Usage: ?rarecandylevel <target_level>
+        Example: ?rarecandylevel 45
+
+        Reply to a Pokétwo list message, then react with ✅ when done editing.
+        Will calculate and buy the correct number of rare candies for each Pokemon.
+        """
+        if not ctx.message.reference:
+            return await self._send_error(ctx, "Please reply to a Pokétwo list message!")
+
+        if ctx.channel.id in active_track_commands:
+            return await self._send_error(ctx, "There's already an active track command in this channel! Use `?stoptrack` first.")
+
+        if target_level < 1 or target_level > 100:
+            return await self._send_error(ctx, "Target level must be between 1 and 100!")
+
+        try:
+            replied_message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+
+            # Must be a Pokétwo list embed
+            if replied_message.author.id != 716390085896962058 or not replied_message.embeds:
+                return await self._send_error(ctx, "Please reply to a Pokétwo list message!")
+
+            embed = replied_message.embeds[0]
+            if not embed.title or "pokémon" not in embed.title.lower() or not embed.description:
+                return await self._send_error(ctx, "Please reply to a Pokétwo list message!")
+
+            # Extract Pokemon data with levels
+            pokemon_data = self._extract_pokemon_with_levels(embed.description, target_level)
+
+            if not pokemon_data:
+                return await self._send_error(ctx, "No Pokemon IDs found in the replied message!")
+
+            # Filter out Pokemon that are already at or above target level
+            pokemon_to_level = [p for p in pokemon_data if p.get('candies_needed', 0) > 0]
+
+            if not pokemon_to_level:
+                return await self._send_error(ctx, f"All Pokemon are already at or above level {target_level}!")
+
+            # Create tracking message with summary
+            total_candies = sum(p['candies_needed'] for p in pokemon_to_level)
+            embed = discord.Embed(
+                description=f"{EMOJI_TICK} Started tracking! React with ✅ when done editing.\n"
+                           f"Target Level: **{target_level}**\n"
+                           f"Pokemon to level: **{len(pokemon_to_level)}**\n"
+                           f"Total rare candies needed: **{total_candies}**",
+                color=EMBED_COLOR
+            )
+            tracking_msg = await ctx.reply(embed=embed, mention_author=False)
+            await tracking_msg.add_reaction('✅')
+
+            # Store track command data
+            active_track_commands[ctx.channel.id] = {
+                'pokemon_data': pokemon_to_level.copy(),
+                'template': '@Pokétwo buy (id) rare candy (candies)',
+                'user_id': ctx.author.id,
+                'monitoring_message_id': replied_message.id,
+                'tracking_message_id': tracking_msg.id,
+                'status': 'tracking',
+                'current_index': 0,
+                'total_count': 0,
+                'target_level': target_level,
+                'is_plain_text': False,
+                'command_type': 'rarecandylevel'
             }
 
             # Set timeout
@@ -403,6 +479,38 @@ class UtilityCommands(commands.Cog):
 
         return pokemon_ids
 
+    def _extract_pokemon_with_levels(self, description: str, target_level: int) -> list:
+        """Extract Pokemon IDs and calculate rare candies needed"""
+        pokemon_data = []
+        for line in description.split('\n'):
+            # Extract ID
+            pokemon_id = None
+            backtick_match = re.search(r'`(\d+)`', line)
+            if backtick_match:
+                pokemon_id = backtick_match.group(1)
+            elif '　' in line or '•' in line:
+                id_part = line.split('　')[0] if '　' in line else line.split()[0]
+                id_match = id_part.replace('**', '').replace('`', '').strip()
+                if id_match.isdigit():
+                    pokemon_id = id_match
+
+            if not pokemon_id:
+                continue
+
+            # Extract current level (format: "Lvl. 14")
+            level_match = re.search(r'Lvl\.\s*(\d+)', line)
+            if level_match:
+                current_level = int(level_match.group(1))
+                candies_needed = max(0, target_level - current_level)
+                
+                pokemon_data.append({
+                    'id': pokemon_id,
+                    'current_level': current_level,
+                    'candies_needed': candies_needed
+                })
+
+        return pokemon_data
+
     def _extract_ids_from_plain_text(self, text: str) -> list:
         """Extract numeric IDs from plain text"""
         # Find all sequences of digits (Pokemon IDs)
@@ -416,32 +524,50 @@ class UtilityCommands(commands.Cog):
                 track_data.get('status') != 'tracking'):
                 continue
 
-            new_ids = []
+            command_type = track_data.get('command_type', 'track')
+            new_data = []
 
-            # Handle plain text messages
-            if track_data.get('is_plain_text'):
-                if message.content:
-                    new_ids = self._extract_ids_from_plain_text(message.content)
-            # Handle Pokétwo embed messages (list or marketplace)
-            else:
+            # Handle different command types
+            if command_type == 'rarecandylevel':
+                # For rare candy level, re-extract with levels
                 if message.author.id != 716390085896962058 or not message.embeds:
                     continue
 
                 embed = message.embeds[0]
-                # Check for both list and marketplace embeds
+                if not embed.title or "pokémon" not in embed.title.lower() or not embed.description:
+                    continue
+
+                target_level = track_data.get('target_level', 100)
+                new_data = self._extract_pokemon_with_levels(embed.description, target_level)
+                # Filter out Pokemon already at target level
+                new_data = [p for p in new_data if p.get('candies_needed', 0) > 0]
+
+            elif track_data.get('is_plain_text'):
+                # Plain text tracking
+                if message.content:
+                    new_data = [{'id': pid} for pid in self._extract_ids_from_plain_text(message.content)]
+            else:
+                # Regular track command
+                if message.author.id != 716390085896962058 or not message.embeds:
+                    continue
+
+                embed = message.embeds[0]
                 if not embed.title or not embed.description:
                     continue
 
                 if "pokémon" not in embed.title.lower() and "marketplace" not in embed.title.lower():
                     continue
 
-                new_ids = self._extract_pokemon_ids(embed.description)
+                new_data = [{'id': pid} for pid in self._extract_pokemon_ids(embed.description)]
 
-            # Add only new IDs
+            # Add only new entries
             added_count = 0
-            for pokemon_id in new_ids:
-                if pokemon_id not in track_data['pokemon_ids']:
-                    track_data['pokemon_ids'].append(pokemon_id)
+            existing_ids = {p['id'] for p in track_data['pokemon_data']}
+            
+            for data_entry in new_data:
+                if data_entry['id'] not in existing_ids:
+                    track_data['pokemon_data'].append(data_entry)
+                    existing_ids.add(data_entry['id'])
                     added_count += 1
 
             # Update tracking message
@@ -449,19 +575,30 @@ class UtilityCommands(commands.Cog):
                 try:
                     tracking_msg = await self.bot.get_channel(channel_id).fetch_message(
                         track_data['tracking_message_id'])
-                    embed = discord.Embed(
-                        description=f"{EMOJI_TICK} Started tracking! React with ✅ when done editing.\nCommand: `{track_data['template']}`\nIDs collected: {len(track_data['pokemon_ids'])}",
-                        color=EMBED_COLOR
-                    )
+                    
+                    if command_type == 'rarecandylevel':
+                        total_candies = sum(p['candies_needed'] for p in track_data['pokemon_data'])
+                        embed = discord.Embed(
+                            description=f"{EMOJI_TICK} Started tracking! React with ✅ when done editing.\n"
+                                       f"Target Level: **{track_data['target_level']}**\n"
+                                       f"Pokemon to level: **{len(track_data['pokemon_data'])}**\n"
+                                       f"Total rare candies needed: **{total_candies}**",
+                            color=EMBED_COLOR
+                        )
+                    else:
+                        embed = discord.Embed(
+                            description=f"{EMOJI_TICK} Started tracking! React with ✅ when done editing.\nCommand: `{track_data['template']}`\nIDs collected: {len(track_data['pokemon_data'])}",
+                            color=EMBED_COLOR
+                        )
                     await tracking_msg.edit(embed=embed)
                 except:
                     pass
 
     async def _start_track_sending(self, channel, command_data):
         """Start sending tracked commands"""
-        if not command_data['pokemon_ids']:
+        if not command_data['pokemon_data']:
             embed = discord.Embed(
-                description=f"{EMOJI_CROSS} No Pokemon IDs were collected!",
+                description=f"{EMOJI_CROSS} No Pokemon data was collected!",
                 color=EMBED_COLOR
             )
             await channel.send(embed=embed)
@@ -470,31 +607,47 @@ class UtilityCommands(commands.Cog):
 
         command_data['status'] = 'sending'
         command_data['current_index'] = 0
-        command_data['total_count'] = len(command_data['pokemon_ids'])
+        command_data['total_count'] = len(command_data['pokemon_data'])
 
-        first_id = command_data['pokemon_ids'][0]
-        command = command_data['template'].replace('(id)', first_id)
+        # Send first command
+        await self._send_next_track_command(channel, command_data)
 
-        embed = discord.Embed(
-            description=f"```{command}```",
-            color=EMBED_COLOR
-        )
-        await channel.send(embed=embed)
-
-        embed = discord.Embed(
-            description=f"{EMOJI_TICK} Started sending commands! Total IDs: {len(command_data['pokemon_ids'])}",
-            color=EMBED_COLOR
-        )
+        # Send confirmation message
+        command_type = command_data.get('command_type', 'track')
+        if command_type == 'rarecandylevel':
+            total_candies = sum(p['candies_needed'] for p in command_data['pokemon_data'])
+            embed = discord.Embed(
+                description=f"{EMOJI_TICK} Started buying rare candies!\n"
+                           f"Total Pokemon: {len(command_data['pokemon_data'])}\n"
+                           f"Total candies: {total_candies}",
+                color=EMBED_COLOR
+            )
+        else:
+            embed = discord.Embed(
+                description=f"{EMOJI_TICK} Started sending commands! Total IDs: {len(command_data['pokemon_data'])}",
+                color=EMBED_COLOR
+            )
         await channel.send(embed=embed)
 
     async def _send_next_track_command(self, channel, command_data):
         """Send the next command in track sequence"""
-        next_id = command_data['pokemon_ids'][command_data['current_index']]
+        current_data = command_data['pokemon_data'][command_data['current_index']]
         template = command_data['template']
-        command = template.replace('(id)', next_id)
+        
+        # Replace placeholders
+        command = template.replace('(id)', current_data['id'])
+        
+        # For rare candy level, replace candies placeholder
+        if command_data.get('command_type') == 'rarecandylevel':
+            command = command.replace('(candies)', str(current_data['candies_needed']))
+
+        # Calculate remaining IDs
+        current = command_data['current_index'] + 1
+        total = command_data['total_count']
+        remaining = total - current
 
         embed = discord.Embed(
-            description=f"```{command}```",
+            description=f"```{command}```\n{EMOJI_GREEN_DOT} **{current}/{total}** | Remaining: **{remaining}**",
             color=EMBED_COLOR
         )
         await channel.send(embed=embed)
@@ -502,7 +655,16 @@ class UtilityCommands(commands.Cog):
     async def _finish_track_sequence(self, channel, command_data):
         """Finish track command sequence and cleanup"""
         total = command_data['total_count']
-        await channel.send(f"{EMOJI_TICK} All commands completed! Total: {total}")
+        command_type = command_data.get('command_type', 'track')
+        
+        if command_type == 'rarecandylevel':
+            total_candies = sum(p['candies_needed'] for p in command_data['pokemon_data'])
+            await channel.send(f"{EMOJI_TICK} All rare candy purchases completed!\n"
+                             f"Total Pokemon: {total}\n"
+                             f"Total candies bought: {total_candies}")
+        else:
+            await channel.send(f"{EMOJI_TICK} All commands completed! Total: {total}")
+        
         del active_track_commands[channel.id]
 
     async def _track_timeout(self, channel_id: int, tracking_message: discord.Message):
