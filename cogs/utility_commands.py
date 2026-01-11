@@ -231,7 +231,7 @@ class UtilityCommands(commands.Cog):
             # Store track command data
             active_track_commands[ctx.channel.id] = {
                 'pokemon_data': pokemon_to_level.copy(),
-                'template': '@Pokétwo buy (id) rare candy (candies)',
+                'template': '<@716390085896962058> buy (id) rare candy (candies)',
                 'user_id': ctx.author.id,
                 'monitoring_message_id': replied_message.id,
                 'tracking_message_id': tracking_msg.id,
