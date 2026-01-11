@@ -603,14 +603,22 @@ class ShinyDexDisplay(commands.Cog):
                     continue
 
             if has_gender_diff:
-                # Add male and female entries (unless explicitly ignored)
-                if not ignore_male:
+                if ignore_gender:
+                    # Combine male and female counts into single entry
                     male_count = form_counts.get((dex_num, pokemon_name, 'male'), 0)
-                    form_entries.append((dex_num, pokemon_name, 'male', male_count))
-
-                if not ignore_female:
                     female_count = form_counts.get((dex_num, pokemon_name, 'female'), 0)
-                    form_entries.append((dex_num, pokemon_name, 'female', female_count))
+                    combined_count = form_counts.get((dex_num, pokemon_name, None), 0)
+                    total_count = male_count + female_count + combined_count
+                    form_entries.append((dex_num, pokemon_name, None, total_count))
+                else:
+                    # Add male and female entries (unless explicitly ignored)
+                    if not ignore_male:
+                        male_count = form_counts.get((dex_num, pokemon_name, 'male'), 0)
+                        form_entries.append((dex_num, pokemon_name, 'male', male_count))
+
+                    if not ignore_female:
+                        female_count = form_counts.get((dex_num, pokemon_name, 'female'), 0)
+                        form_entries.append((dex_num, pokemon_name, 'female', female_count))
             else:
                 # Add single entry
                 count = form_counts.get((dex_num, pokemon_name, None), 0)
