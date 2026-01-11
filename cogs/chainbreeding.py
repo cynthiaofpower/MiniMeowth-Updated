@@ -224,14 +224,17 @@ class ChainBreeding(commands.Cog):
         """
         Find intermediate breeding chain using BFS
 
-        The idea is to work backwards from target:
-        - Start with target species
-        - Find intermediates that can learn the move as egg move AND share egg groups
-        - Keep going until we find something that can breed with a male that knows the move naturally
+        CORRECT LOGIC:
+        We need to trace from a male that knows the move naturally, through intermediates, to the target.
+
+        Example for Abra + Psycho Shift:
+        - Natu learns Psycho Shift naturally
+        - Woobat can learn it as egg move and breeds with both Natu and Abra
+        - Chain: Natu (M) × Woobat (F) → Woobat with move, then Woobat (M) × Abra (F) → Abra with move
 
         Returns: {
             'steps': [
-                {'male': pokemon, 'female': pokemon, 'move': move, 'offspring': pokemon},
+                {'male': str, 'female': str, 'offspring': str, 'cost': float},
                 ...
             ],
             'total_cost': float
@@ -239,108 +242,141 @@ class ChainBreeding(commands.Cog):
         """
         from collections import deque
 
-        # BFS: (species_to_breed_with_target, path_to_get_there, cost)
-        # path_to_get_there is a list of breeding steps to create that species with the move
-        queue = deque()
-        visited = set()
-
-        # First, find all intermediates that:
-        # 1. Can learn the move as egg move
-        # 2. Share egg group with target
         target_groups = self.egg_groups.get(target_species, [])
 
-        for intermediate in self.pokemon_list:
-            if not self.learns_move_breeding(intermediate, move):
-                continue
-            if not self.can_be_female_parent(intermediate):
-                continue
+        # Find all males that can teach the move naturally
+        source_males = []
+        for pokemon in self.pokemon_list:
+            if self.learns_move_naturally(pokemon, move) and self.can_be_male_parent(pokemon):
+                source_males.append(pokemon)
 
-            intermediate_groups = self.egg_groups.get(intermediate, [])
-            if not any(g in target_groups for g in intermediate_groups):
-                continue
+        if not source_males:
+            return None
 
-            # This intermediate can breed with target
-            # Now see if we can get this intermediate with the move
-            queue.append((intermediate, [], 0))
-            visited.add(intermediate)
+        # For each source male, try to find a path to target
+        best_solution = None
+        best_cost = float('inf')
 
-        # BFS to find how to get the move into these intermediates
-        while queue:
-            current_species, path, cost = queue.popleft()
+        for source_male in source_males:
+            # BFS from this male to target
+            # State: (current_species_that_can_pass_move, chain_to_get_here, depth)
+            # current_species has the move and can be used as male parent
 
-            if len(path) >= max_depth:
-                continue
+            queue = deque()
+            visited = set()
 
-            # Try to find a male that knows the move naturally and can breed with current
-            for male in self.pokemon_list:
-                if not self.learns_move_naturally(male, move):
+            # Start with all species that can learn the move from source_male
+            source_groups = self.egg_groups.get(source_male, [])
+
+            for first_female in self.pokemon_list:
+                if first_female == target_species:
+                    # Direct breeding possible!
+                    if self.can_breed(source_male, target_species):
+                        male_cost = self.get_spawn_cost(source_male)
+                        return {
+                            'steps': [{
+                                'male': source_male,
+                                'female': target_species,
+                                'offspring': target_species,
+                                'cost': male_cost
+                            }],
+                            'total_cost': male_cost
+                        }
                     continue
-                if not self.can_be_male_parent(male):
+
+                # Must be able to learn move as egg move
+                if not self.learns_move_breeding(first_female, move):
                     continue
-                if not self.can_breed(male, current_species):
+
+                # Must be able to be female parent
+                if not self.can_be_female_parent(first_female):
                     continue
 
-                # Found it! Build the complete chain
-                male_cost = self.get_spawn_cost(male)
-                current_cost = self.get_spawn_cost(current_species)
+                # Must be able to breed with source_male
+                if not self.can_breed(source_male, first_female):
+                    continue
 
-                # The complete chain is:
-                # 1. All steps in 'path' to create earlier intermediates
-                # 2. Male × current_species → current_species (with move)
-                # 3. current_species (with move, as male) × target → target (with move)
+                # This is a valid first step
+                male_cost = self.get_spawn_cost(source_male)
+                female_cost = self.get_spawn_cost(first_female)
 
-                complete_path = path + [{
-                    'male': male,
-                    'female': current_species,
-                    'move': move,
-                    'offspring': current_species,
-                    'cost': male_cost + current_cost
-                }]
-
-                # Add final step to get back to target
-                complete_path.append({
-                    'male': f"{current_species} (with {move})",
-                    'female': target_species,
-                    'move': move,
-                    'offspring': target_species,
-                    'cost': 0  # Already counted current_cost
-                })
-
-                return {
-                    'steps': complete_path,
-                    'total_cost': cost + male_cost + current_cost
+                first_step = {
+                    'male': source_male,
+                    'female': first_female,
+                    'offspring': first_female,
+                    'cost': male_cost + female_cost
                 }
 
-            # Expand to further intermediates
-            for next_intermediate in self.pokemon_list:
-                if next_intermediate in visited:
-                    continue
-                if not self.learns_move_breeding(next_intermediate, move):
-                    continue
-                if not self.can_be_female_parent(next_intermediate):
+                # Now first_female has the move and can be male parent for next breeding
+                queue.append((first_female, [first_step], male_cost + female_cost, 1))
+                visited.add(first_female)
+
+            # BFS expansion
+            while queue:
+                current_species, chain, cost, depth = queue.popleft()
+
+                if depth >= max_depth:
                     continue
 
-                # Must share egg group with current
+                # Can current_species (with the move) breed with target?
+                if self.can_breed(current_species, target_species):
+                    # Yes! Complete the chain
+                    final_step = {
+                        'male': f"{current_species} (from Step {len(chain)})",
+                        'female': target_species,
+                        'offspring': target_species,
+                        'cost': 0  # Cost already included
+                    }
+
+                    complete_chain = chain + [final_step]
+
+                    if cost < best_cost:
+                        best_solution = {
+                            'steps': complete_chain,
+                            'total_cost': cost
+                        }
+                        best_cost = cost
+
+                    # Don't continue searching from this path
+                    continue
+
+                # Try to breed current_species with other intermediates
                 current_groups = self.egg_groups.get(current_species, [])
-                next_groups = self.egg_groups.get(next_intermediate, [])
-                if not any(g in current_groups for g in next_groups):
-                    continue
 
-                visited.add(next_intermediate)
-                next_cost = self.get_spawn_cost(next_intermediate)
+                for next_female in self.pokemon_list:
+                    if next_female in visited:
+                        continue
 
-                # Add a breeding step: next_intermediate × current_species → current_species
-                new_path = path + [{
-                    'male': f"{next_intermediate} (to be bred)",
-                    'female': current_species,
-                    'move': move,
-                    'offspring': current_species,
-                    'cost': next_cost
-                }]
+                    if next_female == target_species:
+                        continue  # Already checked above
 
-                queue.append((next_intermediate, new_path, cost + next_cost))
+                    # Must be able to learn move as egg move
+                    if not self.learns_move_breeding(next_female, move):
+                        continue
 
-        return None
+                    # Must be able to be female parent
+                    if not self.can_be_female_parent(next_female):
+                        continue
+
+                    # Must share egg group with current_species
+                    next_groups = self.egg_groups.get(next_female, [])
+                    if not any(g in current_groups for g in next_groups):
+                        continue
+
+                    # Valid next step
+                    next_cost = self.get_spawn_cost(next_female)
+
+                    next_step = {
+                        'male': f"{current_species} (from Step {len(chain)})",
+                        'female': next_female,
+                        'offspring': next_female,
+                        'cost': next_cost
+                    }
+
+                    visited.add(next_female)
+                    queue.append((next_female, chain + [next_step], cost + next_cost, depth + 1))
+
+        return best_solution
 
     def find_breeding_chain(self, target_species: str, target_moves: List[str]) -> Optional[BreedingChain]:
         """
@@ -478,7 +514,7 @@ class ChainBreeding(commands.Cog):
         return chain
 
     def create_chain_embed(self, target_species: str, target_moves: List[str], chain: BreedingChain) -> discord.Embed:
-        """Create embed showing breeding chain with clear offspring tracking"""
+        """Create embed showing breeding chain with clear offspring tracking and egg groups"""
         embed = discord.Embed(
             title=f"🧬 Breeding Chain for {target_species}",
             description=f"**Target Moves:** {', '.join(target_moves)}\n**Steps Required:** {len(chain.steps)}",
@@ -497,27 +533,55 @@ class ChainBreeding(commands.Cog):
             # Update accumulated moves
             accumulated_moves.update(moves)
 
+            # Extract actual Pokemon name from strings like "Woobat (from Step 1)"
+            def extract_pokemon_name(name_str):
+                if '(' in name_str and 'from Step' in name_str:
+                    return name_str.split('(')[0].strip()
+                return name_str.strip()
+
+            male_pokemon = extract_pokemon_name(male)
+            female_pokemon = extract_pokemon_name(female)
+
+            # Get egg groups
+            male_groups = self.egg_groups.get(male_pokemon, ['Unknown'])
+            female_groups = self.egg_groups.get(female_pokemon, ['Unknown'])
+            offspring_groups = self.egg_groups.get(offspring, ['Unknown'])
+
+            # Format egg groups compactly
+            male_groups_str = '/'.join(male_groups)
+            female_groups_str = '/'.join(female_groups)
+            offspring_groups_str = '/'.join(offspring_groups)
+
             # Get spawn rates
-            male_spawn = "Offspring" if "(from Step" in male else self.spawn_rates.get(male, "Unknown")
+            male_spawn = "Offspring" if "(from Step" in male else self.spawn_rates.get(male_pokemon, "Unknown")
             if isinstance(male_spawn, int):
                 male_spawn = f"1/{male_spawn}"
 
             # For female, check if it's offspring from previous step
-            female_spawn = "Offspring" if "(from Step" in female else self.spawn_rates.get(female, "Unknown")
+            female_spawn = "Offspring" if "(from Step" in female else self.spawn_rates.get(female_pokemon, "Unknown")
             if isinstance(female_spawn, int):
                 female_spawn = f"1/{female_spawn}"
 
-            # Build step description
-            step_desc = f"**♂️ Male:** {male}"
-            if male_spawn != "Offspring":
-                step_desc += f" (Spawn: {male_spawn})"
+            # Build step description with egg groups in brackets
+            if "(from Step" in male:
+                # Keep the "from Step X" notation
+                step_desc = f"**♂️ Male:** {male_pokemon} ({male_groups_str}) [from Step {male.split('from Step')[1].strip().rstrip(')')}]"
+            else:
+                step_desc = f"**♂️ Male:** {male_pokemon} ({male_groups_str})"
 
-            step_desc += f"\n**♀️ Female:** {female}"
+            if male_spawn != "Offspring":
+                step_desc += f" - Spawn: {male_spawn}"
+
+            if "(from Step" in female:
+                step_desc += f"\n**♀️ Female:** {female_pokemon} ({female_groups_str}) [from Step {female.split('from Step')[1].strip().rstrip(')')}]"
+            else:
+                step_desc += f"\n**♀️ Female:** {female_pokemon} ({female_groups_str})"
+
             if female_spawn != "Offspring":
-                step_desc += f" (Spawn: {female_spawn})"
+                step_desc += f" - Spawn: {female_spawn}"
 
             step_desc += f"\n**Moves Taught:** {', '.join(moves)}"
-            step_desc += f"\n**Offspring:** {offspring}"
+            step_desc += f"\n**Offspring:** {offspring} ({offspring_groups_str})"
 
             # Show accumulated moves for offspring
             if len(accumulated_moves) > len(moves):
