@@ -674,14 +674,14 @@ class Breeding(commands.Cog):
             return
 
         if show_info == 'off':
-            await ctx.send(f"```{command}```", reference=ctx.message, mention_author=False)
+            await ctx.send(f"`{command}`", reference=ctx.message, mention_author=False)
             return
 
         embed = discord.Embed(
             title="📝 Next Breeding Command",
             color=config.EMBED_COLOR
         )
-        embed.description = f"`{command}`"
+        embed.description = f"```{command}```"
 
         for i, pair in enumerate(pairs, 1):
             female = pair['female']
