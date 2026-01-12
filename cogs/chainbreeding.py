@@ -747,7 +747,7 @@ class ChainBreeding(commands.Cog):
         chain = self.find_breeding_chain(target_species, valid_moves)
 
         if not chain:
-            await search_msg.edit(content=f"❌ No breeding chain found for **{target_species}** with the specified moves. This might be impossible or require complex chains beyond current search depth.\n > If it's a baby pokemon try using it's evo instead")
+            await search_msg.edit(content=f"❌ No breeding chain found for **{target_species}** with the specified moves. This might be impossible or require complex chains beyond current search depth.\n > Use m!iwant dreepy sucker punch instead of m!iwant dragapult sucker punch.\n > If it's a baby pokemon try using it's evo instead")
             return
 
         # Create result embed
