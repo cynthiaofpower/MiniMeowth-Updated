@@ -681,7 +681,7 @@ class Breeding(commands.Cog):
             title="📝 Next Breeding Command",
             color=config.EMBED_COLOR
         )
-        embed.description = f"```{command}```"
+        embed.description = f"`{command}`"
 
         for i, pair in enumerate(pairs, 1):
             female = pair['female']
