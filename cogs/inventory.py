@@ -478,16 +478,25 @@ class Inventory(commands.Cog):
     @commands.hybrid_command(name='releaseall')
     @app_commands.describe(filters="Name filters to release Pokemon (e.g., '--n gigantamax --n pikachu')")
     async def releaseall_command(self, ctx, *, filters: str = None):
-        """Release all Pokemon matching the name filters"""
+        """
+        Release all Pokemon matching the name filters
+        Usage:
+          m!releaseall --n pikachu              - Release from ALL inventories
+          m!releaseall --n meowth --duel        - Release only from duel inventory
+          m!releaseall --n eevee --normal       - Release only from normal inventory
+          m!releaseall --n gigantamax --tripmax - Release only from tripmax inventory
+        """
         if not filters:
-            await ctx.send("❌ Please provide name filters using `--n`\nExample: `m!releaseall --n gigantamax pikachu`", reference=ctx.message, mention_author=False)
+            await ctx.send("❌ Please provide name filters using `--n`
+Example: `m!releaseall --n gigantamax pikachu`", reference=ctx.message, mention_author=False)
             return
 
         user_id = ctx.author.id
         args = filters.split() if filters else []
         name_filters = []
+        category_filter = None
 
-        # Parse name filters
+        # Parse name filters and category flag
         i = 0
         while i < len(args):
             arg = args[i].lower()
@@ -506,14 +515,30 @@ class Inventory(commands.Cog):
                 else:
                     await ctx.send("❌ `--n` requires a name", reference=ctx.message, mention_author=False)
                     return
+            elif arg in ['--normal', '--inv']:
+                category_filter = config.NORMAL_CATEGORY
+                i += 1
+            elif arg == '--tripmax':
+                category_filter = config.TRIPMAX_CATEGORY
+                i += 1
+            elif arg == '--tripzero':
+                category_filter = config.TRIPZERO_CATEGORY
+                i += 1
+            elif arg == '--duel':
+                category_filter = config.DUEL_CATEGORY
+                i += 1
             else:
                 i += 1
 
         if not name_filters:
-            await ctx.send("❌ No name filters provided. Use `--n <name>` to specify Pokemon to release", reference=ctx.message, mention_author=False)
+            await ctx.send("❌ No name filters provided. Use `--n <n>` to specify Pokemon to release", reference=ctx.message, mention_author=False)
             return
 
-        all_pokemon = await db.get_pokemon(user_id)
+        # Get Pokemon (from specific category or all)
+        if category_filter:
+            all_pokemon = await db.get_pokemon(user_id, category=category_filter)
+        else:
+            all_pokemon = await db.get_pokemon(user_id)
 
         matching_pokemon = [
             p for p in all_pokemon 
@@ -556,20 +581,57 @@ class Inventory(commands.Cog):
         )
 
         filter_text = ", ".join(f"`{name}`" for name in name_filters)
-        preview_embed.add_field(name="Filters", value=filter_text, inline=False)
+        preview_embed.add_field(name="Name Filters", value=filter_text, inline=False)
+
+        # Show category if specified
+        if category_filter:
+            category_names = {
+                config.NORMAL_CATEGORY: "Normal",
+                config.TRIPMAX_CATEGORY: "TripMax",
+                config.TRIPZERO_CATEGORY: "TripZero",
+                config.DUEL_CATEGORY: "Duel"
+            }
+            category_display = category_names.get(category_filter, category_filter)
+            preview_embed.add_field(
+                name="Category",
+                value=f"`{category_display}` only
+💡 Pokemon may remain in other inventories",
+                inline=False
+            )
+        else:
+            preview_embed.add_field(
+                name="Category",
+                value="`ALL inventories`
+⚠️ Pokemon will be deleted completely",
+                inline=False
+            )
 
         sample_size = min(10, len(matching_pokemon))
         sample_lines = []
         for p in matching_pokemon[:sample_size]:
             g = config.GENDER_MALE if p['gender'] == 'male' else config.GENDER_FEMALE if p['gender'] == 'female' else config.GENDER_UNKNOWN
-            sample_lines.append(f"`{p['pokemon_id']}` **{p['name']}** {g} • {p['iv_percent']}% IV")
+            # Show which categories this Pokemon is in
+            categories = p.get('categories', [])
+            cat_badges = []
+            if config.NORMAL_CATEGORY in categories:
+                cat_badges.append("📦")
+            if config.TRIPMAX_CATEGORY in categories:
+                cat_badges.append("⬆️")
+            if config.TRIPZERO_CATEGORY in categories:
+                cat_badges.append("⬇️")
+            if config.DUEL_CATEGORY in categories:
+                cat_badges.append("⚔️")
+            cat_str = " ".join(cat_badges) if cat_badges else ""
+
+            sample_lines.append(f"`{p['pokemon_id']}` {cat_str} **{p['name']}** {g} • {p['iv_percent']}% IV")
 
         if len(matching_pokemon) > sample_size:
             sample_lines.append(f"... and **{len(matching_pokemon) - sample_size}** more")
 
         preview_embed.add_field(
             name=f"Preview ({sample_size}/{len(matching_pokemon)})",
-            value="\n".join(sample_lines),
+            value="
+".join(sample_lines),
             inline=False
         )
 
@@ -581,13 +643,29 @@ class Inventory(commands.Cog):
 
         if view.value is True:
             pokemon_ids = [p['pokemon_id'] for p in matching_pokemon]
-            count = await db.remove_pokemon(user_id, pokemon_ids)
+            count = await db.remove_pokemon(user_id, pokemon_ids, category_filter)
 
             success_embed = discord.Embed(
                 title="✅ Pokemon Released",
-                description=f"Successfully released **{count}** Pokemon from your inventory",
                 color=discord.Color.green()
             )
+
+            if category_filter:
+                category_names = {
+                    config.NORMAL_CATEGORY: "Normal",
+                    config.TRIPMAX_CATEGORY: "TripMax",
+                    config.TRIPZERO_CATEGORY: "TripZero",
+                    config.DUEL_CATEGORY: "Duel"
+                }
+                category_display = category_names.get(category_filter, category_filter)
+                success_embed.description = (
+                    f"Successfully released **{count}** Pokemon from **{category_display}** inventory
+"
+                    f"💡 Pokemon may still exist in other inventories"
+                )
+            else:
+                success_embed.description = f"Successfully released **{count}** Pokemon from **ALL** inventories"
+
             success_embed.set_footer(text=f"Filters used: {', '.join(name_filters)}")
             await confirm_msg.edit(embed=success_embed, view=None)
 
