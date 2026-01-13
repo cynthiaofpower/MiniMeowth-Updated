@@ -357,7 +357,7 @@ class Breeding(commands.Cog):
     async def handle_mychoice_breeding_optimized(
         self,
         user_id,
-        category,
+        category,  # This will be ignored for mychoice - we use mychoice_inventories instead
         settings,
         utils,
         selective,
@@ -365,10 +365,11 @@ class Breeding(commands.Cog):
         overrides,
         cooldown_ids,
     ):
-        """Handle MyChoice - OPTIMIZED - supports multiple males and females"""
+        """Handle MyChoice - OPTIMIZED - supports multiple males, females, AND multiple inventories"""
 
         mychoice_males = settings.get("mychoice_male", [])
         mychoice_females = settings.get("mychoice_female", [])
+        mychoice_inventories = settings.get("mychoice_inventories", [config.NORMAL_CATEGORY])  # NEW
 
         # Handle legacy single-value format (string instead of list)
         if isinstance(mychoice_males, str):
@@ -380,12 +381,23 @@ class Breeding(commands.Cog):
         if not mychoice_males or not mychoice_females:
             return []
 
-        # Fetch all available Pokemon once
-        all_pokemon = await db.get_pokemon_for_breeding(
-            user_id,
-            category,
-            cooldown_ids=cooldown_ids,
-        )
+        # NEW: Fetch Pokemon from ALL mychoice inventories
+        all_pokemon = []
+        for inventory_category in mychoice_inventories:
+            category_pokemon = await db.get_pokemon_for_breeding(
+                user_id,
+                inventory_category,  # Fetch from each specified inventory
+                cooldown_ids=cooldown_ids,
+            )
+            all_pokemon.extend(category_pokemon)
+
+        # Remove duplicates (same pokemon_id might be in multiple inventories)
+        seen_ids = set()
+        unique_pokemon = []
+        for pokemon in all_pokemon:
+            if pokemon['pokemon_id'] not in seen_ids:
+                unique_pokemon.append(pokemon)
+                seen_ids.add(pokemon['pokemon_id'])
 
         male_species_pokemon = []
         female_species_pokemon = []
@@ -394,7 +406,7 @@ class Breeding(commands.Cog):
         any_male_ditto = any("ditto" in m.lower() for m in mychoice_males)
         any_female_ditto = any("ditto" in f.lower() for f in mychoice_females)
 
-        for pokemon in all_pokemon:
+        for pokemon in unique_pokemon:
             # Match male species
             for male_species in mychoice_males:
                 is_male_ditto = "ditto" in male_species.lower()
