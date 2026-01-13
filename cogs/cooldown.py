@@ -9,10 +9,11 @@ from database import db
 class CooldownView(discord.ui.View):
     """View for cooldown list pagination with OPTIMIZED lazy loading"""
 
-    def __init__(self, ctx, cooldowns_dict, timeout=180):
+    def __init__(self, ctx, cooldowns_dict, category_filter=None, timeout=180):
         super().__init__(timeout=timeout)
         self.ctx = ctx
         self.cooldowns_dict = cooldowns_dict
+        self.category_filter = category_filter  # NEW: Track category filter
         self.pokemon_ids = list(cooldowns_dict.keys())
         self.current_page = 0
         self.per_page = 10
@@ -56,8 +57,22 @@ class CooldownView(discord.ui.View):
 
     async def create_embed(self):
         """Create embed for current page"""
+
+        # Title based on category filter
+        if self.category_filter:
+            category_names = {
+                config.NORMAL_CATEGORY: "Normal",
+                config.TRIPMAX_CATEGORY: "TripMax",
+                config.TRIPZERO_CATEGORY: "TripZero",
+                config.DUEL_CATEGORY: "Duel"
+            }
+            category_display = category_names.get(self.category_filter, self.category_filter)
+            title = f"🔒 {category_display} Pokemon on Cooldown"
+        else:
+            title = "🔒 Pokemon on Cooldown"
+
         embed = discord.Embed(
-            title="🔒 Pokemon on Cooldown",
+            title=title,
             color=config.EMBED_COLOR
         )
 
@@ -93,8 +108,22 @@ class CooldownView(discord.ui.View):
                 config.GENDER_UNKNOWN
             )
 
+            # Show categories the Pokemon belongs to
+            categories = p.get('categories', [])
+            category_badges = []
+            if config.NORMAL_CATEGORY in categories:
+                category_badges.append("📦")
+            if config.TRIPMAX_CATEGORY in categories:
+                category_badges.append("⬆️")
+            if config.TRIPZERO_CATEGORY in categories:
+                category_badges.append("⬇️")
+            if config.DUEL_CATEGORY in categories:
+                category_badges.append("⚔️")
+
+            category_str = " ".join(category_badges) if category_badges else ""
+
             description_lines.append(
-                f"`{p['pokemon_id']}` **{p['name']}** {gender_icon} • {p['iv_percent']}% IV\n"
+                f"`{p['pokemon_id']}` {category_str} **{p['name']}** {gender_icon} • {p['iv_percent']}% IV\n"
                 f"⏰ {time_display} remaining"
             )
 
@@ -179,10 +208,132 @@ class Cooldown(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    def parse_cooldown_filters(self, filters_str: str):
+        """
+        Parse cooldown filter string
+        Returns: (category_filter, name_filters, type_filters, region_filter, gender_filter)
+        """
+        if not filters_str:
+            return None, [], [], None, None
+
+        args = filters_str.lower().split()
+        category_filter = None
+        name_filters = []
+        type_filters = []
+        region_filter = None
+        gender_filter = None
+
+        valid_regions = ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova', 'kalos', 
+                         'alola', 'galar', 'hisui', 'paldea', 'unknown', 'missing', 'kitakami']
+        valid_types = ['normal', 'fire', 'water', 'grass', 'electric', 'ice',
+                       'fighting', 'poison', 'ground', 'flying', 'psychic', 'bug',
+                       'rock', 'ghost', 'dragon', 'dark', 'steel', 'fairy']
+
+        i = 0
+        while i < len(args):
+            arg = args[i]
+
+            # Category filters
+            if arg in ['--normal', '--inv']:
+                category_filter = config.NORMAL_CATEGORY
+                i += 1
+            elif arg == '--tripmax':
+                category_filter = config.TRIPMAX_CATEGORY
+                i += 1
+            elif arg == '--tripzero':
+                category_filter = config.TRIPZERO_CATEGORY
+                i += 1
+            elif arg == '--duel':
+                category_filter = config.DUEL_CATEGORY
+                i += 1
+            elif arg == '--all':
+                category_filter = None
+                i += 1
+            # Name filter
+            elif arg in ['--n', '--name']:
+                if i + 1 < len(args):
+                    name_parts = []
+                    i += 1
+                    while i < len(args) and not args[i].startswith('--'):
+                        name_parts.append(args[i])
+                        i += 1
+                    if name_parts:
+                        name_filters.append(' '.join(name_parts))
+                else:
+                    i += 1
+            # Type filter
+            elif arg in ['--type', '--t']:
+                if i + 1 < len(args) and args[i + 1] in valid_types and len(type_filters) < 2:
+                    type_filters.append(args[i + 1].title())
+                    i += 2
+                else:
+                    i += 1
+            elif arg.startswith('--type=') or arg.startswith('--t='):
+                type_val = arg.split('=', 1)[1]
+                if type_val in valid_types and len(type_filters) < 2:
+                    type_filters.append(type_val.title())
+                i += 1
+            # Region filter
+            elif arg in ['--region', '--r']:
+                if i + 1 < len(args) and args[i + 1] in valid_regions:
+                    region_filter = args[i + 1].title()
+                    i += 2
+                else:
+                    i += 1
+            elif arg.startswith('--region=') or arg.startswith('--r='):
+                region_val = arg.split('=', 1)[1]
+                if region_val in valid_regions:
+                    region_filter = region_val.title()
+                i += 1
+            # Gender filter
+            elif arg in ['--g', '--gender']:
+                if i + 1 < len(args) and args[i + 1] in ['male', 'female', 'unknown']:
+                    gender_filter = args[i + 1]
+                    i += 2
+                else:
+                    i += 1
+            else:
+                i += 1
+
+        return category_filter, name_filters, type_filters, region_filter, gender_filter
+
+    def matches_filters(self, pokemon: dict, utils, name_filters: list, type_filters: list, region_filter: str, gender_filter: str):
+        """Check if a Pokemon matches filters"""
+        # Gender filter
+        if gender_filter and pokemon.get('gender') != gender_filter:
+            return False
+
+        # Name filter
+        if name_filters:
+            if not any(name.lower() in pokemon['name'].lower() for name in name_filters):
+                return False
+
+        # Type and region filters
+        if type_filters or region_filter:
+            info = utils.get_pokemon_info(pokemon['name'])
+            if not info:
+                return False
+
+            # Region filter
+            if region_filter and info['region'] != region_filter:
+                return False
+
+            # Type filter
+            if type_filters:
+                pokemon_types = [info['type1']]
+                if info['type2']:
+                    pokemon_types.append(info['type2'])
+
+                for type_filter in type_filters:
+                    if type_filter not in pokemon_types:
+                        return False
+
+        return True
+
     @commands.hybrid_command(name='cooldown', aliases=['cd'])
     @app_commands.describe(
-        action="Action to perform: add, remove, list, or clear",
-        pokemon_ids="Pokemon IDs separated by spaces"
+        action="Action: add, remove, list, or clear",
+        pokemon_ids="Pokemon IDs OR filters for list (--normal, --duel, --n, --type, --region, --g)"
     )
     async def cooldown_command(self, ctx, action: str, *, pokemon_ids: str = None):
         """
@@ -190,13 +341,18 @@ class Cooldown(commands.Cog):
         Usage: 
           cooldown add [ids...] - Add Pokemon to cooldown
           cooldown remove [ids...] - Remove Pokemon from cooldown
-          cooldown list - View all Pokemon on cooldown
+          cooldown list [filters] - View Pokemon on cooldown with filters
+            Filters: --normal, --tripmax, --tripzero, --duel, --all
+                     --n <name>, --type <type>, --region <region>, --g <gender>
           cooldown clear - Clear ALL your cooldowns
         """
         action = action.lower()
 
         if action == 'list':
-            await self.list_cooldowns(ctx)
+            # Parse filters from pokemon_ids argument
+            category_filter, name_filters, type_filters, region_filter, gender_filter = self.parse_cooldown_filters(pokemon_ids)
+            await self.list_cooldowns(ctx, category_filter, name_filters, type_filters, region_filter, gender_filter)
+
         elif action == 'clear':
             await self.clear_all_cooldowns(ctx)
         elif action in ['add', 'remove']:
@@ -343,22 +499,85 @@ class Cooldown(commands.Cog):
 
         await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
 
-    async def list_cooldowns(self, ctx):
-        """List all Pokemon on cooldown with OPTIMIZED lazy loading"""
+    async def list_cooldowns(self, ctx, category_filter: str = None, name_filters: list = None, type_filters: list = None, region_filter: str = None, gender_filter: str = None):
+        """
+        List all Pokemon on cooldown with OPTIMIZED lazy loading
+        NEW: Support category filtering and name/type/region/gender filters
+        """
         user_id = ctx.author.id
+        utils = self.bot.get_cog('Utils')
 
         if ctx.interaction:
             await ctx.defer()
 
-        cooldowns = await db.get_cooldowns(user_id)
+        # Get all cooldowns
+        all_cooldowns = await db.get_cooldowns(user_id)
 
-        if not cooldowns:
+        if not all_cooldowns:
             await ctx.send("✅ No Pokemon are currently on cooldown", 
                           reference=ctx.message, mention_author=False)
             return
 
+        # Fetch all Pokemon data for filtering
+        pokemon_ids = list(all_cooldowns.keys())
+        pokemon_dict = await db.get_pokemon_by_ids_bulk(user_id, pokemon_ids)
+
+        # Apply category filter
+        if category_filter:
+            filtered_cooldowns = {}
+            for pid, expiry in all_cooldowns.items():
+                if pid in pokemon_dict:
+                    pokemon = pokemon_dict[pid]
+                    if category_filter in pokemon.get('categories', []):
+                        filtered_cooldowns[pid] = expiry
+
+            if not filtered_cooldowns:
+                category_names = {
+                    config.NORMAL_CATEGORY: "Normal",
+                    config.TRIPMAX_CATEGORY: "TripMax",
+                    config.TRIPZERO_CATEGORY: "TripZero",
+                    config.DUEL_CATEGORY: "Duel"
+                }
+                category_display = category_names.get(category_filter, category_filter)
+                await ctx.send(
+                    f"✅ No {category_display} Pokemon are currently on cooldown",
+                    reference=ctx.message,
+                    mention_author=False
+                )
+                return
+
+            cooldowns = filtered_cooldowns
+        else:
+            cooldowns = all_cooldowns
+
+        # Apply name, type, region, and gender filters
+        name_filters = name_filters or []
+        type_filters = type_filters or []
+
+        if name_filters or type_filters or region_filter or gender_filter:
+            if not utils:
+                await ctx.send("❌ Utils cog not loaded (needed for filters)", reference=ctx.message, mention_author=False)
+                return
+
+            filtered_cooldowns = {}
+            for pid, expiry in cooldowns.items():
+                if pid in pokemon_dict:
+                    pokemon = pokemon_dict[pid]
+                    if self.matches_filters(pokemon, utils, name_filters, type_filters, region_filter, gender_filter):
+                        filtered_cooldowns[pid] = expiry
+
+            if not filtered_cooldowns:
+                await ctx.send(
+                    "✅ No Pokemon match your filters",
+                    reference=ctx.message,
+                    mention_author=False
+                )
+                return
+
+            cooldowns = filtered_cooldowns
+
         # Create view with lazy loading (no Pokemon data loaded yet)
-        view = CooldownView(ctx, cooldowns)
+        view = CooldownView(ctx, cooldowns, category_filter)
 
         # Load and display first page
         embed = await view.create_embed()
