@@ -487,8 +487,7 @@ class Inventory(commands.Cog):
           m!releaseall --n gigantamax --tripmax - Release only from tripmax inventory
         """
         if not filters:
-            await ctx.send("❌ Please provide name filters using `--n`
-Example: `m!releaseall --n gigantamax pikachu`", reference=ctx.message, mention_author=False)
+            await ctx.send("❌ Please provide name filters using `--n`Example: `m!releaseall --n gigantamax pikachu`", reference=ctx.message, mention_author=False)
             return
 
         user_id = ctx.author.id
@@ -594,15 +593,13 @@ Example: `m!releaseall --n gigantamax pikachu`", reference=ctx.message, mention_
             category_display = category_names.get(category_filter, category_filter)
             preview_embed.add_field(
                 name="Category",
-                value=f"`{category_display}` only
-💡 Pokemon may remain in other inventories",
+                value=f"`{category_display}` only💡 Pokemon may remain in other inventories",
                 inline=False
             )
         else:
             preview_embed.add_field(
                 name="Category",
-                value="`ALL inventories`
-⚠️ Pokemon will be deleted completely",
+                value="`ALL inventories`⚠️ Pokemon will be deleted completely",
                 inline=False
             )
 
@@ -630,8 +627,7 @@ Example: `m!releaseall --n gigantamax pikachu`", reference=ctx.message, mention_
 
         preview_embed.add_field(
             name=f"Preview ({sample_size}/{len(matching_pokemon)})",
-            value="
-".join(sample_lines),
+            value="".join(sample_lines),
             inline=False
         )
 
@@ -659,8 +655,7 @@ Example: `m!releaseall --n gigantamax pikachu`", reference=ctx.message, mention_
                 }
                 category_display = category_names.get(category_filter, category_filter)
                 success_embed.description = (
-                    f"Successfully released **{count}** Pokemon from **{category_display}** inventory
-"
+                    f"Successfully released **{count}** Pokemon from **{category_display}** inventory"
                     f"💡 Pokemon may still exist in other inventories"
                 )
             else:
