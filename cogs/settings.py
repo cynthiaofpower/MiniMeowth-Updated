@@ -59,7 +59,11 @@ class MoreInfoView(discord.ui.View):
                 "- `setfemale gastly, haunter, gengar`\n\n"
                 "**Clear Settings:**\n"
                 "- `setmale none` - Clear all males\n"
-                "- `setfemale none` - Clear all females"
+                "- `setfemale none` - Clear all females\n\n"
+                "**Choose Inventories:**\n"  # NEW
+                "- `mychoice_inv normal` - Search normal inventory only\n"
+                "- `mychoice_inv normal,duel` - Search multiple inventories\n"
+                "- `mychoice_inv all` - Search all inventories"
             ),
             inline=False
         )
@@ -81,12 +85,13 @@ class MoreInfoView(discord.ui.View):
             name="# Quick Commands",
             value=(
                 "```\n"
-                f"{config.PREFIX}settings mode selective\n"
-                f"{config.PREFIX}settings target pikachu, eevee\n"
-                f"{config.PREFIX}settings setmale dreepy, drakloak\n"
-                f"{config.PREFIX}settings setfemale gastly, haunter\n"
-                f"{config.PREFIX}settings info compact\n"
-                f"{config.PREFIX}reset-settings\n"
+                f"{config.PREFIX[0]}settings mode selective\n"
+                f"{config.PREFIX[0]}settings target pikachu, eevee\n"
+                f"{config.PREFIX[0]}settings setmale dreepy, drakloak\n"
+                f"{config.PREFIX[0]}settings setfemale gastly, haunter\n"
+                f"{config.PREFIX[0]}settings mychoice_inv normal,duel\n"  # NEW
+                f"{config.PREFIX[0]}settings info compact\n"
+                f"{config.PREFIX[0]}reset-settings\n"
                 "```"
             ),
             inline=False
@@ -103,7 +108,7 @@ class Settings(commands.Cog):
 
     @commands.hybrid_command(name='settings')
     @app_commands.describe(
-        setting_type="Setting to change: mode, target, setmale, setfemale, or info",
+        setting_type="Setting to change: mode, target, setmale, setfemale, mychoice_inv, or info",
         value="New value for the setting"
     )
     async def settings_command(self, ctx, setting_type: str = None, *, value: str = None):
@@ -127,10 +132,12 @@ class Settings(commands.Cog):
             await self.set_mychoice_male(ctx, value)
         elif setting_type == 'setfemale':
             await self.set_mychoice_female(ctx, value)
+        elif setting_type in ['mychoice_inv', 'mychoice_inventories']:  # NEW
+            await self.set_mychoice_inventories(ctx, value)
         elif setting_type == 'info':
             await self.set_info_display(ctx, value)
         else:
-            await ctx.send("❌ Invalid setting type. Use `mode`, `target`, `setmale`, `setfemale`, or `info`", reference=ctx.message, mention_author=False)
+            await ctx.send("❌ Invalid setting type. Use `mode`, `target`, `setmale`, `setfemale`, `mychoice_inv`, or `info`", reference=ctx.message, mention_author=False)
 
     async def show_settings(self, ctx):
         """Display current user settings - CLEAN REDESIGN"""
@@ -145,7 +152,7 @@ class Settings(commands.Cog):
         # ===== CURRENT MODE =====
         mode = settings.get('mode', 'notselective')
         mode_display = "Selective (Old/New)" if mode == 'selective' else "Not Selective"
-        
+
         embed.add_field(
             name="# Current Mode",
             value=f"> {mode_display}",
@@ -154,7 +161,7 @@ class Settings(commands.Cog):
 
         # ===== CURRENT TARGET =====
         targets = settings.get('target', ['all'])
-        
+
         if 'all' in targets:
             target_display = "> All Pokemon"
         elif 'tripmax' in targets:
@@ -164,15 +171,15 @@ class Settings(commands.Cog):
         elif 'mychoice' in targets:
             mychoice_males = settings.get('mychoice_male', [])
             mychoice_females = settings.get('mychoice_female', [])
-            
+
             if not mychoice_males:
                 mychoice_males = ['Not set']
             if not mychoice_females:
                 mychoice_females = ['Not set']
-            
+
             males_str = ', '.join(f"`{m}`" for m in mychoice_males)
             females_str = ', '.join(f"`{f}`" for f in mychoice_females)
-            
+
             target_display = f"> MyChoice\n> - {config.GENDER_MALE} Males: {males_str}\n> - {config.GENDER_FEMALE} Females: {females_str}"
         elif 'gigantamax' in targets or 'gmax' in targets:
             target_display = "> Gigantamax Pokemon"
@@ -213,6 +220,26 @@ class Settings(commands.Cog):
                     inline=False
                 )
 
+        # ===== NEW: MYCHOICE INVENTORIES =====
+        mychoice_inventories = settings.get('mychoice_inventories', [config.NORMAL_CATEGORY])
+
+        if mychoice_inventories:
+            inv_display_names = {
+                config.NORMAL_CATEGORY: "📦 Normal",
+                config.TRIPMAX_CATEGORY: "⬆️ TripMax",
+                config.TRIPZERO_CATEGORY: "⬇️ TripZero",
+                config.DUEL_CATEGORY: "⚔️ Duel"
+            }
+
+            inv_list = [inv_display_names.get(inv, inv) for inv in mychoice_inventories]
+            inv_display = ", ".join(inv_list)
+
+            embed.add_field(
+                name="# MyChoice Inventories",
+                value=f"> {inv_display}\n> *(Used when target is `mychoice`)*",
+                inline=False
+            )
+
         # ===== INFO DISPLAY =====
         show_info = settings.get('show_info', 'detailed')
         info_display = {
@@ -228,11 +255,82 @@ class Settings(commands.Cog):
             inline=False
         )
 
-        embed.set_footer(text=f"Use {config.PREFIX}settings <type> <value> to change • Click 'More Info' for details")
+        embed.set_footer(text=f"Use {config.PREFIX[0]}settings <type> <value> to change • Click 'More Info' for details")
 
         # Add button for detailed info
         view = MoreInfoView()
         await ctx.send(embed=embed, view=view, reference=ctx.message, mention_author=False)
+
+    # ===== NEW: MYCHOICE INVENTORIES SETTING =====
+
+    async def set_mychoice_inventories(self, ctx, value: str):
+        """Set which inventories MyChoice should search"""
+        if not value:
+            await ctx.send("❌ Please specify inventories: `normal`, `tripmax`, `tripzero`, `duel`, or `all`", reference=ctx.message, mention_author=False)
+            return
+
+        value = value.lower().strip()
+
+        # Handle "all" keyword
+        if value == 'all':
+            inventories = config.ALL_CATEGORIES
+        else:
+            # Parse comma-separated list
+            inventory_map = {
+                'normal': config.NORMAL_CATEGORY,
+                'inv': config.NORMAL_CATEGORY,
+                'tripmax': config.TRIPMAX_CATEGORY,
+                'tripzero': config.TRIPZERO_CATEGORY,
+                'duel': config.DUEL_CATEGORY
+            }
+
+            parts = [p.strip() for p in value.replace(',', ' ').split() if p.strip()]
+            inventories = []
+
+            for part in parts:
+                if part in inventory_map:
+                    inventories.append(inventory_map[part])
+                else:
+                    await ctx.send(f"❌ Invalid inventory: `{part}`. Use: `normal`, `tripmax`, `tripzero`, `duel`, or `all`", reference=ctx.message, mention_author=False)
+                    return
+
+            if not inventories:
+                await ctx.send("❌ No valid inventories specified", reference=ctx.message, mention_author=False)
+                return
+
+            # Remove duplicates while preserving order
+            seen = set()
+            inventories = [x for x in inventories if not (x in seen or seen.add(x))]
+
+        # Save setting
+        user_id = ctx.author.id
+        await db.update_settings(user_id, {'mychoice_inventories': inventories})
+
+        # Create response embed
+        embed = discord.Embed(
+            title="✅ MyChoice Inventories Updated",
+            color=config.EMBED_COLOR
+        )
+
+        inv_display_names = {
+            config.NORMAL_CATEGORY: "📦 Normal",
+            config.TRIPMAX_CATEGORY: "⬆️ TripMax",
+            config.TRIPZERO_CATEGORY: "⬇️ TripZero",
+            config.DUEL_CATEGORY: "⚔️ Duel"
+        }
+
+        inv_list = [inv_display_names.get(inv, inv) for inv in inventories]
+        inv_display = "\n".join(f"> - {name}" for name in inv_list)
+
+        embed.description = (
+            f"# MyChoice will now search:\n{inv_display}\n\n"
+            f"> When target is set to `mychoice`, Pokemon will be\n"
+            f"> selected from these {len(inventories)} inventor{'y' if len(inventories) == 1 else 'ies'}."
+        )
+
+        await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
+
+    # ===== EXISTING METHODS (keeping as-is) =====
 
     async def set_mychoice_male(self, ctx, value: str):
         """Set male species for mychoice target - supports multiple Pokemon"""
@@ -253,7 +351,7 @@ class Settings(commands.Cog):
 
         # Parse multiple Pokemon (comma-separated)
         species_list = [s.strip().title() for s in value.split(',') if s.strip()]
-        
+
         if not species_list:
             await ctx.send("❌ No valid species provided", reference=ctx.message, mention_author=False)
             return
@@ -261,10 +359,10 @@ class Settings(commands.Cog):
         # Validate all species
         valid_species = []
         invalid_species = []
-        
+
         for species_name in species_list:
             egg_groups = utils.get_egg_groups(species_name)
-            
+
             if 'Undiscovered' in egg_groups and 'Ditto' not in egg_groups:
                 invalid_species.append(species_name)
             else:
@@ -312,7 +410,7 @@ class Settings(commands.Cog):
 
         # Parse multiple Pokemon (comma-separated)
         species_list = [s.strip().title() for s in value.split(',') if s.strip()]
-        
+
         if not species_list:
             await ctx.send("❌ No valid species provided", reference=ctx.message, mention_author=False)
             return
@@ -320,10 +418,10 @@ class Settings(commands.Cog):
         # Validate all species
         valid_species = []
         invalid_species = []
-        
+
         for species_name in species_list:
             egg_groups = utils.get_egg_groups(species_name)
-            
+
             if 'Undiscovered' in egg_groups and 'Ditto' not in egg_groups:
                 invalid_species.append(species_name)
             else:
@@ -354,11 +452,11 @@ class Settings(commands.Cog):
 
     async def _validate_mychoice_compatibility(self, ctx, male_species_list: list, female_species_list: list, utils):
         """Validate mychoice male/female compatibility for multiple Pokemon"""
-        
+
         # Check if both contain Ditto
         all_male_dittos = all('Ditto' in utils.get_egg_groups(m) for m in male_species_list)
         all_female_dittos = all('Ditto' in utils.get_egg_groups(f) for f in female_species_list)
-        
+
         if all_male_dittos and all_female_dittos:
             await ctx.send("❌ Cannot set both males and females to only Ditto!", reference=ctx.message, mention_author=False)
             return
@@ -366,15 +464,15 @@ class Settings(commands.Cog):
         # Find compatible pairs
         compatible_pairs = []
         warnings = []
-        
+
         for male in male_species_list:
             male_groups = utils.get_egg_groups(male)
             male_is_ditto = 'Ditto' in male_groups
-            
+
             for female in female_species_list:
                 female_groups = utils.get_egg_groups(female)
                 female_is_ditto = 'Ditto' in female_groups
-                
+
                 # Check compatibility
                 if male_is_ditto or female_is_ditto:
                     compatible_pairs.append((male, female, 'Ditto pairing'))
@@ -416,10 +514,10 @@ class Settings(commands.Cog):
             pairs_display = []
             for i, (male, female, reason) in enumerate(compatible_pairs[:5]):
                 pairs_display.append(f"> {i+1}. {male} × {female} ({reason})")
-            
+
             if len(compatible_pairs) > 5:
                 pairs_display.append(f"> ... and {len(compatible_pairs) - 5} more compatible pairs")
-            
+
             embed.add_field(
                 name=f"# Compatible Pairs ({len(compatible_pairs)} total)",
                 value="\n".join(pairs_display),
@@ -613,6 +711,7 @@ class Settings(commands.Cog):
             'target': ['all'],
             'mychoice_male': [],
             'mychoice_female': [],
+            'mychoice_inventories': [config.NORMAL_CATEGORY],  # NEW: Reset to default
             'show_info': 'detailed'
         })
 
@@ -628,6 +727,7 @@ class Settings(commands.Cog):
                 "> - Mode: `notselective`\n"
                 "> - Target: `all`\n"
                 "> - MyChoice: cleared\n"
+                "> - MyChoice Inventories: `normal`\n"  # NEW
                 "> - Info Display: `detailed`"
             ),
             inline=False
