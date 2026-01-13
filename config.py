@@ -20,8 +20,11 @@ COLLECTION_SETTINGS = "settings"
 NORMAL_CATEGORY = "normal"
 TRIPMAX_CATEGORY = "tripmax"
 TRIPZERO_CATEGORY = "tripzero"
+DUEL_CATEGORY = "duel"  # NEW: For egg move dueling Pokemon
 COLLECTION_ID_OVERRIDES = "id_overrides"
 
+# All available categories (for iteration/validation)
+ALL_CATEGORIES = [NORMAL_CATEGORY, TRIPMAX_CATEGORY, TRIPZERO_CATEGORY, DUEL_CATEGORY]
 
 # Cooldown Duration
 COOLDOWN_DAYS = 5
@@ -34,11 +37,6 @@ NEW_ID_MIN = 271900
 # Pairing Constants
 MAX_BREED_PAIRS = 2  # Maximum pairs per breed command
 
-# Inventory Categories
-NORMAL_CATEGORY = "normal"
-TRIPMAX_CATEGORY = "tripmax"
-TRIPZERO_CATEGORY = "tripzero"
-
 # Gender display 
 GENDER_MALE = "<:male_sign:1449750028536250420>"
 GENDER_FEMALE = "<:female_sign:1449750041035145407>"
@@ -47,8 +45,6 @@ GENDER_UNKNOWN = "<:grey_question:1449750016481562787>"
 # Tick/Cross display
 TICK = "<:white_check_mark:1449749985057964094>"
 CROSS = "<:cross_mark:1449750002388959377>"
-
-
 
 # Poketwo id
 POKETWO_BOT_ID = 716390085896962058
