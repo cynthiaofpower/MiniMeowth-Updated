@@ -750,7 +750,7 @@ class Inventory(commands.Cog):
 
     # ===== VIEW COMMANDS =====
 
-    @commands.hybrid_command(name='inventory', aliases=['invnormal','invbulk'])
+    @commands.hybrid_command(name='inventory', aliases=['invnormal','invbulk','inv'])
     @app_commands.describe(filters="Filters: --g, --gmax, --n, --type, --region, --cd, --nocd")
     async def view_inventory(self, ctx, *, filters: str = None):
         await self._view_category_inventory(ctx, config.NORMAL_CATEGORY, "Normal", filters)
