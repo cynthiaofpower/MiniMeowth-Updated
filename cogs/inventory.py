@@ -475,7 +475,7 @@ class Inventory(commands.Cog):
         else:
             await ctx.send("❌ No Pokemon found with those IDs", reference=ctx.message, mention_author=False)
 
-    @commands.hybrid_command(name='releaseall')
+    @commands.hybrid_command(name='releaseall', aliases=['ra'])
     @app_commands.describe(filters="Name filters to release Pokemon (e.g., '--n gigantamax --n pikachu')")
     async def releaseall_command(self, ctx, *, filters: str = None):
         """
@@ -750,22 +750,22 @@ class Inventory(commands.Cog):
 
     # ===== VIEW COMMANDS =====
 
-    @commands.hybrid_command(name='inventory', aliases=['inv'])
+    @commands.hybrid_command(name='inventory', aliases=['invnormal','invbulk'])
     @app_commands.describe(filters="Filters: --g, --gmax, --n, --type, --region, --cd, --nocd")
     async def view_inventory(self, ctx, *, filters: str = None):
         await self._view_category_inventory(ctx, config.NORMAL_CATEGORY, "Normal", filters)
 
-    @commands.hybrid_command(name='invtripmax')
+    @commands.hybrid_command(name='invtripmax', aliases=['trip31', 'tripmax'])
     @app_commands.describe(filters="Filters: --g, --gmax, --n, --type, --region, --cd, --nocd")
     async def view_tripmax_inventory(self, ctx, *, filters: str = None):
         await self._view_category_inventory(ctx, config.TRIPMAX_CATEGORY, "TripMax", filters)
 
-    @commands.hybrid_command(name='invtripzero')
+    @commands.hybrid_command(name='invtripzero', aliases=['tripzero', 'trip0'])
     @app_commands.describe(filters="Filters: --g, --gmax, --n, --type, --region, --cd, --nocd")
     async def view_tripzero_inventory(self, ctx, *, filters: str = None):
         await self._view_category_inventory(ctx, config.TRIPZERO_CATEGORY, "TripZero", filters)
 
-    @commands.hybrid_command(name='invduel', aliases=['id'])  # NEW
+    @commands.hybrid_command(name='invduel', aliases=['duelinv'])  # NEW
     @app_commands.describe(filters="Filters: --g, --gmax, --n, --type, --region, --cd, --nocd")
     async def view_duel_inventory(self, ctx, *, filters: str = None):
         """View Duel inventory for egg move breeding"""
