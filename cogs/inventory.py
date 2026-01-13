@@ -144,7 +144,7 @@ class Inventory(commands.Cog):
                         i += 1
                 else:
                     i += 1
-            # Gmax filter
+            # Gigantamax filter
             elif arg in ['--gmax', '--gigantamax', '--gm']:
                 gmax_filter = True
                 i += 1
