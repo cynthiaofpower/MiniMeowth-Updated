@@ -466,6 +466,7 @@ class Breeding(commands.Cog):
                     utils,
                     selective,
                     overrides,
+                    is_mychoice=True  # ← ADD THIS LINE
                 ):
                     continue
 
@@ -538,7 +539,7 @@ class Breeding(commands.Cog):
 
     # ===== HELPER METHODS =====
 
-    def can_pair_pokemon(self, female, male, utils, selective, overrides=None):
+    def can_pair_pokemon(self, female, male, utils, selective, overrides=None, is_mychoice=False):
         """Check if two Pokemon can be paired"""
         is_gmax_female = female.get('is_gmax', False)
         is_gmax_male = male.get('is_gmax', False)
@@ -546,14 +547,18 @@ class Breeding(commands.Cog):
         is_regional_male = male.get('is_regional', False)
         is_ditto_female = female.get('is_ditto', False)
 
-        if is_gmax_female and is_gmax_male:
-            return False
-        if is_regional_female and is_regional_male:
-            return False
-        if is_gmax_male and not is_ditto_female:
-            return False
-        if is_regional_male and not is_ditto_female:
-            return False
+        # In mychoice mode, skip all special restrictions - user knows what they want
+        if not is_mychoice:
+            if is_gmax_female and is_gmax_male:
+                return False
+            if is_regional_female and is_regional_male:
+                return False
+            if is_gmax_male and not is_ditto_female:
+                return False
+            if is_regional_male and not is_ditto_female:
+                return False
+
+        # Basic breeding compatibility checks (always apply)
         if not self.can_breed_optimized(female, male):
             return False
         if selective and not utils.can_pair_ids(female['pokemon_id'], male['pokemon_id'], overrides):
