@@ -2,179 +2,67 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 import config
-
-# ===== HELP SYSTEM CONFIG =====
-HELP_PREFIX = "m!"  # Change this to update prefix everywhere in help
-
-class HelpDropdown(discord.ui.Select):
-    """Dropdown menu for selecting help categories"""
-
-    def __init__(self, help_cog):
-        self.help_cog = help_cog
-
-        options = [
-            discord.SelectOption(
-                label="Home",
-                description="Main help menu",
-                value="home",
-                emoji="🏠"
-            ),
-            discord.SelectOption(
-                label="Inventory",
-                description="Manage your Pokemon inventory",
-                value="inventory",
-                emoji="📦"
-            ),
-            discord.SelectOption(
-                label="Breeding",
-                description="Generate breeding pairs",
-                value="breeding",
-                emoji="💕"
-            ),
-            discord.SelectOption(
-                label="Cooldown",
-                description="Manage breeding cooldowns",
-                value="cooldown",
-                emoji="🔒"
-            ),
-            discord.SelectOption(
-                label="Settings",
-                description="Configure preferences",
-                value="settings",
-                emoji="⚙️"
-            ),
-            discord.SelectOption(
-                label="Shiny Dex",
-                description="Track your shinies",
-                value="shinydex",
-                emoji="✨"
-            ),
-            discord.SelectOption(
-                label="Pokedex",
-                description="Look up Pokemon info",
-                value="pokedex",
-                emoji="🔍"
-            ),
-            discord.SelectOption(
-                label="List Tools",
-                description="Compare and manage Pokemon lists",
-                value="listtools",
-                emoji="📋"
-            ),
-            discord.SelectOption(
-                label="Utility",
-                description="Helpful utility commands",
-                value="utility",
-                emoji="🛠️"
-            ),
-            discord.SelectOption(
-                label="Context Menu",
-                description="Right-click message commands",
-                value="context",
-                emoji="📱"
-            )
-        ]
-
-        super().__init__(
-            placeholder="Choose a category...",
-            min_values=1,
-            max_values=1,
-            options=options
-        )
-
-    async def callback(self, interaction: discord.Interaction):
-        """Handle dropdown selection"""
-        if interaction.user.id != self.view.ctx.author.id:
-            await interaction.response.send_message("This is not your help menu!", ephemeral=True)
-            return
-
-        category = self.values[0]
-
-        embed_map = {
-            "home": self.help_cog.get_home_embed,
-            "inventory": self.help_cog.get_inventory_embed,
-            "breeding": self.help_cog.get_breeding_embed,
-            "cooldown": self.help_cog.get_cooldown_embed,
-            "settings": self.help_cog.get_settings_embed,
-            "shinydex": self.help_cog.get_shinydex_embed,
-            "pokedex": self.help_cog.get_pokedex_embed,
-            "listtools": self.help_cog.get_listtools_embed,
-            "utility": self.help_cog.get_utility_embed,
-            "context": self.help_cog.get_context_embed
-        }
-
-        embed = embed_map[category]()
-        await interaction.response.edit_message(embed=embed, view=self.view)
+from config import EMBED_COLOR
 
 
 class HelpView(discord.ui.View):
-    """View with navigation buttons and dropdown"""
+    """Pagination view for help pages"""
 
-    def __init__(self, ctx, help_cog):
-        super().__init__(timeout=180)
+    def __init__(self, ctx, pages, timeout=180):
+        super().__init__(timeout=timeout)
         self.ctx = ctx
-        self.help_cog = help_cog
+        self.pages = pages
+        self.current_page = 0
         self.message = None
+        self.update_buttons()
 
-        # Add dropdown
-        self.add_item(HelpDropdown(help_cog))
+    def update_buttons(self):
+        """Enable/disable buttons based on current page"""
+        self.previous_button.disabled = (self.current_page == 0)
+        self.next_button.disabled = (self.current_page >= len(self.pages) - 1)
 
-    @discord.ui.button(label="📦Inventory", style=discord.ButtonStyle.primary, row=1)
-    async def inventory_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+    def create_embed(self):
+        """Create embed for current page"""
+        page = self.pages[self.current_page]
+        embed = discord.Embed(
+            title=page['title'],
+            description=page['description'],
+            color=EMBED_COLOR
+        )
+
+        for field in page['fields']:
+            embed.add_field(
+                name=field['name'],
+                value=field['value'],
+                inline=field.get('inline', False)
+            )
+
+        embed.set_footer(text=f"Page {self.current_page + 1}/{len(self.pages)} • Use {config.PREFIX[0]}help <category> for details")
+        return embed
+
+    @discord.ui.button(label="Previous", style=discord.ButtonStyle.primary, emoji="◀️")
+    async def previous_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.ctx.author.id:
-            await interaction.response.send_message("This is not your help menu!", ephemeral=True)
+            await interaction.response.send_message("❌ This is not your help menu!", ephemeral=True)
             return
-        embed = self.help_cog.get_inventory_embed()
-        await interaction.response.edit_message(embed=embed, view=self)
+        if self.current_page > 0:
+            self.current_page -= 1
+            self.update_buttons()
+            await interaction.response.edit_message(embed=self.create_embed(), view=self)
+        else:
+            await interaction.response.defer()
 
-    @discord.ui.button(label="💕Breeding", style=discord.ButtonStyle.primary, row=1)
-    async def breeding_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+    @discord.ui.button(label="Next", style=discord.ButtonStyle.primary, emoji="▶️")
+    async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.ctx.author.id:
-            await interaction.response.send_message("This is not your help menu!", ephemeral=True)
+            await interaction.response.send_message("❌ This is not your help menu!", ephemeral=True)
             return
-        embed = self.help_cog.get_breeding_embed()
-        await interaction.response.edit_message(embed=embed, view=self)
-
-    @discord.ui.button(label="⚙️Settings", style=discord.ButtonStyle.primary, row=1)
-    async def settings_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.ctx.author.id:
-            await interaction.response.send_message("This is not your help menu!", ephemeral=True)
-            return
-        embed = self.help_cog.get_settings_embed()
-        await interaction.response.edit_message(embed=embed, view=self)
-
-    @discord.ui.button(label="✨Shiny Dex", style=discord.ButtonStyle.success, row=2)
-    async def shinydex_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.ctx.author.id:
-            await interaction.response.send_message("This is not your help menu!", ephemeral=True)
-            return
-        embed = self.help_cog.get_shinydex_embed()
-        await interaction.response.edit_message(embed=embed, view=self)
-
-    @discord.ui.button(label="🛠️Utility", style=discord.ButtonStyle.success, row=2)
-    async def utility_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.ctx.author.id:
-            await interaction.response.send_message("This is not your help menu!", ephemeral=True)
-            return
-        embed = self.help_cog.get_utility_embed()
-        await interaction.response.edit_message(embed=embed, view=self)
-
-
-    @discord.ui.button(label="📋List Tools", style=discord.ButtonStyle.success, row=2)
-    async def listtools_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.ctx.author.id:
-            await interaction.response.send_message("This is not your help menu!", ephemeral=True)
-            return
-        embed = self.help_cog.get_listtools_embed()
-        await interaction.response.edit_message(embed=embed, view=self)
-
-    @discord.ui.button(label="🏠Home", style=discord.ButtonStyle.secondary, row=2)
-    async def home_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.ctx.author.id:
-            await interaction.response.send_message("This is not your help menu!", ephemeral=True)
-            return
-        embed = self.help_cog.get_home_embed()
-        await interaction.response.edit_message(embed=embed, view=self)
+        if self.current_page < len(self.pages) - 1:
+            self.current_page += 1
+            self.update_buttons()
+            await interaction.response.edit_message(embed=self.create_embed(), view=self)
+        else:
+            await interaction.response.defer()
 
     async def on_timeout(self):
         if self.message:
@@ -186,769 +74,810 @@ class HelpView(discord.ui.View):
                 pass
 
 
-class HelpCommands(commands.Cog):
-    """Enhanced help system with interactive menus"""
+class Help(commands.Cog):
+    """Help command system"""
 
     def __init__(self, bot):
         self.bot = bot
+        self.categories = {
+            'breeding': {
+                'title': '🔄 Breeding Commands',
+                'description': 'Commands for managing breeding pairs and chains',
+                'commands': [
+                    {
+                        'name': 'breed',
+                        'aliases': [],
+                        'usage': 'breed [count]',
+                        'description': 'Generate optimal breeding pairs (max 2 pairs)',
+                        'filters': None
+                    },
+                    {
+                        'name': 'iwant',
+                        'aliases': ['chainbreed', 'cb'],
+                        'usage': 'iwant "pokemon name" move1, move2, move3',
+                        'description': 'Find breeding chain to get egg moves',
+                        'filters': None,
+                        'examples': ['iwant "ralts" shadow sneak, mystical fire']
+                    },
+                    {
+                        'name': 'canlearn',
+                        'aliases': ['wholearns', 'wl'],
+                        'usage': 'canlearn move1, move2, move3',
+                        'description': 'Find Pokemon that can learn multiple moves naturally',
+                        'filters': None,
+                        'examples': ['canlearn play rough, zen headbutt']
+                    }
+                ]
+            },
+            'inventory': {
+                'title': '📦 Inventory Commands',
+                'description': 'Manage your Pokemon inventories',
+                'commands': [
+                    {
+                        'name': 'add',
+                        'aliases': [],
+                        'usage': 'add [message_ids]',
+                        'description': 'Add Pokemon to normal inventory',
+                        'filters': None
+                    },
+                    {
+                        'name': 'addtripmax',
+                        'aliases': [],
+                        'usage': 'addtripmax [message_ids]',
+                        'description': 'Add Pokemon to TripMax inventory',
+                        'filters': None
+                    },
+                    {
+                        'name': 'addtripzero',
+                        'aliases': [],
+                        'usage': 'addtripzero [message_ids]',
+                        'description': 'Add Pokemon to TripZero inventory',
+                        'filters': None
+                    },
+                    {
+                        'name': 'addduel',
+                        'aliases': ['ad'],
+                        'usage': 'addduel [message_ids]',
+                        'description': 'Add Pokemon to Duel inventory',
+                        'filters': None
+                    },
+                    {
+                        'name': 'remove',
+                        'aliases': ['rm'],
+                        'usage': 'remove [ids] [--category]',
+                        'description': 'Remove Pokemon from inventory',
+                        'filters': '--normal, --tripmax, --tripzero, --duel',
+                        'examples': ['remove 123 456 --normal', 'remove 123 --duel']
+                    },
+                    {
+                        'name': 'releaseall',
+                        'aliases': ['ra'],
+                        'usage': 'releaseall --n <name> [--category]',
+                        'description': 'Release all Pokemon matching name filters',
+                        'filters': '--n <name>, --normal, --tripmax, --tripzero, --duel',
+                        'examples': ['releaseall --n gigantamax --normal']
+                    },
+                    {
+                        'name': 'clear',
+                        'aliases': [],
+                        'usage': 'clear <category>',
+                        'description': 'Clear entire inventory',
+                        'filters': 'inv, tripmax, tripzero, duel, all',
+                        'examples': ['clear normal', 'clear all']
+                    },
+                    {
+                        'name': 'inventory',
+                        'aliases': ['inv', 'invnormal', 'invbulk'],
+                        'usage': 'inventory [filters]',
+                        'description': 'View normal inventory',
+                        'filters': '--g <gender>, --gmax, --n <name>, --type <type>, --region <region>, --cd, --nocd'
+                    },
+                    {
+                        'name': 'invtripmax',
+                        'aliases': ['trip31', 'tripmax'],
+                        'usage': 'invtripmax [filters]',
+                        'description': 'View TripMax inventory',
+                        'filters': '--g <gender>, --gmax, --n <name>, --type <type>, --region <region>, --cd, --nocd'
+                    },
+                    {
+                        'name': 'invtripzero',
+                        'aliases': ['tripzero', 'trip0'],
+                        'usage': 'invtripzero [filters]',
+                        'description': 'View TripZero inventory',
+                        'filters': '--g <gender>, --gmax, --n <name>, --type <type>, --region <region>, --cd, --nocd'
+                    },
+                    {
+                        'name': 'invduel',
+                        'aliases': ['duelinv'],
+                        'usage': 'invduel [filters]',
+                        'description': 'View Duel inventory',
+                        'filters': '--g <gender>, --gmax, --n <name>, --type <type>, --region <region>, --cd, --nocd'
+                    },
+                    {
+                        'name': 'stats',
+                        'aliases': [],
+                        'usage': 'stats',
+                        'description': 'View inventory statistics',
+                        'filters': None
+                    }
+                ]
+            },
+            'shinydex': {
+                'title': '✨ Shiny Dex Commands',
+                'description': 'Manage and view your shiny collection',
+                'commands': [
+                    {
+                        'name': 'trackshiny',
+                        'aliases': ['addshiny'],
+                        'usage': 'trackshiny [message_ids]',
+                        'description': 'Track shinies from Pokétwo messages',
+                        'filters': None
+                    },
+                    {
+                        'name': 'removeshiny',
+                        'aliases': ['rmshiny'],
+                        'usage': 'removeshiny <ids>',
+                        'description': 'Remove shinies by ID',
+                        'filters': None
+                    },
+                    {
+                        'name': 'clearshiny',
+                        'aliases': [],
+                        'usage': 'clearshiny',
+                        'description': 'Clear all tracked shinies',
+                        'filters': None
+                    },
+                    {
+                        'name': 'shinydex',
+                        'aliases': ['sd', 'basicdex', 'bd'],
+                        'usage': 'shinydex [filters]',
+                        'description': 'View basic shiny dex (one per dex number)',
+                        'filters': '--caught, --uncaught, --orderd, --ordera, --region <region>, --type <type>, --n <name>, --exclude <name>, --page <num>, --list, --smartlist, --image, --ignoremale, --ignorefemale'
+                    },
+                    {
+                        'name': 'shinydexfull',
+                        'aliases': ['sdf', 'fulldex', 'fd', 'fullshinydex', 'fsd'],
+                        'usage': 'shinydexfull [filters]',
+                        'description': 'View full shiny dex (all forms + genders)',
+                        'filters': '--caught, --uncaught, --orderd, --ordera, --region <region>, --type <type>, --n <name>, --exclude <name>, --page <num>, --list, --smartlist, --image, --nogender, --ignoremale, --ignorefemale'
+                    },
+                    {
+                        'name': 'filter',
+                        'aliases': ['f'],
+                        'usage': 'filter <filter_name> [options]',
+                        'description': 'View filtered shiny dex (eevos, starters, legendaries, etc.)',
+                        'filters': '--caught, --uncaught, --orderd, --ordera, --region <region>, --type <type>, --exclude <name>, --nogender, --page <num>, --list, --smartlist, --image, --ignoremale, --ignorefemale'
+                    },
+                    {
+                        'name': 'pokemon',
+                        'aliases': ['p'],
+                        'usage': 'pokemon [filters]',
+                        'description': 'View your shiny Pokemon list with details',
+                        'filters': '--name <name>, --iv<value>, --type <type>, --region <region>, --page <num>'
+                    },
+                    {
+                        'name': 'order',
+                        'aliases': ['or'],
+                        'usage': 'order <type>',
+                        'description': 'Set Pokemon display order',
+                        'filters': 'iv, iv+, iv-, number, number+, number-, pokedex, pokedex+, pokedex-'
+                    },
+                    {
+                        'name': 'shinystats',
+                        'aliases': [],
+                        'usage': 'shinystats',
+                        'description': 'View shiny collection statistics',
+                        'filters': None
+                    },
+                    {
+                        'name': 'typestats',
+                        'aliases': ['ts'],
+                        'usage': 'typestats',
+                        'description': 'View shiny statistics by type',
+                        'filters': None
+                    },
+                    {
+                        'name': 'regionstats',
+                        'aliases': ['rs'],
+                        'usage': 'regionstats',
+                        'description': 'View shiny statistics by region',
+                        'filters': None
+                    }
+                ]
+            },
+            'eventdex': {
+                'title': '🎉 Event Dex Commands',
+                'description': 'Manage event Pokemon collection',
+                'commands': [
+                    {
+                        'name': 'trackevent',
+                        'aliases': ['addevent'],
+                        'usage': 'trackevent [message_ids]',
+                        'description': 'Track event shinies from Pokétwo messages',
+                        'filters': None
+                    },
+                    {
+                        'name': 'removeevent',
+                        'aliases': ['rmevent'],
+                        'usage': 'removeevent <ids>',
+                        'description': 'Remove event shinies by ID',
+                        'filters': None
+                    },
+                    {
+                        'name': 'clearevent',
+                        'aliases': [],
+                        'usage': 'clearevent',
+                        'description': 'Clear all tracked event shinies',
+                        'filters': None
+                    },
+                    {
+                        'name': 'eventdex',
+                        'aliases': ['ed'],
+                        'usage': 'eventdex [filters]',
+                        'description': 'View event dex (all forms + genders)',
+                        'filters': '--caught, --uncaught, --orderd, --ordera, --region <region>, --type <type>, --n <name>, --page <num>'
+                    },
+                    {
+                        'name': 'eventstats',
+                        'aliases': [],
+                        'usage': 'eventstats',
+                        'description': 'View event collection statistics',
+                        'filters': None
+                    }
+                ]
+            },
+            'cooldown': {
+                'title': '🔒 Cooldown Commands',
+                'description': 'Manage Pokemon cooldowns',
+                'commands': [
+                    {
+                        'name': 'cooldown add',
+                        'aliases': ['cd add'],
+                        'usage': 'cooldown add <ids>',
+                        'description': 'Add Pokemon to cooldown',
+                        'filters': None
+                    },
+                    {
+                        'name': 'cooldown remove',
+                        'aliases': ['cd remove'],
+                        'usage': 'cooldown remove <ids>',
+                        'description': 'Remove Pokemon from cooldown',
+                        'filters': None
+                    },
+                    {
+                        'name': 'cooldown list',
+                        'aliases': ['cd list'],
+                        'usage': 'cooldown list [filters]',
+                        'description': 'View Pokemon on cooldown',
+                        'filters': '--normal, --tripmax, --tripzero, --duel, --all, --n <name>, --type <type>, --region <region>, --g <gender>'
+                    },
+                    {
+                        'name': 'cooldown clear',
+                        'aliases': ['cd clear'],
+                        'usage': 'cooldown clear',
+                        'description': 'Clear all cooldowns',
+                        'filters': None
+                    }
+                ]
+            },
+            'settings': {
+                'title': '⚙️ Settings Commands',
+                'description': 'Configure breeding and display settings',
+                'commands': [
+                    {
+                        'name': 'settings',
+                        'aliases': [],
+                        'usage': 'settings [type] [value]',
+                        'description': 'View or change settings',
+                        'filters': 'mode, target, setmale, setfemale, mychoice_inv, info',
+                        'examples': [
+                            'settings mode selective',
+                            'settings target pikachu, eevee',
+                            'settings setmale dreepy, drakloak',
+                            'settings mychoice_inv normal,duel',
+                            'settings info compact'
+                        ]
+                    },
+                    {
+                        'name': 'reset-settings',
+                        'aliases': ['resetsettings'],
+                        'usage': 'reset-settings',
+                        'description': 'Reset all settings to defaults',
+                        'filters': None
+                    },
+                    {
+                        'name': 'setid',
+                        'aliases': [],
+                        'usage': 'setid <pokemon_id> <old/new>',
+                        'description': 'Override ID categorization for selective mode',
+                        'filters': None
+                    },
+                    {
+                        'name': 'setnew',
+                        'aliases': [],
+                        'usage': 'setnew <ids>',
+                        'description': 'Set multiple IDs as NEW',
+                        'filters': None,
+                        'examples': ['setnew 444 555 666', 'setnew 1-10']
+                    },
+                    {
+                        'name': 'setold',
+                        'aliases': [],
+                        'usage': 'setold <ids>',
+                        'description': 'Set multiple IDs as OLD',
+                        'filters': None,
+                        'examples': ['setold 444 555 666', 'setold 1-10']
+                    },
+                    {
+                        'name': 'removeid',
+                        'aliases': ['removeids'],
+                        'usage': 'removeid <ids>',
+                        'description': 'Remove ID overrides',
+                        'filters': None
+                    },
+                    {
+                        'name': 'listids',
+                        'aliases': ['listoverrides'],
+                        'usage': 'listids',
+                        'description': 'List all ID overrides',
+                        'filters': None
+                    },
+                    {
+                        'name': 'clearids',
+                        'aliases': ['clearoverrides'],
+                        'usage': 'clearids',
+                        'description': 'Clear all ID overrides',
+                        'filters': None
+                    },
+                    {
+                        'name': 'checkid',
+                        'aliases': [],
+                        'usage': 'checkid <pokemon_id>',
+                        'description': 'Check ID categorization',
+                        'filters': None
+                    }
+                ]
+            },
+            'customization': {
+                'title': '🎨 Customization Commands',
+                'description': 'Customize your dex images and stats cards',
+                'commands': [
+                    {
+                        'name': 'dexsettings',
+                        'aliases': ['dexset', 'ds'],
+                        'usage': 'dexsettings',
+                        'description': 'View current dex image settings',
+                        'filters': None
+                    },
+                    {
+                        'name': 'dexcustomize',
+                        'aliases': ['dc', 'dexcust'],
+                        'usage': 'dexcustomize <setting> <value>',
+                        'description': 'Customize dex image appearance',
+                        'filters': 'grid, background, glass, border, badgetext, badgebg, badgeborder, badge, countcolor, uncaughtcount, uncaught, opacity, silhouette',
+                        'examples': [
+                            'dexcustomize grid 5x4',
+                            'dexcustomize background #2A2A3C',
+                            'dexcustomize uncaught faded'
+                        ]
+                    },
+                    {
+                        'name': 'dexsuggestions',
+                        'aliases': ['dexcolors', 'dexthemes', 'themes', 'dexsugg'],
+                        'usage': 'dexsuggestions [theme]',
+                        'description': 'View color scheme suggestions',
+                        'filters': None
+                    },
+                    {
+                        'name': 'dexapplytheme',
+                        'aliases': ['dextheme', 'dexapply', 'dat'],
+                        'usage': 'dexapplytheme <theme>',
+                        'description': 'Apply a pre-made theme instantly',
+                        'filters': None,
+                        'examples': ['dexapplytheme burgundy']
+                    },
+                    {
+                        'name': 'dexreset',
+                        'aliases': [],
+                        'usage': 'dexreset',
+                        'description': 'Reset dex settings to defaults',
+                        'filters': None
+                    },
+                    {
+                        'name': 'shinystatsimg',
+                        'aliases': ['ssimg', 'pf', 'profile'],
+                        'usage': 'shinystatsimg',
+                        'description': 'Generate visual stats card',
+                        'filters': None
+                    },
+                    {
+                        'name': 'customize',
+                        'aliases': [],
+                        'usage': 'customize',
+                        'description': 'Customize stats card background',
+                        'filters': None
+                    },
+                    {
+                        'name': 'settitle',
+                        'aliases': ['title', 'ttl'],
+                        'usage': 'settitle <title>',
+                        'description': 'Set custom title on stats card',
+                        'filters': None
+                    },
+                    {
+                        'name': 'setfavorite',
+                        'aliases': ['display', 'setshowcase'],
+                        'usage': 'setfavorite <id> [nickname]',
+                        'description': 'Set showcase Pokemon',
+                        'filters': None
+                    },
+                    {
+                        'name': 'setnickname',
+                        'aliases': ['nick'],
+                        'usage': 'setnickname <id> <nickname>',
+                        'description': 'Set Pokemon nickname',
+                        'filters': None
+                    }
+                ]
+            },
+            'pokedex': {
+                'title': '📖 Pokédex Commands',
+                'description': 'Look up Pokemon information',
+                'commands': [
+                    {
+                        'name': 'pokedex',
+                        'aliases': ['d', 'dex'],
+                        'usage': 'pokedex <pokemon>',
+                        'description': 'Look up Pokemon information',
+                        'filters': None,
+                        'examples': ['pokedex bulbasaur', 'pokedex #1']
+                    }
+                ]
+            },
+            'utility': {
+                'title': '🔧 Utility Commands',
+                'description': 'Helpful utility tools',
+                'commands': [
+                    {
+                        'name': 'track',
+                        'aliases': [],
+                        'usage': 'track <command with (id)>',
+                        'description': 'Track IDs from list and send commands',
+                        'filters': None,
+                        'examples': ['track p!select (id)']
+                    },
+                    {
+                        'name': 'rarecandylevel',
+                        'aliases': [],
+                        'usage': 'rarecandylevel <target_level>',
+                        'description': 'Auto-buy rare candies to level Pokemon',
+                        'filters': None,
+                        'examples': ['rarecandylevel 45']
+                    },
+                    {
+                        'name': 'stoptrack',
+                        'aliases': [],
+                        'usage': 'stoptrack',
+                        'description': 'Stop active track command',
+                        'filters': None
+                    },
+                    {
+                        'name': 'format',
+                        'aliases': [],
+                        'usage': 'format "<pattern>" items',
+                        'description': 'Add prefix pattern to comma-separated items',
+                        'filters': None,
+                        'examples': ['format "--n" abra, kadabra, alakazam']
+                    },
+                    {
+                        'name': 'convert',
+                        'aliases': [],
+                        'usage': '/convert <currency> <amount>',
+                        'description': 'Convert between PC/Shards/Redeems/Incenses',
+                        'filters': 'pc, shards, redeems, incenses'
+                    },
+                    {
+                        'name': 'replace',
+                        'aliases': [],
+                        'usage': '/replace <old> <text> [new]',
+                        'description': 'Replace or remove phrases from text',
+                        'filters': None
+                    },
+                    {
+                        'name': 'createlist',
+                        'aliases': [],
+                        'usage': 'createlist',
+                        'description': 'Create Pokemon list from message',
+                        'filters': None
+                    },
+                    {
+                        'name': 'removemons',
+                        'aliases': ['exclude'],
+                        'usage': 'removemons <pokemon names>',
+                        'description': 'Remove Pokemon from list',
+                        'filters': None,
+                        'examples': ['removemons pikachu, charizard']
+                    },
+                    {
+                        'name': 'check',
+                        'aliases': [],
+                        'usage': 'check <pokemon names>',
+                        'description': 'Check if Pokemon are in message',
+                        'filters': None,
+                        'examples': ['check pikachu, charizard']
+                    },
+                    {
+                        'name': 'compare',
+                        'aliases': [],
+                        'usage': 'compare <msg_id1> <msg_id2>',
+                        'description': 'Compare Pokemon between two messages',
+                        'filters': None
+                    },
+                    {
+                        'name': 'compareslash',
+                        'aliases': [],
+                        'usage': '/compareslash <list1> <list2>',
+                        'description': 'Compare two Pokemon lists (slash command)',
+                        'filters': None
+                    },
+                    {
+                        'name': 'stoplist',
+                        'aliases': ['stopcreatelist', 'cancellist'],
+                        'usage': 'stoplist',
+                        'description': 'Stop active createlist command',
+                        'filters': None
+                    },
+                    {
+                        'name': 'generate',
+                        'aliases': ['gen', 'customimg'],
+                        'usage': 'generate <title>, <pokemon> -flags',
+                        'description': 'Generate custom Pokemon image',
+                        'filters': '-s (shiny), -n (normal), -d (dark), -m (male), -f (female), -xN (count)',
+                        'examples': ['generate My Collection, Pikachu -s -x5, Eevee -s -x2']
+                    },
+                    {
+                        'name': 'generatehelp',
+                        'aliases': ['genhelp', 'customimghelp'],
+                        'usage': 'generatehelp',
+                        'description': 'Learn how to create custom images',
+                        'filters': None
+                    }
+                ]
+            }
+        }
+
+    def create_overview_pages(self):
+        """Create overview pages showing all categories"""
+        pages = []
+
+        # Page 1: Main categories
+        page1 = {
+            'title': '📚 Meowth Bot - Command Categories',
+            'description': 'Use `m!help <category>` to see detailed commands for that category.',
+            'fields': [
+                {
+                    'name': '🔄 Breeding',
+                    'value': 'Commands for breeding pairs and egg move chains\n`m!help breeding`',
+                    'inline': True
+                },
+                {
+                    'name': '📦 Inventory',
+                    'value': 'Manage your Pokemon inventories\n`m!help inventory`',
+                    'inline': True
+                },
+                {
+                    'name': '✨ Shiny Dex',
+                    'value': 'Track and view your shiny collection\n`m!help shinydex`',
+                    'inline': True
+                },
+                {
+                    'name': '🎉 Event Dex',
+                    'value': 'Manage event Pokemon collection\n`m!help eventdex`',
+                    'inline': True
+                },
+                {
+                    'name': '🔒 Cooldown',
+                    'value': 'Manage Pokemon cooldowns\n`m!help cooldown`',
+                    'inline': True
+                },
+                {
+                    'name': '⚙️ Settings',
+                    'value': 'Configure breeding and display settings\n`m!help settings`',
+                    'inline': True
+                },
+                {
+                    'name': '🎨 Customization',
+                    'value': 'Customize dex images and stats cards\n`m!help customization`',
+                    'inline': True
+                },
+                {
+                    'name': '📖 Pokédex',
+                    'value': 'Look up Pokemon information\n`m!help pokedex`',
+                    'inline': True
+                },
+                {
+                    'name': '🔧 Utility',
+                    'value': 'Helpful utility tools\n`m!help utility`',
+                    'inline': True
+                }
+            ]
+        }
+        pages.append(page1)
+
+        # Page 2: Common filters
+        page2 = {
+            'title': '🔍 Common Filters Guide',
+            'description': 'Filters that can be used with various commands',
+            'fields': [
+                {
+                    'name': 'Pokemon Filters',
+                    'value': '`--n <name>` - Search by name\n'
+                           '`--type <type>` - Filter by type (max 2)\n'
+                           '`--region <region>` - Filter by region\n'
+                           '`--g <gender>` - Filter by gender',
+                    'inline': False
+                },
+                {
+                    'name': 'Special Filters',
+                    'value': '`--gmax` - Gigantamax Pokemon only\n'
+                           '`--regional` - Regional forms only\n'
+                           '`--cd` - On cooldown only\n'
+                           '`--nocd` / `--b` - Not on cooldown',
+                    'inline': False
+                },
+                {
+                    'name': 'Dex Filters',
+                    'value': '`--caught` / `--c` - Caught only\n'
+                           '`--uncaught` / `--unc` - Uncaught only\n'
+                           '`--orderd` - Sort descending\n'
+                           '`--ordera` - Sort ascending\n'
+                           '`--page <num>` / `--p <num>` - Jump to page',
+                    'inline': False
+                },
+                {
+                    'name': 'Display Options',
+                    'value': '`--list` - Simple list format\n'
+                           '`--smartlist` / `--slist` - Smart list with categories\n'
+                           '`--image` / `--img` - Generate dex image\n'
+                           '`--nogender` / `--ng` - Ignore gender differences\n'
+                           '`--ignoremale` / `--im` - Exclude males\n'
+                           '`--ignorefemale` / `--if` - Exclude females\n'
+                           '`--exclude <name>` - Exclude specific Pokemon',
+                    'inline': False
+                }
+            ]
+        }
+        pages.append(page2)
+
+        return pages
+
+    def create_category_pages(self, category_name):
+        """Create detailed pages for a specific category"""
+        if category_name not in self.categories:
+            return None
+
+        category = self.categories[category_name]
+        pages = []
+
+        # Create pages (5 commands per page)
+        commands_per_page = 5
+        commands = category['commands']
+
+        for i in range(0, len(commands), commands_per_page):
+            page_commands = commands[i:i+commands_per_page]
+
+            page = {
+                'title': category['title'],
+                'description': category['description'],
+                'fields': []
+            }
+
+            for cmd in page_commands:
+                # Build command info
+                aliases_str = f" ({', '.join(cmd['aliases'])})" if cmd['aliases'] else ""
+
+                value_parts = [f"**Usage:** `{config.PREFIX[0]}{cmd['usage']}`"]
+
+                if cmd.get('description'):
+                    value_parts.append(f"**Description:** {cmd['description']}")
+
+                if cmd.get('filters'):
+                    value_parts.append(f"**Filters:** {cmd['filters']}")
+
+                if cmd.get('examples'):
+                    examples = '\n'.join([f"`{config.PREFIX[0]}{ex}`" for ex in cmd['examples']])
+                    value_parts.append(f"**Examples:**\n{examples}")
+
+                page['fields'].append({
+                    'name': f"{config.PREFIX[0]}{cmd['name']}{aliases_str}",
+                    'value': '\n'.join(value_parts),
+                    'inline': False
+                })
+
+            pages.append(page)
+
+        return pages
 
     @commands.hybrid_command(name='help', aliases=['h'])
-    @app_commands.describe(command="Specific command to get help for")
-    async def help_command(self, ctx, *, command: str = None):
-        """
-        Display help menu or get info about a specific command
+    @app_commands.describe(category="Category or command to get help for")
+    async def help_command(self, ctx, *, category: str = None):
+        """Show help information for commands"""
 
-        __Usage:__
-        > `m!help` - Show interactive help menu
-        > `m!help <command>` - Get detailed info about a command
-
-        __Examples:__
-        > `m!help breed`
-        > `m!help trackshiny`
-        """
-        # If specific command requested
-        if command:
-            await self.show_command_help(ctx, command)
+        if not category:
+            # Show overview
+            pages = self.create_overview_pages()
+            view = HelpView(ctx, pages)
+            message = await ctx.send(embed=view.create_embed(), view=view, reference=ctx.message if not ctx.interaction else None, mention_author=False)
+            view.message = message
             return
 
-        # Show interactive menu
-        view = HelpView(ctx, self)
-        embed = self.get_home_embed()
-        message = await ctx.send(embed=embed, view=view, reference=ctx.message if hasattr(ctx.message, 'reference') else None, mention_author=False)
-        view.message = message
+        category_lower = category.lower()
 
-    async def show_command_help(self, ctx, command_name: str):
-        """Show detailed help for a specific command"""
-        cmd = self.bot.get_command(command_name.lower())
-
-        if not cmd:
-            await ctx.send(f"Command `{command_name}` not found! Use `{HELP_PREFIX}help` to see all commands.", 
-                          reference=ctx.message if hasattr(ctx.message, 'reference') else None, mention_author=False)
+        # Check if it's a valid category
+        if category_lower in self.categories:
+            pages = self.create_category_pages(category_lower)
+            view = HelpView(ctx, pages)
+            message = await ctx.send(embed=view.create_embed(), view=view, reference=ctx.message if not ctx.interaction else None, mention_author=False)
+            view.message = message
             return
 
-        # Check if it's a hybrid command
-        is_hybrid = isinstance(cmd, commands.HybridCommand)
-        is_slash = is_hybrid or hasattr(cmd, 'app_command')
+        # Check if it's a specific command
+        for cat_name, cat_data in self.categories.items():
+            for cmd in cat_data['commands']:
+                if category_lower == cmd['name'] or category_lower in cmd.get('aliases', []):
+                    # Show specific command help
+                    embed = discord.Embed(
+                        title=f"Help: {config.PREFIX[0]}{cmd['name']}",
+                        color=EMBED_COLOR
+                    )
 
-        # Build description
-        description_parts = []
+                    if cmd.get('aliases'):
+                        embed.add_field(
+                            name="Aliases",
+                            value=', '.join([f"`{config.PREFIX[0]}{a}`" for a in cmd['aliases']]),
+                            inline=False
+                        )
 
-        # Get command help text
-        if cmd.help:
-            description_parts.append(cmd.help.split('\n\n')[0])  # First paragraph only
-        else:
-            description_parts.append("_No description available_")
+                    embed.add_field(
+                        name="Usage",
+                        value=f"`{config.PREFIX[0]}{cmd['usage']}`",
+                        inline=False
+                    )
 
-        description_parts.append("")  # Empty line
+                    if cmd.get('description'):
+                        embed.add_field(
+                            name="Description",
+                            value=cmd['description'],
+                            inline=False
+                        )
 
-        # Command availability
-        if is_hybrid:
-            description_parts.append("__Available as:__")
-            description_parts.append(f"> Prefix command: `{HELP_PREFIX}{cmd.name}`")
-            description_parts.append(f"> Slash command: `/{cmd.name}`")
-        elif is_slash:
-            description_parts.append(f"__Available as:__ Slash command only `/{cmd.name}`")
-        else:
-            description_parts.append(f"__Available as:__ Prefix command `{HELP_PREFIX}{cmd.name}`")
+                    if cmd.get('filters'):
+                        embed.add_field(
+                            name="Filters",
+                            value=cmd['filters'],
+                            inline=False
+                        )
 
-        embed = discord.Embed(
-            title=f"Command: {cmd.name}",
-            description="\n".join(description_parts),
-            color=config.EMBED_COLOR
+                    if cmd.get('examples'):
+                        examples = '\n'.join([f"`{config.PREFIX[0]}{ex}`" for ex in cmd['examples']])
+                        embed.add_field(
+                            name="Examples",
+                            value=examples,
+                            inline=False
+                        )
+
+                    embed.set_footer(text=f"Category: {cat_data['title']}")
+                    await ctx.send(embed=embed, reference=ctx.message if not ctx.interaction else None, mention_author=False)
+                    return
+
+        # Command/category not found
+        await ctx.send(
+            f"❌ Category or command `{category}` not found!\n"
+            f"Use `{config.PREFIX[0]}help` to see all categories.",
+            reference=ctx.message if not ctx.interaction else None,
+            mention_author=False
         )
-
-        # Aliases (only for prefix commands)
-        if cmd.aliases:
-            aliases_text = " ".join([f"`{alias}`" for alias in cmd.aliases])
-            embed.add_field(
-                name="__Aliases__",
-                value=aliases_text,
-                inline=False
-            )
-
-        # Usage
-        usage_lines = []
-        if cmd.signature:
-            usage_lines.append(f"> `{HELP_PREFIX}{cmd.name} {cmd.signature}`")
-            if is_hybrid or is_slash:
-                clean_sig = cmd.signature.replace('[', '').replace(']', '').replace('<', '').replace('>', '')
-                usage_lines.append(f"> `/{cmd.name} {clean_sig}`")
-        else:
-            usage_lines.append(f"> `{HELP_PREFIX}{cmd.name}`")
-            if is_hybrid or is_slash:
-                usage_lines.append(f"> `/{cmd.name}`")
-
-        embed.add_field(
-            name="__Usage__",
-            value="\n".join(usage_lines),
-            inline=False
-        )
-
-        # Parameters (if any)
-        if cmd.clean_params:
-            param_lines = []
-            for param_name, param in cmd.clean_params.items():
-                # Determine if required or optional
-                is_required = param.default == param.empty
-
-                if is_required:
-                    param_lines.append(f"> `{param_name}` - Required")
-                else:
-                    param_lines.append(f"> `{param_name}` - Optional")
-
-            if param_lines:
-                embed.add_field(
-                    name="__Parameters__",
-                    value="\n".join(param_lines),
-                    inline=False
-                )
-
-        # Examples from docstring
-        if cmd.help and ("__Examples:__" in cmd.help or "__Usage:__" in cmd.help):
-            examples = []
-            lines = cmd.help.split('\n')
-            in_example_section = False
-
-            for line in lines:
-                if "__Examples:__" in line or "__Usage:__" in line:
-                    in_example_section = True
-                    continue
-                if in_example_section:
-                    if line.strip().startswith('>'):
-                        # Extract the example
-                        example = line.strip()[1:].strip()
-                        if example.startswith('`') and example.endswith('`'):
-                            examples.append(example)
-                    elif line.strip() and not line.strip().startswith('>'):
-                        # Hit next section
-                        break
-
-            if examples:
-                embed.add_field(
-                    name="__Examples__",
-                    value="\n".join([f"> {ex}" for ex in examples[:3]]),
-                    inline=False
-                )
-
-        # Footer with category info
-        cog_name = cmd.cog.qualified_name if cmd.cog else "General"
-        embed.set_footer(text=f"Category: {cog_name}")
-
-        await ctx.send(embed=embed, reference=ctx.message if hasattr(ctx.message, 'reference') else None, mention_author=False)
-
-    def get_home_embed(self):
-        """Main help menu"""
-        embed = discord.Embed(
-            title="🎮 Bot Help Menu",
-            description=(
-                f"Welcome to the Pokétwo assistant bot!\n\n"
-                f"__📚 Quick Navigation__\n"
-                f"- Use the dropdown menu below to explore categories\n"
-                f"- Use `{HELP_PREFIX}help <command>` for detailed info\n\n"
-                f"__💬 Command Types__\n"
-                f"- **Prefix** - Use `{HELP_PREFIX}` before command\n"
-                f"- **Slash** - Use `/` before command\n"
-                f"- **Context** - Right-click messages (see Context Menu page)"
-            ),
-            color=config.EMBED_COLOR
-        )
-
-        embed.add_field(
-            name="__📂 Categories__",
-            value=(
-                "- 📦 **Inventory** - Pokemon management\n"
-                "- 💕 **Breeding** - Generate breeding pairs\n"
-                "- 🔒 **Cooldown** - Track breeding cooldowns\n"
-                "- ⚙️ **Settings** - Configure preferences\n"
-                "- ✨ **Shiny Dex** - Track shiny collection\n"
-                "- 🔍 **Pokedex** - Look up Pokemon info\n"
-                "- 🛠️ **Utility** - Helper commands\n"
-                "- 📱 **Context Menu** - Message actions"
-            ),
-            inline=False
-        )
-
-        embed.set_footer(text=f"Use {HELP_PREFIX}help <command> for details • Menu timeout: 3 minutes")
-
-        return embed
-
-    def get_inventory_embed(self):
-        """Inventory commands help"""
-        embed = discord.Embed(
-            title="📦 __Inventory Commands__",
-            description="Manage your Pokemon inventory across multiple categories",
-            color=config.EMBED_COLOR
-        )
-
-        embed.add_field(
-            name=f"`{HELP_PREFIX}add` `{HELP_PREFIX}addtripmax` `{HELP_PREFIX}addtripzero`",
-            value=(
-                "> Add Pokemon to inventories\n"
-                "> Reply to Pokétwo message or provide message IDs\n"
-                "> Auto-detects page changes for 60 seconds"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"`{HELP_PREFIX}inv` `{HELP_PREFIX}invtripmax` `{HELP_PREFIX}invtripzero`",
-            value=(
-                "> View your Pokemon inventories\n"
-                "> **Filters:** `--g male/female`, `--gmax`, `--regional`, `--n <name>`, `--cd`, `--nocd`"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"`{HELP_PREFIX}stats`",
-            value="> View statistics for all inventories",
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"`{HELP_PREFIX}remove` `{HELP_PREFIX}clear`",
-            value=(
-                "> Remove Pokemon by ID or clear entire inventory\n"
-                "> **Clear options:** `inv`, `tripmax`, `tripzero`, `all`"
-            ),
-            inline=False
-        )
-
-        embed.set_footer(text=f"Example: {HELP_PREFIX}inv --g female --gmax")
-
-        return embed
-
-    def get_breeding_embed(self):
-        """Breeding commands help"""
-        embed = discord.Embed(
-            title="💕 __Breeding Commands__",
-            description="Generate optimal breeding pairs based on your settings",
-            color=config.EMBED_COLOR
-        )
-
-        embed.add_field(
-            name=f"__🎲 Generate Pairs__",
-            value=(
-                f"`{HELP_PREFIX}breed [count]` `/breed [count]`\n"
-                f"- Generate 1-2 breeding pairs\n"
-                f"- Automatically adds Pokemon to cooldown\n"
-                f"- Uses your configured settings"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"__⚙️ Basic Settings__",
-            value=(
-                f"`{HELP_PREFIX}settings`\n"
-                f"- View all current settings\n"
-                f"- Configure mode, target, and display preferences"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"__🎯 Pairing Mode__",
-            value=(
-                f"`{HELP_PREFIX}settings mode <selective/notselective>`\n"
-                f"- **Selective:** Pairs old IDs with new IDs\n"
-                f"- **Not Selective:** Pairs any compatible Pokemon"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"__🎯 Breeding Targets__",
-            value=(
-                f"`{HELP_PREFIX}settings target <targets>`\n"
-                f"- **Options:** `all`, `gmax`, `regionals`, `tripmax`, `tripzero`, `mychoice`\n"
-                f"- Or specify Pokemon names: `pikachu, eevee`"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"__🔢 ID Overrides__",
-            value=(
-                f"`{HELP_PREFIX}setid` `{HELP_PREFIX}setnew` `{HELP_PREFIX}setold`\n"
-                f"- Override ID categorization for selective mode\n"
-                f"- Supports bulk operations and ranges"
-            ),
-            inline=False
-        )
-
-        embed.set_footer(text=f"💡 Example: {HELP_PREFIX}settings target gmax")
-
-        return embed
-
-    def get_cooldown_embed(self):
-        """Cooldown commands help"""
-        embed = discord.Embed(
-            title="🔒 __Cooldown Commands__",
-            description=f"Manage breeding cooldowns ({config.COOLDOWN_DAYS}d {config.COOLDOWN_HOURS}h duration)",
-            color=config.EMBED_COLOR
-        )
-
-        embed.add_field(
-            name=f"`{HELP_PREFIX}cd list` `{HELP_PREFIX}cooldown list`",
-            value=(
-                "> View all Pokemon on cooldown\n"
-                "> Shows time remaining and Pokemon details"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"`{HELP_PREFIX}cd add <ids>` `{HELP_PREFIX}cd remove <ids>`",
-            value=(
-                "> Manually manage cooldowns\n"
-                "> Space-separated Pokemon IDs"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"`{HELP_PREFIX}cd clear`",
-            value=(
-                "> Clear ALL cooldowns\n"
-                "> Requires confirmation"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="Note",
-            value=(
-                f"> Pokemon are automatically added to cooldown when using `{HELP_PREFIX}breed`\n"
-                "> Cooldowns are global across all inventories"
-            ),
-            inline=False
-        )
-
-        embed.set_footer(text=f"Example: {HELP_PREFIX}cd add 123456 789012")
-
-        return embed
-
-    def get_settings_embed(self):
-        """Settings commands help"""
-        embed = discord.Embed(
-            title="⚙️ __Settings Commands__",
-            description="Configure your breeding preferences and behavior",
-            color=config.EMBED_COLOR
-        )
-
-        embed.add_field(
-            name=f"__📊 View Settings__",
-            value=(
-                f"`{HELP_PREFIX}settings`\n"
-                f"- View all current settings and available options"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="__🎯 Mode Configuration__",
-            value=(
-                f"`{HELP_PREFIX}settings mode <selective/notselective>`\n"
-                f"- **Selective:** Pairs old IDs (≤271800) with new IDs (≥271900)\n"
-                f"- **Not Selective:** Pairs any compatible Pokemon"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="__🎯 Target Configuration__",
-            value=(
-                f"`{HELP_PREFIX}settings target <targets>`\n"
-                f"- `all` - Breed everything\n"
-                f"- `gmax` - Gigantamax only\n"
-                f"- `regionals` - Regional forms\n"
-                f"- `tripmax` - High IV inventory\n"
-                f"- `tripzero` - Low IV inventory\n"
-                f"- `mychoice` - Custom pairing\n"
-                f"- `pikachu, eevee` - Specific Pokemon"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="__💝 MyChoice Configuration__",
-            value=(
-                f"`{HELP_PREFIX}settings setmale <species>` - Set male species\n"
-                f"`{HELP_PREFIX}settings setfemale <species>` - Set female species"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="__ℹ️ Display Configuration__",
-            value=(
-                f"`{HELP_PREFIX}settings info <detailed/simple/off>`\n"
-                f"- **Detailed:** Full information with IVs and reasons\n"
-                f"- **Simple:** Basic info only\n"
-                f"- **Off:** Command only"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"__🔄 Reset Settings__",
-            value=(
-                f"`{HELP_PREFIX}reset-settings`\n"
-                f"- Reset all settings to defaults"
-            ),
-            inline=False
-        )
-
-        embed.set_footer(text="💡 Settings are saved per user")
-
-        return embed
-
-    def get_shinydex_embed(self):
-        """Shiny Dex commands help"""
-        embed = discord.Embed(
-            title="✨ __Shiny Dex Commands__",
-            description="Track and view your shiny Pokemon collection",
-            color=config.EMBED_COLOR
-        )
-
-        embed.add_field(
-            name=f"`{HELP_PREFIX}trackshiny [msg_ids]`",
-            value=(
-                "> Track shinies from Pokétwo `--sh` messages\n"
-                "> Reply to message or provide IDs\n"
-                "> Auto-detects page changes for 5 minutes"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"`{HELP_PREFIX}shinydex` `{HELP_PREFIX}shinydexfull`",
-            value=(
-                "> **Basic dex** (`sd`) - One per dex number\n"
-                "> **Full dex** (`sdf`) - All forms and genders"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"`{HELP_PREFIX}eventdex` `{HELP_PREFIX}pokemon`",
-            value=(
-                "> **Event dex** (`ed`) - Event Pokemon collection\n"
-                "> **Pokemon list** (`p`) - Detailed list with filters"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"`{HELP_PREFIX}filter <name> <other filters like --t, --r, --ng>` `{HELP_PREFIX}order <type>`",
-            value=(
-                "> **Filter** - Use custom filters (eevos, starters, etc.)\n"
-                "> **Order** - Set display order (iv, number, pokedex)"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"`{HELP_PREFIX}shinystats` `{HELP_PREFIX}typestats` `{HELP_PREFIX}regionstats`",
-            value="> View collection statistics and progress",
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"`{HELP_PREFIX}removeshiny` `{HELP_PREFIX}clearshiny`",
-            value="> Remove shinies by ID or clear all tracked shinies",
-            inline=False
-        )
-
-        embed.add_field(
-            name="Available Filters",
-            value=(
-                "> `--caught` `--uncaught` `--orderd` `--ordera`\n"
-                "> `--region <name>` `--type <name>` `--name <search>`\n"
-                "> `--page <number>` `--list` `--smartlist`"
-            ),
-            inline=False
-        )
-
-        embed.set_footer(text=f"Example: {HELP_PREFIX}shinydex --region kanto --caught")
-
-        return embed
-
-    def get_pokedex_embed(self):
-        """Pokedex commands help"""
-        embed = discord.Embed(
-            title="🔍 __Pokedex Commands__",
-            description="Look up detailed Pokemon information",
-            color=config.EMBED_COLOR
-        )
-
-        embed.add_field(
-            name=f"__🔎 Lookup Command__",
-            value=(
-                f"`{HELP_PREFIX}dex <pokemon>` `{HELP_PREFIX}pokedex <pokemon>`\n"
-                f"- Look up any Pokemon by name or dex number\n"
-                f"- Supports all languages (EN, JP, DE, FR)\n"
-                f"- Works with forms and alternate names"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="__🎮 Interactive Features__",
-            value=(
-                f"- Toggle between normal and shiny sprites\n"
-                f"- View gender differences (male/female)\n"
-                f"- Browse all forms via dropdown menu\n"
-                f"- Navigate between dex numbers\n"
-                f"- See your shiny count for that Pokemon"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="__📊 Information Displayed__",
-            value=(
-                f"- Base stats (HP, Attack, Defense, Sp. Atk, Sp. Def, Speed)\n"
-                f"- Types, region, and catchability\n"
-                f"- Evolution line and methods\n"
-                f"- Egg groups and hatch time\n"
-                f"- Gender ratio and appearance\n"
-                f"- Names in multiple languages"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="__💡 Examples__",
-            value=(
-                f"- `{HELP_PREFIX}dex bulbasaur` - Look up by name\n"
-                f"- `{HELP_PREFIX}dex #25` - Look up by dex number\n"
-                f"- `{HELP_PREFIX}dex deoxys` - Browse all forms\n"
-                f"- `{HELP_PREFIX}dex pikachu` - See gender differences"
-            ),
-            inline=False
-        )
-
-        embed.set_footer(text="💡 Supports accent-insensitive search")
-
-        return embed
-
-    def get_utility_embed(self):
-        """Utility commands help"""
-        embed = discord.Embed(
-            title="🛠️ __Utility Commands__",
-            description="Helpful commands for various tasks",
-            color=config.EMBED_COLOR
-        )
-
-        embed.add_field(
-            name=f"__📝 Track Command__",
-            value=(
-                f"`{HELP_PREFIX}track <command template>`\n"
-                f"- Track Pokemon IDs from an editing list\n"
-                f"- Reply to message, edit it, then react with ✅\n"
-                f"- **Example:** `{HELP_PREFIX}track p!select (id)`\n"
-                f"- Monitors for 3 minutes"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"__✏️ Format Command__",
-            value=(
-                f"`{HELP_PREFIX}format \"<pattern>\" <items>`\n"
-                f"- Add prefix pattern to comma-separated items\n"
-                f"- **Example:** `{HELP_PREFIX}format \"--n\" abra, kadabra`\n"
-                f"- **Result:** `--n abra --n kadabra`"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"__💰 Convert Command__",
-            value=(
-                f"`/convert <currency> <amount>`\n"
-                f"- Convert between Pokétwo currencies\n"
-                f"- **Currencies:** PC, Shards, Redeems, Incenses\n"
-                f"- Slash command only"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"__🔄 Replace Command__",
-            value=(
-                f"`/replace <old> <new> <text>`\n"
-                f"- Replace or remove phrases from text\n"
-                f"- Leave `new` empty to remove phrase\n"
-                f"- Slash command only"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"__📊 Order Command__",
-            value=(
-                f"`{HELP_PREFIX}order <type>`\n"
-                f"- Set Pokemon display order\n"
-                f"- **Types:** `iv`, `iv+`, `iv-`, `number`, `number+`, `number-`, `pokedex`, `pokedex+`, `pokedex-`"
-            ),
-            inline=False
-        )
-
-        embed.set_footer(text="💡 Track command auto-sends commands on Pokétwo response")
-
-        return embed
-
-    def get_context_embed(self):
-        """Context menu commands help"""
-        embed = discord.Embed(
-            title="📱 Context Menu Commands",
-            description=(
-                "Right-click (or long-press on mobile) Pokétwo messages to access quick actions.\n\n"
-                "__📖 How to Use__\n"
-                "- Right-click any Pokétwo message\n"
-                "- Select **Apps** from the menu\n"
-                "- Choose one of the commands below"
-            ),
-            color=config.EMBED_COLOR
-        )
-
-        embed.add_field(
-            name="__✨ Add Shiny__",
-            value=(
-                "- Quickly track shinies from Pokétwo shiny list\n"
-                "- Works with `--sh` embed messages\n"
-                "- Automatically filters out event Pokemon\n"
-                "- Shows summary of tracked shinies"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="__🗑️ Remove Shiny__",
-            value=(
-                "- Remove shinies from tracking\n"
-                "- Works with any message containing Pokemon IDs\n"
-                "- Extracts IDs and removes from your collection\n"
-                "- Shows count of removed shinies"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="__🎉 Event Shiny Add__",
-            value=(
-                "- Track event Pokemon specifically\n"
-                "- Works with `--sh` messages containing event forms\n"
-                "- Separate tracking from regular shinies\n"
-                "- View with `m!eventdex`"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="__🗑️ Event Shiny Remove__",
-            value=(
-                "- Remove event Pokemon from tracking\n"
-                "- Similar to Remove Shiny but for events\n"
-                "- Extracts IDs from message\n"
-                "- Updates event dex"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="__⚠️ Requirements__",
-            value=(
-                "- Must be used on Pokétwo bot messages\n"
-                "- Message must contain embed or Pokemon IDs\n"
-                "- Works in any channel where bot has access\n"
-                "- Ephemeral responses (only you see them)"
-            ),
-            inline=False
-        )
-
-        embed.set_footer(text="💡 Context commands work even in archived threads!")
-
-        return embed
-
-    def get_listtools_embed(self):
-        """List Tools commands help"""
-        embed = discord.Embed(
-            title="📋 __List Tools Commands__",
-            description="Compare and manage Pokemon lists with powerful filtering",
-            color=config.EMBED_COLOR
-        )
-
-        embed.add_field(
-            name=f"__🔍 Compare Command__",
-            value=(
-                f"`{HELP_PREFIX}compare <message_id_1> <message_id_2>`\n"
-                f"- Compare Pokemon between two messages\n"
-                f"- Shows Pokemon unique to each message\n"
-                f"- Shows Pokemon common to both messages\n"
-                f"- Displays statistics and counts\n"
-                f"- Creates .txt file if output is large"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"__✅ Check Command__",
-            value=(
-                f"`{HELP_PREFIX}check <pokemon names>`\n"
-                f"- Check if specific Pokemon exist in a message\n"
-                f"- Reply to any message containing Pokemon\n"
-                f"- Provide comma-separated Pokemon names\n"
-                f"- Shows which are found and which are missing\n"
-                f"**Example:** Reply to message + `{HELP_PREFIX}check pikachu, charizard, mew`"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"__🗑️ Remove Command__",
-            value=(
-                f"`{HELP_PREFIX}removemons <pokemon names>`\n"
-                f"Aliases: `{HELP_PREFIX}exclude`\n"
-                f"- Remove specific Pokemon from a list\n"
-                f"- Reply to message with Pokemon list\n"
-                f"- Creates new filtered list without specified Pokemon\n"
-                f"- Outputs as .txt file if list is large\n"
-                f"**Example:** Reply to list + `{HELP_PREFIX}removemons mew, mewtwo`"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="__📄 Supported Formats__",
-            value=(
-                "All commands support:\n"
-                "> - Message text content\n"
-                "> - Discord embeds\n"
-                "> - .txt file attachments\n"
-                "> - Case-insensitive matching\n"
-                "> - Automatic duplicate removal"
-            ),
-            inline=False
-        )
-
-        embed.add_field(
-            name="__💡 Use Cases__",
-            value=(
-                "> **Compare:** Find missing Pokemon between two collections\n"
-                "> **Check:** Verify if you have specific Pokemon\n"
-                "> **Remove:** Filter out unwanted Pokemon from lists"
-            ),
-            inline=False
-        )
-
-        embed.set_footer(text="💡 Perfect for trading, collecting, and inventory management!")
-
-        return embed
 
 
 async def setup(bot):
-    await bot.add_cog(HelpCommands(bot))
+    await bot.add_cog(Help(bot))
