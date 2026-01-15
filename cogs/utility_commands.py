@@ -60,6 +60,9 @@ class UtilityCommands(commands.Cog):
             for embed in message.embeds:
                 if embed.description and embed.description.startswith("Are you sure you want to buy"):
                     return
+
+        if message.content and "purchased" in message.content.lower() and "mint" in message.content.lower():
+            return
         # Check for level up/evolution embed - don't proceed to next command
         if message.embeds:
             for embed in message.embeds:
