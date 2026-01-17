@@ -51,6 +51,12 @@ class UtilityCommands(commands.Cog):
         if message.content and "You are currently running another command" in message.content:
             return
 
+        if message.content and "Your pokémon already knows" in message.content:
+            return
+
+        if message.content and "Your pokémon has learned" in message.content:
+            return
+
         # Check for buy confirmation message - don't proceed to next command
         if message.content and message.content.startswith("Are you sure you want to buy"):
             return
@@ -182,7 +188,7 @@ class UtilityCommands(commands.Cog):
         except Exception as e:
             await self._send_error(ctx, f"An error occurred: {str(e)}")
 
-    @commands.command(name='rarecandylevel')
+    @commands.command(name='rarecandylevel', aliases=['rcl', 'rarecandy', 'iwantlevel'])
     async def rarecandylevel(self, ctx, target_level: int, mobile_flag: str = None):
         # Check for --mobile flag
         mobile_mode = mobile_flag == '--mobile'
