@@ -72,7 +72,7 @@ class UtilityCommands(commands.Cog):
                 # Also check for "is now level" in description as backup
                 if embed.description and "is now level" in embed.description:
                     return
-                    
+
         # Handle next command in sequence
         command_data['current_index'] += 1
 
@@ -505,7 +505,7 @@ class UtilityCommands(commands.Cog):
             if level_match:
                 current_level = int(level_match.group(1))
                 candies_needed = max(0, target_level - current_level)
-                
+
                 pokemon_data.append({
                     'id': pokemon_id,
                     'current_level': current_level,
@@ -566,7 +566,7 @@ class UtilityCommands(commands.Cog):
             # Add only new entries
             added_count = 0
             existing_ids = {p['id'] for p in track_data['pokemon_data']}
-            
+
             for data_entry in new_data:
                 if data_entry['id'] not in existing_ids:
                     track_data['pokemon_data'].append(data_entry)
@@ -578,7 +578,7 @@ class UtilityCommands(commands.Cog):
                 try:
                     tracking_msg = await self.bot.get_channel(channel_id).fetch_message(
                         track_data['tracking_message_id'])
-                    
+
                     if command_type == 'rarecandylevel':
                         total_candies = sum(p['candies_needed'] for p in track_data['pokemon_data'])
                         embed = discord.Embed(
@@ -636,10 +636,10 @@ class UtilityCommands(commands.Cog):
         """Send the next command in track sequence"""
         current_data = command_data['pokemon_data'][command_data['current_index']]
         template = command_data['template']
-        
+
         # Replace placeholders
         command = template.replace('(id)', current_data['id'])
-        
+
         # For rare candy level, replace candies placeholder
         if command_data.get('command_type') == 'rarecandylevel':
             command = command.replace('(candies)', str(current_data['candies_needed']))
@@ -649,17 +649,17 @@ class UtilityCommands(commands.Cog):
         total = command_data['total_count']
         remaining = total - current
 
+        # THIS IS THE PART TO CHANGE (lines 437-440)
         embed = discord.Embed(
-            description=f"```{command}```\n{EMOJI_GREEN_DOT} **{current}/{total}** | Remaining: **{remaining}**",
+            description=f"```{command}```\nFor Mobile\n`{command}`\n{EMOJI_GREEN_DOT} **{current}/{total}** | Remaining: **{remaining}**",
             color=EMBED_COLOR
         )
-        await channel.send(embed=embed)
-
+        
     async def _finish_track_sequence(self, channel, command_data):
         """Finish track command sequence and cleanup"""
         total = command_data['total_count']
         command_type = command_data.get('command_type', 'track')
-        
+
         if command_type == 'rarecandylevel':
             total_candies = sum(p['candies_needed'] for p in command_data['pokemon_data'])
             await channel.send(f"{EMOJI_TICK} All rare candy purchases completed!\n"
@@ -667,7 +667,7 @@ class UtilityCommands(commands.Cog):
                              f"Total candies bought: {total_candies}")
         else:
             await channel.send(f"{EMOJI_TICK} All commands completed! Total: {total}")
-        
+
         del active_track_commands[channel.id]
 
     async def _track_timeout(self, channel_id: int, tracking_message: discord.Message):
