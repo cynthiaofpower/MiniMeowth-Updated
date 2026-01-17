@@ -664,7 +664,7 @@ class UtilityCommands(commands.Cog):
         # Check if mobile mode is enabled
         if command_data.get('mobile_mode', False):
             # Send only inline code without embed
-            await channel.send(f"`{command}`")
+            await channel.send(f"`{command}`\n{EMOJI_GREEN_DOT} **{current}/{total}**")
         else:
             # Calculate remaining IDs
             current = command_data['current_index'] + 1
@@ -676,7 +676,7 @@ class UtilityCommands(commands.Cog):
                 color=EMBED_COLOR
             )
             await channel.send(embed=embed)
-        
+
     async def _finish_track_sequence(self, channel, command_data):
         """Finish track command sequence and cleanup"""
         total = command_data['total_count']
