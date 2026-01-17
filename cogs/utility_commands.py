@@ -54,6 +54,9 @@ class UtilityCommands(commands.Cog):
         if message.content and "Your pokémon already knows" in message.content:
             return
 
+        if message.content and "Your pokémon has already" in message.content:
+            return
+
         if message.content and "Your pokémon has learned" in message.content:
             return
 
