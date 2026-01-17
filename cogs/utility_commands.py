@@ -651,7 +651,7 @@ class UtilityCommands(commands.Cog):
 
         # THIS IS THE PART TO CHANGE (lines 437-440)
         embed = discord.Embed(
-            description=f"`{command}`\n{EMOJI_GREEN_DOT} **{current}/{total}** | Remaining: **{remaining}**",
+            description=f"```{command}```\n{EMOJI_GREEN_DOT} **{current}/{total}** | Remaining: **{remaining}**",
             color=EMBED_COLOR
         )
         await channel.send(embed=embed)
