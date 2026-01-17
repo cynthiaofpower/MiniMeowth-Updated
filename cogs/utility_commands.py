@@ -109,6 +109,10 @@ class UtilityCommands(commands.Cog):
 
     @commands.command(name='track')
     async def track(self, ctx, *, command_template: str):
+            # Check for --mobile flag
+        mobile_mode = command_template.endswith('--mobile')
+        if mobile_mode:
+            command_template = command_template[:-8].strip()  # Remove --mobile flag
         """
         Track Pokemon IDs from an editing list and send commands when ready
         Usage: ?track <command with (id) placeholder>
@@ -168,7 +172,8 @@ class UtilityCommands(commands.Cog):
                 'current_index': 0,
                 'total_count': 0,
                 'is_plain_text': not is_poketwo_embed,
-                'command_type': 'track'
+                'command_type': 'track',
+                'mobile_mode': mobile_mode  # ADD THIS LINE
             }
 
             # Set timeout
@@ -178,7 +183,9 @@ class UtilityCommands(commands.Cog):
             await self._send_error(ctx, f"An error occurred: {str(e)}")
 
     @commands.command(name='rarecandylevel')
-    async def rarecandylevel(self, ctx, target_level: int):
+    async def rarecandylevel(self, ctx, target_level: int, mobile_flag: str = None):
+        # Check for --mobile flag
+        mobile_mode = mobile_flag == '--mobile'
         """
         Auto-buy rare candies to level Pokemon to a target level
         Usage: ?rarecandylevel <target_level>
@@ -243,7 +250,8 @@ class UtilityCommands(commands.Cog):
                 'total_count': 0,
                 'target_level': target_level,
                 'is_plain_text': False,
-                'command_type': 'rarecandylevel'
+                'command_type': 'rarecandylevel',
+                'mobile_mode': mobile_mode  # ADD THIS LINE
             }
 
             # Set timeout
@@ -644,17 +652,21 @@ class UtilityCommands(commands.Cog):
         if command_data.get('command_type') == 'rarecandylevel':
             command = command.replace('(candies)', str(current_data['candies_needed']))
 
-        # Calculate remaining IDs
-        current = command_data['current_index'] + 1
-        total = command_data['total_count']
-        remaining = total - current
+        # Check if mobile mode is enabled
+        if command_data.get('mobile_mode', False):
+            # Send only inline code without embed
+            await channel.send(f"`{command}`")
+        else:
+            # Calculate remaining IDs
+            current = command_data['current_index'] + 1
+            total = command_data['total_count']
+            remaining = total - current
 
-        # THIS IS THE PART TO CHANGE (lines 437-440)
-        embed = discord.Embed(
-            description=f"```{command}```\n{EMOJI_GREEN_DOT} **{current}/{total}** | Remaining: **{remaining}**",
-            color=EMBED_COLOR
-        )
-        await channel.send(embed=embed)
+            embed = discord.Embed(
+                description=f"```{command}```\n{EMOJI_GREEN_DOT} **{current}/{total}** | Remaining: **{remaining}**",
+                color=EMBED_COLOR
+            )
+            await channel.send(embed=embed)
         
     async def _finish_track_sequence(self, channel, command_data):
         """Finish track command sequence and cleanup"""
