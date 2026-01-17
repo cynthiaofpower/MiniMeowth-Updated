@@ -852,27 +852,43 @@ class ChainBreeding(commands.Cog):
         Find Pokemon that can learn multiple moves naturally (level-up)
         Usage: m!canlearn <move1>, <move2>, <move3>
         Example: m!canlearn play rough, zen headbutt, double edge
+        With egg group filters: m!canlearn tackle --eg field --eg amorphous
         """
+        # Parse egg group filters
+        egg_group_filters = []
+        moves_clean = moves
+
+        # Extract --eg flags
+        import re
+        eg_pattern = r'--eg\s+(\w+)'
+        eg_matches = re.findall(eg_pattern, moves, re.IGNORECASE)
+
+        if eg_matches:
+            # Normalize egg group names (capitalize first letter)
+            egg_group_filters = [eg.capitalize() for eg in eg_matches]
+            # Remove --eg flags from moves string
+            moves_clean = re.sub(eg_pattern, '', moves, flags=re.IGNORECASE).strip()
+
         # Parse moves - handle both comma and space separated
-        if ',' in moves:
-            search_moves = [m.strip() for m in moves.split(',') if m.strip()]
+        if ',' in moves_clean:
+            search_moves = [m.strip() for m in moves_clean.split(',') if m.strip()]
         else:
             # If no commas, treat as single move (allows multi-word move names)
-            search_moves = [moves.strip()]
+            search_moves = [moves_clean.strip()]
 
         if not search_moves:
             await ctx.send("❌ Please specify at least one move!", 
                           reference=ctx.message, mention_author=False)
             return
 
-        # Build comprehensive results
-        results = self.find_decremental_learners(search_moves)
+        # Build comprehensive results with egg group filtering
+        results = self.find_decremental_learners(search_moves, egg_group_filters)
 
         # Create embed for summary
-        embed = await self.create_canlearn_embed(search_moves, results)
+        embed = await self.create_canlearn_embed(search_moves, results, egg_group_filters)
 
         # Create detailed txt file
-        txt_content = self.create_canlearn_txt(search_moves, results)
+        txt_content = self.create_canlearn_txt(search_moves, results, egg_group_filters)
 
         # Save txt file in temp directory
         import tempfile
@@ -899,21 +915,56 @@ class ChainBreeding(commands.Cog):
             except:
                 pass
 
-    def find_decremental_learners(self, search_moves: List[str]) -> Dict:
+    def pokemon_has_egg_groups(self, pokemon: str, required_groups: List[str]) -> Tuple[bool, List[str]]:
+        """
+        Check if Pokemon has the required egg groups.
+        Returns: (has_all_groups, pokemon_groups)
+        """
+        breeding_species = self.get_breeding_species(pokemon)
+        pokemon_groups = self.egg_groups.get(breeding_species, [])
+
+        if not required_groups:
+            return True, pokemon_groups
+
+        # Check if Pokemon has all required egg groups
+        has_all = all(group in pokemon_groups for group in required_groups)
+        return has_all, pokemon_groups
+
+    def find_decremental_learners(self, search_moves: List[str], egg_group_filters: List[str] = None) -> Dict:
         """
         Find Pokemon that learn moves in decremental order
+        With optional egg group filtering
         Returns: {
-            'all': [(pokemon, spawn_cost, learned_moves_with_levels), ...],
+            'all': [(pokemon, spawn_cost, learned_moves_with_levels, egg_groups), ...],
+            'all_with_all_groups': [...],  # Has all required egg groups
+            'all_with_any_group': [...],   # Has at least one required egg group
             'any_3': [...],
+            'any_3_with_all_groups': [...],
+            'any_3_with_any_group': [...],
             'any_2': [...],
-            'any_1': [...]
+            'any_2_with_all_groups': [...],
+            'any_2_with_any_group': [...],
+            'any_1': [...],
+            'any_1_with_all_groups': [...],
+            'any_1_with_any_group': [...]
         }
         """
+        if egg_group_filters is None:
+            egg_group_filters = []
+
         results = {
-            'all': [],      # Learn ALL moves
-            'any_3': [],    # Learn any 3 moves
-            'any_2': [],    # Learn any 2 moves  
-            'any_1': []     # Learn any 1 move
+            'all': [],
+            'all_with_all_groups': [],
+            'all_with_any_group': [],
+            'any_3': [],
+            'any_3_with_all_groups': [],
+            'any_3_with_any_group': [],
+            'any_2': [],
+            'any_2_with_all_groups': [],
+            'any_2_with_any_group': [],
+            'any_1': [],
+            'any_1_with_all_groups': [],
+            'any_1_with_any_group': []
         }
 
         num_moves = len(search_moves)
@@ -926,7 +977,6 @@ class ChainBreeding(commands.Cog):
             for move in search_moves:
                 for move_entry in moveset.get('level_up', []):
                     if move.lower() in move_entry.lower():
-                        # Extract level info
                         learned_moves.append(move_entry)
                         break
 
@@ -935,17 +985,41 @@ class ChainBreeding(commands.Cog):
                 continue
 
             spawn_cost = self.get_spawn_cost(pokemon)
-            entry = (pokemon, spawn_cost, learned_moves)
+
+            # Get egg groups
+            has_all_groups, pokemon_groups = self.pokemon_has_egg_groups(pokemon, egg_group_filters)
+            has_any_group = any(group in pokemon_groups for group in egg_group_filters) if egg_group_filters else False
+
+            entry = (pokemon, spawn_cost, learned_moves, pokemon_groups)
 
             # Categorize by number of moves learned
             if num_learned == num_moves:
                 results['all'].append(entry)
+                if has_all_groups:
+                    results['all_with_all_groups'].append(entry)
+                elif has_any_group:
+                    results['all_with_any_group'].append(entry)
+
             elif num_learned == 3 and num_moves >= 3:
                 results['any_3'].append(entry)
+                if has_all_groups:
+                    results['any_3_with_all_groups'].append(entry)
+                elif has_any_group:
+                    results['any_3_with_any_group'].append(entry)
+
             elif num_learned == 2 and num_moves >= 2:
                 results['any_2'].append(entry)
+                if has_all_groups:
+                    results['any_2_with_all_groups'].append(entry)
+                elif has_any_group:
+                    results['any_2_with_any_group'].append(entry)
+
             elif num_learned == 1:
                 results['any_1'].append(entry)
+                if has_all_groups:
+                    results['any_1_with_all_groups'].append(entry)
+                elif has_any_group:
+                    results['any_1_with_any_group'].append(entry)
 
         # Sort each category by spawn cost (easier to obtain first)
         for key in results:
@@ -953,133 +1027,267 @@ class ChainBreeding(commands.Cog):
 
         return results
 
-    async def create_canlearn_embed(self, search_moves: List[str], results: Dict) -> discord.Embed:
+    async def create_canlearn_embed(self, search_moves: List[str], results: Dict, egg_group_filters: List[str] = None) -> discord.Embed:
         """Create summary embed for canlearn results"""
         num_moves = len(search_moves)
 
+        if egg_group_filters is None:
+            egg_group_filters = []
+
+        title = f"🎓 Pokemon That Can Learn These Moves"
+        description = f"**Searching for:** {', '.join(search_moves)}\n**Total moves:** {num_moves}"
+
+        if egg_group_filters:
+            description += f"\n**Egg Group Filters:** {', '.join(egg_group_filters)}"
+
         embed = discord.Embed(
-            title=f"🎓 Pokemon That Can Learn These Moves",
-            description=f"**Searching for:** {', '.join(search_moves)}\n**Total moves:** {num_moves}",
+            title=title,
+            description=description,
             color=config.EMBED_COLOR
         )
 
-        # Show ALL moves learners (if any)
-        if results['all']:
-            top_all = results['all'][:5]  # Show top 5
-            text = ""
-            for pokemon, spawn_cost, learned_moves in top_all:
-                spawn_display = f"1/{spawn_cost}" if spawn_cost != 9999 else "Unknown"
-                text += f"**{pokemon}** (Spawn: {spawn_display})\n"
+        # Helper function to format Pokemon entry
+        def format_entry(pokemon, spawn_cost, learned_moves, egg_groups):
+            spawn_display = f"1/{spawn_cost}" if spawn_cost != 9999 else "Unknown"
+            egg_groups_str = '/'.join(egg_groups) if egg_groups else "Unknown"
+            return f"**{pokemon}** ({egg_groups_str}) - Spawn: {spawn_display}"
 
+        # Show results with ALL required egg groups first (if filters provided)
+        if egg_group_filters:
+            if results['all_with_all_groups']:
+                top_all = results['all_with_all_groups'][:5]
+                text = ""
+                for entry in top_all:
+                    text += format_entry(*entry) + "\n"
+                if len(results['all_with_all_groups']) > 5:
+                    text += f"*...and {len(results['all_with_all_groups']) - 5} more*"
+                embed.add_field(
+                    name=f"✅ ALL {num_moves} Moves + ALL Egg Groups ({len(results['all_with_all_groups'])} found)",
+                    value=text,
+                    inline=False
+                )
+
+            # Show results with ANY required egg group
+            if results['all_with_any_group']:
+                top_all = results['all_with_any_group'][:3]
+                text = ""
+                for entry in top_all:
+                    text += format_entry(*entry) + "\n"
+                if len(results['all_with_any_group']) > 3:
+                    text += f"*...and {len(results['all_with_any_group']) - 3} more*"
+                embed.add_field(
+                    name=f"⚠️ ALL {num_moves} Moves + ANY Egg Group ({len(results['all_with_any_group'])} found)",
+                    value=text,
+                    inline=False
+                )
+
+        # Show ALL moves learners (no egg group filter or no matches with filters)
+        if results['all'] and (not egg_group_filters or (not results['all_with_all_groups'] and not results['all_with_any_group'])):
+            top_all = results['all'][:5]
+            text = ""
+            for entry in top_all:
+                text += format_entry(*entry) + "\n"
             if len(results['all']) > 5:
                 text += f"*...and {len(results['all']) - 5} more*"
 
+            title_suffix = " (No Egg Group Filter)" if egg_group_filters else ""
             embed.add_field(
-                name=f"✅ Learn ALL {num_moves} Moves ({len(results['all'])} found)",
+                name=f"✅ Learn ALL {num_moves} Moves{title_suffix} ({len(results['all'])} found)",
                 value=text,
                 inline=False
             )
-        else:
+        elif not results['all']:
             embed.add_field(
                 name=f"❌ No Pokemon Learns All {num_moves} Moves",
                 value="Showing results for fewer moves below...",
                 inline=False
             )
 
-        # Show ANY 3 learners (if searching for 4+ moves)
-        if num_moves >= 4 and results['any_3']:
-            top_3 = results['any_3'][:3]
-            text = ""
-            for pokemon, spawn_cost, learned_moves in top_3:
-                spawn_display = f"1/{spawn_cost}" if spawn_cost != 9999 else "Unknown"
-                moves_str = ", ".join([m.split(' (')[0] for m in learned_moves])
-                text += f"**{pokemon}** (Spawn: {spawn_display}): {moves_str}\n"
+        # Show ANY 3 learners with egg group filtering
+        if num_moves >= 4:
+            if egg_group_filters and results['any_3_with_all_groups']:
+                top_3 = results['any_3_with_all_groups'][:3]
+                text = ""
+                for pokemon, spawn_cost, learned_moves, egg_groups in top_3:
+                    spawn_display = f"1/{spawn_cost}" if spawn_cost != 9999 else "Unknown"
+                    egg_groups_str = '/'.join(egg_groups)
+                    moves_str = ", ".join([m.split(' (')[0] for m in learned_moves])
+                    text += f"**{pokemon}** ({egg_groups_str}): {moves_str}\n"
+                if len(results['any_3_with_all_groups']) > 3:
+                    text += f"*...and {len(results['any_3_with_all_groups']) - 3} more*"
+                embed.add_field(
+                    name=f"📊 ANY 3 Moves + ALL Egg Groups ({len(results['any_3_with_all_groups'])} found)",
+                    value=text,
+                    inline=False
+                )
+            elif results['any_3']:
+                top_3 = results['any_3'][:3]
+                text = ""
+                for entry in top_3:
+                    pokemon, spawn_cost, learned_moves, egg_groups = entry
+                    spawn_display = f"1/{spawn_cost}" if spawn_cost != 9999 else "Unknown"
+                    egg_groups_str = '/'.join(egg_groups)
+                    moves_str = ", ".join([m.split(' (')[0] for m in learned_moves])
+                    text += f"**{pokemon}** ({egg_groups_str}): {moves_str}\n"
+                if len(results['any_3']) > 3:
+                    text += f"*...and {len(results['any_3']) - 3} more*"
+                embed.add_field(
+                    name=f"⚠️ Learn ANY 3 Moves ({len(results['any_3'])} found)",
+                    value=text,
+                    inline=False
+                )
 
-            if len(results['any_3']) > 3:
-                text += f"*...and {len(results['any_3']) - 3} more*"
+        # Show ANY 2 learners with egg group filtering
+        if num_moves >= 3:
+            if egg_group_filters and results['any_2_with_all_groups']:
+                top_2 = results['any_2_with_all_groups'][:3]
+                text = ""
+                for pokemon, spawn_cost, learned_moves, egg_groups in top_2:
+                    spawn_display = f"1/{spawn_cost}" if spawn_cost != 9999 else "Unknown"
+                    egg_groups_str = '/'.join(egg_groups)
+                    moves_str = ", ".join([m.split(' (')[0] for m in learned_moves])
+                    text += f"**{pokemon}** ({egg_groups_str}): {moves_str}\n"
+                if len(results['any_2_with_all_groups']) > 3:
+                    text += f"*...and {len(results['any_2_with_all_groups']) - 3} more*"
+                embed.add_field(
+                    name=f"📊 ANY 2 Moves + ALL Egg Groups ({len(results['any_2_with_all_groups'])} found)",
+                    value=text,
+                    inline=False
+                )
+            elif results['any_2']:
+                top_2 = results['any_2'][:3]
+                text = ""
+                for entry in top_2:
+                    pokemon, spawn_cost, learned_moves, egg_groups = entry
+                    spawn_display = f"1/{spawn_cost}" if spawn_cost != 9999 else "Unknown"
+                    egg_groups_str = '/'.join(egg_groups)
+                    moves_str = ", ".join([m.split(' (')[0] for m in learned_moves])
+                    text += f"**{pokemon}** ({egg_groups_str}): {moves_str}\n"
+                if len(results['any_2']) > 3:
+                    text += f"*...and {len(results['any_2']) - 3} more*"
+                embed.add_field(
+                    name=f"📊 Learn ANY 2 Moves ({len(results['any_2'])} found)",
+                    value=text,
+                    inline=False
+                )
 
-            embed.add_field(
-                name=f"⚠️ Learn ANY 3 Moves ({len(results['any_3'])} found)",
-                value=text,
-                inline=False
-            )
-
-        # Show ANY 2 learners (if searching for 3+ moves)
-        if num_moves >= 3 and results['any_2']:
-            top_2 = results['any_2'][:3]
-            text = ""
-            for pokemon, spawn_cost, learned_moves in top_2:
-                spawn_display = f"1/{spawn_cost}" if spawn_cost != 9999 else "Unknown"
-                moves_str = ", ".join([m.split(' (')[0] for m in learned_moves])
-                text += f"**{pokemon}** (Spawn: {spawn_display}): {moves_str}\n"
-
-            if len(results['any_2']) > 3:
-                text += f"*...and {len(results['any_2']) - 3} more*"
-
-            embed.add_field(
-                name=f"📊 Learn ANY 2 Moves ({len(results['any_2'])} found)",
-                value=text,
-                inline=False
-            )
-
-        # Show individual move learners (top 3 per move)
+        # Show individual move learners note
         embed.add_field(
             name="📝 Individual Move Learners",
-            value=f"See attached file for complete list with levels",
+            value=f"See attached file for complete list with levels and egg groups",
             inline=False
         )
 
-        embed.set_footer(text="Full detailed results in attached TXT file")
+        footer_text = "Full detailed results in attached TXT file"
+        if egg_group_filters:
+            footer_text += f" | Filtering by: {', '.join(egg_group_filters)}"
+        embed.set_footer(text=footer_text)
 
         return embed
 
-    def create_canlearn_txt(self, search_moves: List[str], results: Dict) -> str:
+    def create_canlearn_txt(self, search_moves: List[str], results: Dict, egg_group_filters: List[str] = None) -> str:
         """Create detailed txt file with all results"""
+        if egg_group_filters is None:
+            egg_group_filters = []
+
         lines = []
         lines.append("=" * 80)
         lines.append("POKEMON MOVE LEARNERS - FULL RESULTS")
         lines.append("=" * 80)
         lines.append(f"\nSearching for: {', '.join(search_moves)}")
-        lines.append(f"Total moves: {len(search_moves)}\n")
+        lines.append(f"Total moves: {len(search_moves)}")
+
+        if egg_group_filters:
+            lines.append(f"Egg Group Filters: {', '.join(egg_group_filters)}")
+        lines.append("")
+
+        # Helper function to format Pokemon entry
+        def format_pokemon(pokemon, spawn_cost, learned_moves, egg_groups):
+            spawn_display = f"1/{spawn_cost}" if spawn_cost != 9999 else "Unknown"
+            egg_groups_str = '/'.join(egg_groups) if egg_groups else "Unknown"
+            lines.append(f"\n{pokemon} (Egg Groups: {egg_groups_str}) (Spawn Rate: {spawn_display})")
+            for move in learned_moves:
+                lines.append(f"  - {move}")
+
+        # Results with ALL required egg groups
+        if egg_group_filters:
+            lines.append("=" * 80)
+            lines.append(f"POKEMON WITH ALL EGG GROUPS ({', '.join(egg_group_filters)})")
+            lines.append("=" * 80)
+
+            if results['all_with_all_groups']:
+                lines.append(f"\n--- Learn ALL {len(search_moves)} Moves ---")
+                for entry in results['all_with_all_groups']:
+                    format_pokemon(*entry)
+
+            if results['any_3_with_all_groups'] and len(search_moves) >= 4:
+                lines.append(f"\n--- Learn ANY 3 Moves ---")
+                for entry in results['any_3_with_all_groups']:
+                    format_pokemon(*entry)
+
+            if results['any_2_with_all_groups'] and len(search_moves) >= 3:
+                lines.append(f"\n--- Learn ANY 2 Moves ---")
+                for entry in results['any_2_with_all_groups']:
+                    format_pokemon(*entry)
+
+            if results['any_1_with_all_groups']:
+                lines.append(f"\n--- Learn ANY 1 Move ---")
+                for entry in results['any_1_with_all_groups']:
+                    format_pokemon(*entry)
+
+            # Results with ANY required egg group
+            lines.append("\n" + "=" * 80)
+            lines.append(f"POKEMON WITH ANY EGG GROUP ({', '.join(egg_group_filters)})")
+            lines.append("=" * 80)
+
+            if results['all_with_any_group']:
+                lines.append(f"\n--- Learn ALL {len(search_moves)} Moves ---")
+                for entry in results['all_with_any_group']:
+                    format_pokemon(*entry)
+
+            if results['any_3_with_any_group'] and len(search_moves) >= 4:
+                lines.append(f"\n--- Learn ANY 3 Moves ---")
+                for entry in results['any_3_with_any_group']:
+                    format_pokemon(*entry)
+
+            if results['any_2_with_any_group'] and len(search_moves) >= 3:
+                lines.append(f"\n--- Learn ANY 2 Moves ---")
+                for entry in results['any_2_with_any_group']:
+                    format_pokemon(*entry)
+
+            if results['any_1_with_any_group']:
+                lines.append(f"\n--- Learn ANY 1 Move ---")
+                for entry in results['any_1_with_any_group']:
+                    format_pokemon(*entry)
+
+        # ALL POKEMON (no egg group filter)
+        lines.append("\n" + "=" * 80)
+        lines.append(f"ALL POKEMON (NO EGG GROUP FILTER)")
+        lines.append("=" * 80)
 
         # ALL moves section
-        lines.append("=" * 80)
-        lines.append(f"POKEMON THAT LEARN ALL {len(search_moves)} MOVES ({len(results['all'])} found)")
-        lines.append("=" * 80)
+        lines.append(f"\n--- Learn ALL {len(search_moves)} Moves ({len(results['all'])} found) ---")
         if results['all']:
-            for pokemon, spawn_cost, learned_moves in results['all']:
-                spawn_display = f"1/{spawn_cost}" if spawn_cost != 9999 else "Unknown"
-                lines.append(f"\n{pokemon} (Spawn Rate: {spawn_display})")
-                for move in learned_moves:
-                    lines.append(f"  - {move}")
+            for entry in results['all']:
+                format_pokemon(*entry)
         else:
             lines.append("\nNone found.\n")
 
-        # ANY 3 moves section (if applicable)
+        # ANY 3 moves section
         if len(search_moves) >= 4:
-            lines.append("\n" + "=" * 80)
-            lines.append(f"POKEMON THAT LEARN ANY 3 MOVES ({len(results['any_3'])} found)")
-            lines.append("=" * 80)
+            lines.append(f"\n--- Learn ANY 3 Moves ({len(results['any_3'])} found) ---")
             if results['any_3']:
-                for pokemon, spawn_cost, learned_moves in results['any_3']:
-                    spawn_display = f"1/{spawn_cost}" if spawn_cost != 9999 else "Unknown"
-                    lines.append(f"\n{pokemon} (Spawn Rate: {spawn_display})")
-                    for move in learned_moves:
-                        lines.append(f"  - {move}")
+                for entry in results['any_3']:
+                    format_pokemon(*entry)
             else:
                 lines.append("\nNone found.\n")
 
-        # ANY 2 moves section (if applicable)
+        # ANY 2 moves section
         if len(search_moves) >= 3:
-            lines.append("\n" + "=" * 80)
-            lines.append(f"POKEMON THAT LEARN ANY 2 MOVES ({len(results['any_2'])} found)")
-            lines.append("=" * 80)
+            lines.append(f"\n--- Learn ANY 2 Moves ({len(results['any_2'])} found) ---")
             if results['any_2']:
-                for pokemon, spawn_cost, learned_moves in results['any_2']:
-                    spawn_display = f"1/{spawn_cost}" if spawn_cost != 9999 else "Unknown"
-                    lines.append(f"\n{pokemon} (Spawn Rate: {spawn_display})")
-                    for move in learned_moves:
-                        lines.append(f"  - {move}")
+                for entry in results['any_2']:
+                    format_pokemon(*entry)
             else:
                 lines.append("\nNone found.\n")
 
@@ -1098,6 +1306,8 @@ class ChainBreeding(commands.Cog):
             for pokemon in self.pokemon_list:
                 if self.learns_move_naturally(pokemon, move):
                     spawn_cost = self.get_spawn_cost(pokemon)
+                    _, egg_groups = self.pokemon_has_egg_groups(pokemon, [])
+
                     # Get the exact move entry with level
                     moveset = self.movesets.get(pokemon, {})
                     move_entry = None
@@ -1105,24 +1315,51 @@ class ChainBreeding(commands.Cog):
                         if move.lower() in entry.lower():
                             move_entry = entry
                             break
-                    learners.append((pokemon, spawn_cost, move_entry))
+                    learners.append((pokemon, spawn_cost, move_entry, egg_groups))
 
             # Sort by spawn cost
             learners.sort(key=lambda x: x[1])
 
-            if learners:
-                for pokemon, spawn_cost, move_entry in learners:
-                    spawn_display = f"1/{spawn_cost}" if spawn_cost != 9999 else "Unknown"
-                    lines.append(f"  {pokemon} (Spawn: {spawn_display}) - {move_entry}")
+            # Separate by egg group filters if provided
+            if egg_group_filters:
+                with_all = [l for l in learners if all(g in l[3] for g in egg_group_filters)]
+                with_any = [l for l in learners if any(g in l[3] for g in egg_group_filters) and not all(g in l[3] for g in egg_group_filters)]
+                without = [l for l in learners if not any(g in l[3] for g in egg_group_filters)]
+
+                if with_all:
+                    lines.append(f"\n  WITH ALL EGG GROUPS ({', '.join(egg_group_filters)}):")
+                    for pokemon, spawn_cost, move_entry, egg_groups in with_all:
+                        spawn_display = f"1/{spawn_cost}" if spawn_cost != 9999 else "Unknown"
+                        egg_groups_str = '/'.join(egg_groups)
+                        lines.append(f"    {pokemon} ({egg_groups_str}) (Spawn: {spawn_display}) - {move_entry}")
+
+                if with_any:
+                    lines.append(f"\n  WITH ANY EGG GROUP ({', '.join(egg_group_filters)}):")
+                    for pokemon, spawn_cost, move_entry, egg_groups in with_any:
+                        spawn_display = f"1/{spawn_cost}" if spawn_cost != 9999 else "Unknown"
+                        egg_groups_str = '/'.join(egg_groups)
+                        lines.append(f"    {pokemon} ({egg_groups_str}) (Spawn: {spawn_display}) - {move_entry}")
+
+                if without:
+                    lines.append(f"\n  WITHOUT EGG GROUP FILTERS:")
+                    for pokemon, spawn_cost, move_entry, egg_groups in without:
+                        spawn_display = f"1/{spawn_cost}" if spawn_cost != 9999 else "Unknown"
+                        egg_groups_str = '/'.join(egg_groups)
+                        lines.append(f"    {pokemon} ({egg_groups_str}) (Spawn: {spawn_display}) - {move_entry}")
             else:
-                lines.append("  No Pokemon found")
+                if learners:
+                    for pokemon, spawn_cost, move_entry, egg_groups in learners:
+                        spawn_display = f"1/{spawn_cost}" if spawn_cost != 9999 else "Unknown"
+                        egg_groups_str = '/'.join(egg_groups) if egg_groups else "Unknown"
+                        lines.append(f"  {pokemon} ({egg_groups_str}) (Spawn: {spawn_display}) - {move_entry}")
+                else:
+                    lines.append("  No Pokemon found")
 
         lines.append("\n" + "=" * 80)
         lines.append("END OF RESULTS")
         lines.append("=" * 80)
 
         return "\n".join(lines)
-
-
+        
 async def setup(bot):
     await bot.add_cog(ChainBreeding(bot))
