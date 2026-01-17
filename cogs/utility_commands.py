@@ -663,6 +663,9 @@ class UtilityCommands(commands.Cog):
 
         # Check if mobile mode is enabled
         if command_data.get('mobile_mode', False):
+            current = command_data['current_index'] + 1
+            total = command_data['total_count']
+            
             # Send only inline code without embed
             await channel.send(f"`{command}`\n{EMOJI_GREEN_DOT} **{current}/{total}**")
         else:
