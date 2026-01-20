@@ -860,7 +860,7 @@ class ChainBreeding(commands.Cog):
 
         # Extract --eg flags
         import re
-        eg_pattern = r'--eg\s+(\w+)'
+        eg_pattern = r'--eg\s+([\w-]+)'
         eg_matches = re.findall(eg_pattern, moves, re.IGNORECASE)
 
         if eg_matches:
