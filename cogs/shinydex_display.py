@@ -95,7 +95,7 @@ class ShinyDexDisplay(commands.Cog):
 
     def parse_filters(self, filter_string: str):
         """Parse filter string to extract options
-        Returns: (show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female)
+        Returns: (show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters)
         """
         show_caught = True
         show_uncaught = True
@@ -111,9 +111,10 @@ class ShinyDexDisplay(commands.Cog):
         show_image = False
         ignore_male = False
         ignore_female = False
+        evo_filters = []  # Changed: Now a list to support multiple --evo filters
 
         if not filter_string:
-            return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female
+            return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters
 
         args = filter_string.lower().split()
 
@@ -156,6 +157,23 @@ class ShinyDexDisplay(commands.Cog):
                 i += 1
             elif arg in ['--ignorefemale', '--if']:
                 ignore_female = True
+                i += 1
+            elif arg in ['--evo', '--evolution']:
+                # Evolution family filter (can be used multiple times)
+                if i + 1 < len(args):
+                    evo_parts = []
+                    i += 1
+                    while i < len(args) and not args[i].startswith('--'):
+                        evo_parts.append(args[i])
+                        i += 1
+                    if evo_parts:
+                        evo_filters.append(' '.join(evo_parts).title())
+                else:
+                    i += 1
+            elif arg.startswith('--evo=') or arg.startswith('--evolution='):
+                evo_val = arg.split('=', 1)[1]
+                if evo_val:
+                    evo_filters.append(evo_val.title())
                 i += 1
             elif arg in ['--exclude', '--ex', '--exc']:
                 if i + 1 < len(args):
@@ -230,7 +248,7 @@ class ShinyDexDisplay(commands.Cog):
             else:
                 i += 1
 
-        return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female
+        return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters
 
     def matches_filters(self, pokemon_name: str, utils, region_filter: str, type_filters: list):
         """Check if a Pokemon matches region and type filters"""
@@ -267,6 +285,53 @@ class ShinyDexDisplay(commands.Cog):
                 return True
 
         return False
+
+    def get_evolution_family_set(self, utils, evo_filters: list):
+        """
+        Get set of Pokemon names in all specified evolution families
+        Returns set of Pokemon names, or None if any family not found
+        """
+        if not evo_filters:
+            return None
+
+        all_family_members = set()
+
+        for evo_filter in evo_filters:
+            # Resolve the input name (handles foreign language names)
+            canonical_name = utils.resolve_pokemon_name(evo_filter)
+
+            # Get the evolution family
+            family_members = utils.get_evolution_family(canonical_name)
+
+            if not family_members:
+                return None
+
+            # Add all members to the combined set
+            all_family_members.update(family_members)
+
+        return all_family_members
+
+    def get_name_and_evo_filter_set(self, utils, name_searches: list, evo_filters: list):
+        """
+        Get combined set of Pokemon from both name searches and evolution families
+        Returns set of Pokemon names that match EITHER name search OR evolution family, or None if no filters
+        """
+        combined_set = set()
+
+        # Add Pokemon from evolution families
+        if evo_filters:
+            evo_set = self.get_evolution_family_set(utils, evo_filters)
+            if evo_set is None:
+                return None  # Invalid evolution family
+            combined_set.update(evo_set)
+
+        # Add Pokemon from name searches (we'll check these during filtering)
+        # If only name searches exist, return None so we do the check later
+        if name_searches and not evo_filters:
+            return None
+
+        # If we have evo filters, return the set (name searches will be OR'd during filtering)
+        return combined_set if combined_set else None
 
     async def send_pokemon_list_simple(self, ctx, pokemon_names: list):
         """Send simple Pokemon names as --n formatted list (text or file)"""
@@ -399,7 +464,7 @@ class ShinyDexDisplay(commands.Cog):
             print(f"Error in dex image generation: {e}")
 
     @commands.hybrid_command(name='shinydex', aliases=['sd','basicdex','bd'])
-    @app_commands.describe(filters="Filters: --caught, --uncaught, --orderd, --ordera, --region, --type, --name, --exclude, --page, --list, --smartlist, --image, --ignoremale, --ignorefemale")
+    @app_commands.describe(filters="Filters: --caught, --uncaught, --orderd, --ordera, --region, --type, --name, --exclude, --evo, --page, --list, --smartlist, --image, --ignoremale, --ignorefemale")
     async def shiny_dex(self, ctx, *, filters: str = None):
         """View your basic shiny dex (one Pokemon per dex number, counts all forms)"""
         utils = self.bot.get_cog('Utils')
@@ -410,12 +475,20 @@ class ShinyDexDisplay(commands.Cog):
         user_id = ctx.author.id
 
         # Parse filters
-        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female = self.parse_filters(filters)
+        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters = self.parse_filters(filters)
 
         # Check conflicting flags
         if show_image and (show_list or show_smartlist):
             await ctx.send("❌ Cannot use --image with --list or --smartlist!", reference=ctx.message, mention_author=False)
             return
+
+        # Get evolution family if --evo is specified
+        evo_family_set = None
+        if evo_filters:
+            evo_family_set = self.get_evolution_family_set(utils, evo_filters)
+            if evo_family_set is None:
+                await ctx.send(f"❌ Evolution family not found for one of: {', '.join(evo_filters)}!", reference=ctx.message, mention_author=False)
+                return
 
         # Get user's shinies
         user_shinies = await db.get_all_shinies(user_id)
@@ -434,16 +507,28 @@ class ShinyDexDisplay(commands.Cog):
         # Build filtered list
         dex_entries = []
         for dex_num, pokemon_name in all_dex_entries:
-            # Apply exclude filter first
+            # Apply name search and evolution family filter (OR logic)
+            # If both --n and --evo are specified, Pokemon must match EITHER condition
+            if name_searches or evo_filters:
+                matches_name = False
+                matches_evo = False
+
+                # Check name search match (accent-insensitive)
+                if name_searches:
+                    normalized_pokemon = normalize_string(pokemon_name.lower())
+                    matches_name = any(normalize_string(search.lower()) in normalized_pokemon for search in name_searches)
+
+                # Check evolution family match
+                if evo_family_set:
+                    matches_evo = pokemon_name in evo_family_set
+
+                # Must match at least one condition (OR logic)
+                if not (matches_name or matches_evo):
+                    continue
+
+            # Apply exclude filter
             if self.is_excluded(pokemon_name, exclude_names):
                 continue
-
-            # Apply name search filter with accent-insensitive matching
-            if name_searches:
-                normalized_pokemon = normalize_string(pokemon_name.lower())
-                matches_any = any(normalize_string(search.lower()) in normalized_pokemon for search in name_searches)
-                if not matches_any:
-                    continue
 
             # Apply region/type filters
             if region_filter or type_filters:
@@ -483,6 +568,8 @@ class ShinyDexDisplay(commands.Cog):
                 header_info['types'] = type_filters
             if region_filter:
                 header_info['regions'] = [region_filter]
+            if evo_filters:
+                header_info['evolution'] = ', '.join(evo_filters)
 
             await self.send_dex_image(ctx, image_entries, utils, page or 1, header_info)
             return
@@ -519,8 +606,10 @@ class ShinyDexDisplay(commands.Cog):
             page_content = "\n".join(lines[i:i+per_page])
             pages.append(page_content)
 
-        # Create view with only region and type filters in display name
+        # Create view with filters in display name
         filter_text = "basic"
+        if evo_filters:
+            filter_text += f" - {', '.join(evo_filters)} families"
         if region_filter:
             filter_text += f" - {region_filter}"
         if type_filters:
@@ -541,7 +630,7 @@ class ShinyDexDisplay(commands.Cog):
         view.message = message
 
     @commands.hybrid_command(name='shinydexfull', aliases=['sdf','fulldex','fd','fullshinydex','fsd'])
-    @app_commands.describe(filters="Filters: --caught, --unc, --orderd, --ordera, --region, --type, --name, --exclude, --page, --list, --smartlist, --image, --ignoremale, --ignorefemale")
+    @app_commands.describe(filters="Filters: --caught, --unc, --orderd, --ordera, --region, --type, --name, --exclude, --evo, --page, --list, --smartlist, --image, --ignoremale, --ignorefemale")
     async def shiny_dex_full(self, ctx, *, filters: str = None):
         """View your full shiny dex (all forms, includes gender differences)"""
         utils = self.bot.get_cog('Utils')
@@ -552,12 +641,20 @@ class ShinyDexDisplay(commands.Cog):
         user_id = ctx.author.id
 
         # Parse filters
-        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female = self.parse_filters(filters)
+        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters = self.parse_filters(filters)
 
         # Check conflicting flags
         if show_image and (show_list or show_smartlist):
             await ctx.send("❌ Cannot use --image with --list or --smartlist!", reference=ctx.message, mention_author=False)
             return
+
+        # Get evolution family if --evo is specified
+        evo_family_set = None
+        if evo_filters:
+            evo_family_set = self.get_evolution_family_set(utils, evo_filters)
+            if evo_family_set is None:
+                await ctx.send(f"❌ Evolution family not found for one of: {', '.join(evo_filters)}!", reference=ctx.message, mention_author=False)
+                return
 
         # Get user's shinies
         user_shinies = await db.get_all_shinies(user_id)
@@ -586,16 +683,28 @@ class ShinyDexDisplay(commands.Cog):
         # Build filtered list
         form_entries = []
         for dex_num, pokemon_name, has_gender_diff in all_forms:
-            # Apply exclude filter first
+            # Apply name search and evolution family filter (OR logic)
+            # If both --n and --evo are specified, Pokemon must match EITHER condition
+            if name_searches or evo_filters:
+                matches_name = False
+                matches_evo = False
+
+                # Check name search match (accent-insensitive)
+                if name_searches:
+                    normalized_pokemon = normalize_string(pokemon_name.lower())
+                    matches_name = any(normalize_string(search.lower()) in normalized_pokemon for search in name_searches)
+
+                # Check evolution family match
+                if evo_family_set:
+                    matches_evo = pokemon_name in evo_family_set
+
+                # Must match at least one condition (OR logic)
+                if not (matches_name or matches_evo):
+                    continue
+
+            # Apply exclude filter
             if self.is_excluded(pokemon_name, exclude_names):
                 continue
-
-            # Apply name search filter with accent-insensitive matching
-            if name_searches:
-                normalized_pokemon = normalize_string(pokemon_name.lower())
-                matches_any = any(normalize_string(search.lower()) in normalized_pokemon for search in name_searches)
-                if not matches_any:
-                    continue
 
             # Apply region/type filters
             if region_filter or type_filters:
@@ -652,6 +761,8 @@ class ShinyDexDisplay(commands.Cog):
                 header_info['types'] = type_filters
             if region_filter:
                 header_info['regions'] = [region_filter]
+            if evo_filters:
+                header_info['evolution'] = ', '.join(evo_filters)
 
             await self.send_dex_image(ctx, filtered_entries, utils, page or 1, header_info)
             return
@@ -702,8 +813,10 @@ class ShinyDexDisplay(commands.Cog):
             page_content = "\n".join(lines[i:i+per_page])
             pages.append(page_content)
 
-        # Create view with only region and type filters in display name
+        # Create view with filters in display name
         filter_text = "full"
+        if evo_filters:
+            filter_text += f" - {', '.join(evo_filters)} families"
         if region_filter:
             filter_text += f" - {region_filter}"
         if type_filters:
@@ -726,7 +839,7 @@ class ShinyDexDisplay(commands.Cog):
     @commands.hybrid_command(name='filter', aliases=['f'])
     @app_commands.describe(
         filter_name="Filter name (e.g., eevos, starters, legendaries)",
-        options="Options: --caught, --uncaught, --orderd, --ordera, --region, --type, --exclude, --nogender, --page, --list, --smartlist, --image, --ignoremale, --ignorefemale"
+        options="Options: --caught, --uncaught, --orderd, --ordera, --region, --type, --exclude, --evo, --nogender, --page, --list, --smartlist, --image, --ignoremale, --ignorefemale"
     )
     async def filter_dex(self, ctx, filter_name: str = None, *, options: str = None):
         """View your shiny dex with custom filters"""
@@ -761,20 +874,32 @@ class ShinyDexDisplay(commands.Cog):
         user_id = ctx.author.id
 
         # Parse options
-        show_caught, show_uncaught, order, region_filter, type_filters, _, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female = self.parse_filters(options)
+        show_caught, show_uncaught, order, region_filter, type_filters, _, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters = self.parse_filters(options)
 
         # Check conflicting flags
         if show_image and (show_list or show_smartlist):
             await ctx.send("❌ Cannot use --image with --list or --smartlist!", reference=ctx.message, mention_author=False)
             return
 
+        # Get evolution family if --evo is specified
+        evo_family_set = None
+        if evo_filters:
+            evo_family_set = self.get_evolution_family_set(utils, evo_filters)
+            if evo_family_set is None:
+                await ctx.send(f"❌ Evolution family not found for one of: {', '.join(evo_filters)}!", reference=ctx.message, mention_author=False)
+                return
+
         # Get user's shinies
         user_shinies = await db.get_all_shinies(user_id)
 
-        # Get filter Pokemon set and apply region/type/exclude filters
+        # Get filter Pokemon set and apply region/type/exclude/evo filters
         filter_pokemon_set = set()
         for pokemon_name in filter_data['pokemon']:
-            # Apply exclude filter first
+            # Apply evolution family filter (if specified, only include Pokemon in the family)
+            if evo_family_set and pokemon_name not in evo_family_set:
+                continue
+
+            # Apply exclude filter
             if self.is_excluded(pokemon_name, exclude_names):
                 continue
 
@@ -786,7 +911,7 @@ class ShinyDexDisplay(commands.Cog):
 
         # If no Pokemon match the filters, return early
         if not filter_pokemon_set:
-            await ctx.send("❌ No Pokémon in this filter match your region/type filters!", reference=ctx.message, mention_author=False)
+            await ctx.send("❌ No Pokémon in this filter match your filters!", reference=ctx.message, mention_author=False)
             return
 
         # Build counts
@@ -877,6 +1002,8 @@ class ShinyDexDisplay(commands.Cog):
                 header_info['types'] = type_filters
             if region_filter:
                 header_info['regions'] = [region_filter]
+            if evo_filters:
+                header_info['evolution'] = ', '.join(evo_filters)
 
             await self.send_dex_image(ctx, filtered_entries, utils, page or 1, header_info)
             return
@@ -928,6 +1055,8 @@ class ShinyDexDisplay(commands.Cog):
 
         # Create view with filters in display name
         filter_display_name = filter_data['name']
+        if evo_filters:
+            filter_display_name += f" - {', '.join(evo_filters)} families"
         if region_filter:
             filter_display_name += f" - {region_filter}"
         if type_filters:
