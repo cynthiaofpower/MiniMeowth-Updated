@@ -2,8 +2,14 @@ import discord
 from discord.ext import commands
 import re
 import csv
+import json
 import config
 import os
+import unicodedata
+
+def normalize_string(s):
+    """Remove accents from string for comparison"""
+    return ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
 
 class Utils(commands.Cog):
     """Utility functions for Pokemon parsing, breeding compatibility, and Shiny Dex"""
@@ -38,7 +44,10 @@ class Utils(commands.Cog):
         self.pokemon_info = Utils._shared_data['pokemon_info']
         self.event_data = Utils._shared_data['event_data']
         self.event_pokemon_list = Utils._shared_data['event_pokemon_list']
-        self.pokemon_cdn_mapping = Utils._shared_data['pokemon_cdn_mapping']  # ADD THIS LINE
+        self.pokemon_cdn_mapping = Utils._shared_data['pokemon_cdn_mapping']
+        self.pokemon_name_mapping = Utils._shared_data['pokemon_name_mapping']
+        self.evolution_families = Utils._shared_data['evolution_families']
+        self.name_to_family_id = Utils._shared_data['name_to_family_id']
 
         # Precompile regex patterns (instance-specific is fine)
         self.id_pattern = re.compile(r'`(\s*\d+\s*)`')
@@ -59,7 +68,10 @@ class Utils(commands.Cog):
             'pokemon_info': {},
             'event_data': {},
             'event_pokemon_list': [],
-            'pokemon_cdn_mapping': {}  # ADD THIS LINE
+            'pokemon_cdn_mapping': {},
+            'pokemon_name_mapping': {},  # Maps all possible names (normalized) to canonical name
+            'evolution_families': {},  # Maps pokemon name to list of family members
+            'name_to_family_id': {}  # Maps pokemon name to family ID
         }
 
     def _load_all_data(self):
@@ -69,7 +81,9 @@ class Utils(commands.Cog):
         self.load_gender_only_species()
         self.load_pokemon_data()
         self.load_event_pokemon()
-        self.load_pokemon_cdn_mapping()  # ADD THIS LINE
+        self.load_pokemon_cdn_mapping()
+        self.load_pokemon_name_mapping()
+        self.load_evolution_families()
 
     def load_dex_numbers(self):
         """Load both dex_number.csv (breeding) and dex_number_updated.csv (shiny dex)"""
@@ -260,6 +274,83 @@ class Utils(commands.Cog):
         except Exception as e:
             print(f"❌ Error loading Pokemon CDN mapping: {e}")
 
+    def load_pokemon_name_mapping(self):
+        """Load Pokemon name mappings from JSON file (multi-language support)"""
+        pokemon_name_mapping = Utils._shared_data['pokemon_name_mapping']
+        mapping_file = 'alldata/pokemon_names.json'
+
+        if not os.path.exists(mapping_file):
+            print(f"⚠️ Warning: Pokemon name mapping file not found at {mapping_file}")
+            return
+
+        try:
+            with open(mapping_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            name_count = 0
+            for pokemon in data:
+                canonical_name = pokemon['name']
+                other_names = pokemon.get('other_names', {})
+
+                # Add canonical name (normalized)
+                normalized_canonical = normalize_string(canonical_name.lower())
+                pokemon_name_mapping[normalized_canonical] = canonical_name
+                name_count += 1
+
+                # Add all other language names
+                for lang, names in other_names.items():
+                    if isinstance(names, list):
+                        # Japanese has both kana and romaji
+                        for name in names:
+                            if name:
+                                normalized_name = normalize_string(name.lower())
+                                pokemon_name_mapping[normalized_name] = canonical_name
+                                name_count += 1
+                    elif isinstance(names, str) and names:
+                        # Other languages are single strings
+                        normalized_name = normalize_string(names.lower())
+                        pokemon_name_mapping[normalized_name] = canonical_name
+                        name_count += 1
+
+            print(f"✅ Loaded {name_count} Pokemon name mappings ({len(data)} Pokemon)")
+        except Exception as e:
+            print(f"❌ Error loading Pokemon name mapping: {e}")
+
+    def load_evolution_families(self):
+        """Load evolution families from CSV file"""
+        evolution_families = Utils._shared_data['evolution_families']
+        name_to_family_id = Utils._shared_data['name_to_family_id']
+        families_file = 'alldata/evolution.csv'
+
+        if not os.path.exists(families_file):
+            print(f"⚠️ Warning: Evolution families file not found at {families_file}")
+            return
+
+        try:
+            with open(families_file, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    family_id = row['Family ID']
+
+                    # Collect all Pokemon in this family
+                    family_members = []
+                    for i in range(1, 31):  # Pokemon 1 through Pokemon 30
+                        col_name = f'Pokemon {i}'
+                        if col_name in row and row[col_name]:
+                            pokemon_name = row[col_name].strip()
+                            if pokemon_name:
+                                family_members.append(pokemon_name)
+
+                    # Map each Pokemon to its family members
+                    if family_members:
+                        for pokemon in family_members:
+                            evolution_families[pokemon] = family_members
+                            name_to_family_id[pokemon] = family_id
+
+            print(f"✅ Loaded {len(name_to_family_id)} Pokemon evolution families")
+        except Exception as e:
+            print(f"❌ Error loading evolution families: {e}")
+
     def get_cdn_number(self, pokemon_name: str) -> int:
         """Get CDN number for a Pokemon name"""
         pokemon_cdn_mapping = Utils._shared_data['pokemon_cdn_mapping']
@@ -272,6 +363,25 @@ class Utils(commands.Cog):
             return 0
 
         return cdn_number
+
+    def resolve_pokemon_name(self, input_name: str) -> str:
+        """
+        Resolve any Pokemon name (including foreign language names) to canonical English name
+        Returns the canonical name or the input name if not found (accent-insensitive)
+        """
+        normalized_input = normalize_string(input_name.lower())
+        return self.pokemon_name_mapping.get(normalized_input, input_name)
+
+    def get_evolution_family(self, pokemon_name: str):
+        """
+        Get all Pokemon in the same evolution family
+        Returns list of Pokemon names in the family, or None if not found
+        """
+        # First resolve the name to canonical form
+        canonical_name = self.resolve_pokemon_name(pokemon_name)
+
+        # Look up the family
+        return self.evolution_families.get(canonical_name)
 
     # ===== SHARED METHODS =====
 
