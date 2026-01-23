@@ -327,6 +327,9 @@ class Utils(commands.Cog):
             return
 
         try:
+            # First pass: collect all families
+            all_families = {}
+
             with open(families_file, 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
@@ -341,11 +344,31 @@ class Utils(commands.Cog):
                             if pokemon_name:
                                 family_members.append(pokemon_name)
 
-                    # Map each Pokemon to its family members
                     if family_members:
-                        for pokemon in family_members:
-                            evolution_families[pokemon] = family_members
-                            name_to_family_id[pokemon] = family_id
+                        all_families[family_id] = family_members
+
+            # Second pass: for each Pokemon, find the smallest family it belongs to
+            pokemon_to_families = {}  # Track which families each Pokemon appears in
+
+            for family_id, members in all_families.items():
+                for pokemon in members:
+                    if pokemon not in pokemon_to_families:
+                        pokemon_to_families[pokemon] = []
+                    pokemon_to_families[pokemon].append((family_id, members))
+
+            # Third pass: assign each Pokemon to its smallest family
+            for pokemon, families_list in pokemon_to_families.items():
+                if len(families_list) == 1:
+                    # Pokemon in only one family
+                    family_id, members = families_list[0]
+                    evolution_families[pokemon] = members
+                    name_to_family_id[pokemon] = family_id
+                else:
+                    # Pokemon in multiple families - pick the smallest one
+                    smallest_family = min(families_list, key=lambda x: len(x[1]))
+                    family_id, members = smallest_family
+                    evolution_families[pokemon] = members
+                    name_to_family_id[pokemon] = family_id
 
             print(f"✅ Loaded {len(name_to_family_id)} Pokemon evolution families")
         except Exception as e:
