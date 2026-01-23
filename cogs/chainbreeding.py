@@ -57,31 +57,6 @@ class ChainBreeding(commands.Cog):
         self.learns_naturally = defaultdict(set)  # {move_name: {pokemon1, pokemon2, ...}}
         self.learns_breeding = defaultdict(set)  # {move_name: {pokemon1, pokemon2, ...}}
 
-        # Baby Pokemon -> Evolution mapping
-        # Baby Pokemon have "Undiscovered" egg group but you breed their evolution
-        self.baby_to_evolution = {
-            'Pichu': 'Pikachu',
-            'Cleffa': 'Clefairy',
-            'Igglybuff': 'Jigglypuff',
-            'Togepi': 'Togetic',
-            'Tyrogue': 'Hitmonchan',  # Or Hitmonlee/Hitmontop, but same egg group
-            'Smoochum': 'Jynx',
-            'Elekid': 'Electabuzz',
-            'Magby': 'Magmar',
-            'Azurill': 'Marill',
-            'Wynaut': 'Wobbuffet',
-            'Budew': 'Roselia',
-            'Chingling': 'Chimecho',
-            'Bonsly': 'Sudowoodo',
-            'Mime Jr.': 'Mr. Mime',
-            'Happiny': 'Chansey',
-            'Munchlax': 'Snorlax',
-            'Riolu': 'Lucario',
-            'Mantyke': 'Mantine',
-            'Toxel': 'Toxtricity',
-            'Amped Toxtricity': 'Toxtricity',  # In case it's stored this way
-        }
-
         self.load_data()
 
     def load_data(self):
@@ -155,27 +130,11 @@ class ChainBreeding(commands.Cog):
         """Get spawn rate cost (lower is easier to obtain)"""
         return self.spawn_rates.get(pokemon_name, 9999)
 
-    def get_breeding_species(self, pokemon: str) -> str:
-        """
-        Get the species to use for breeding calculations.
-        For baby Pokemon, returns their evolution.
-        For regular Pokemon, returns themselves.
-        """
-        return self.baby_to_evolution.get(pokemon, pokemon)
-
-    def is_baby_pokemon(self, pokemon: str) -> bool:
-        """Check if a Pokemon is a baby Pokemon"""
-        return pokemon in self.baby_to_evolution
-
     def can_breed(self, parent1: str, parent2: str) -> bool:
         """Check if two Pokemon can breed"""
-        # For baby Pokemon, use their evolution's egg groups
-        breeding_parent1 = self.get_breeding_species(parent1)
-        breeding_parent2 = self.get_breeding_species(parent2)
-
         # Get egg groups
-        groups1 = self.egg_groups.get(breeding_parent1, ['Undiscovered'])
-        groups2 = self.egg_groups.get(breeding_parent2, ['Undiscovered'])
+        groups1 = self.egg_groups.get(parent1, ['Undiscovered'])
+        groups2 = self.egg_groups.get(parent2, ['Undiscovered'])
 
         # Can't breed Undiscovered
         if 'Undiscovered' in groups1 or 'Undiscovered' in groups2:
@@ -430,8 +389,6 @@ class ChainBreeding(commands.Cog):
         4. Once offspring has a move, breeding it again (as female) passes moves to next offspring
 
         OPTIMIZATION: Prioritize males that can teach multiple moves at once!
-
-        BABY POKEMON: For baby Pokemon, we breed their evolution (e.g., breed Pikachu to get Pichu)
         """
         # Normalize inputs
         target_species = target_species.strip()
@@ -441,15 +398,11 @@ class ChainBreeding(commands.Cog):
         if target_species not in self.movesets:
             return None
 
-        # For baby Pokemon, we need to breed the evolution
-        is_baby = self.is_baby_pokemon(target_species)
-        breeding_species = self.get_breeding_species(target_species)
-
-        # Check if breeding species can be female parent
-        if not self.can_be_female_parent(breeding_species):
+        # Check if target species can be female parent
+        if not self.can_be_female_parent(target_species):
             return None
 
-        # Validate all moves are egg moves for target (check target, not breeding species)
+        # Validate all moves are egg moves for target
         target_breeding_moves = self.movesets[target_species].get('breeding', [])
         target_breeding_moves_lower = [m.lower() for m in target_breeding_moves]
 
@@ -457,13 +410,13 @@ class ChainBreeding(commands.Cog):
             if move.lower() not in target_breeding_moves_lower:
                 return None  # Not an egg move
 
-        # OPTIMIZATION: Find all males that can breed with breeding_species and which moves they know
+        # OPTIMIZATION: Find all males that can breed with target_species and which moves they know
         males_with_moves = {}  # {male_name: [moves_it_can_teach]}
 
         for male_candidate in self.pokemon_list:
             if not self.can_be_male_parent(male_candidate):
                 continue
-            if not self.can_breed(male_candidate, breeding_species):
+            if not self.can_breed(male_candidate, target_species):
                 continue
 
             moves_known = []
@@ -487,9 +440,9 @@ class ChainBreeding(commands.Cog):
             cost = self.get_spawn_cost(male_name)
             chain.add_step(
                 male=male_name,
-                female=breeding_species,
+                female=target_species,
                 moves=target_moves,
-                offspring=target_species,  # Baby hatches from egg
+                offspring=target_species,
                 cost=cost
             )
             return chain
@@ -532,7 +485,7 @@ class ChainBreeding(commands.Cog):
                 # No direct male found for any remaining moves - try intermediate breeding
                 # Pick one move to try
                 move_to_try = list(remaining_moves)[0]
-                bridge_result = self.find_intermediate_bridge(breeding_species, move_to_try, max_depth=5)
+                bridge_result = self.find_intermediate_bridge(target_species, move_to_try, max_depth=5)
 
                 if bridge_result:
                     breeding_steps.append({
@@ -547,13 +500,12 @@ class ChainBreeding(commands.Cog):
 
         # Build the final chain from breeding steps
         chain = BreedingChain()
-        current_female = breeding_species
+        current_female = target_species
 
         for i, step_data in enumerate(breeding_steps):
             if step_data['type'] == 'direct':
                 # Direct breeding step
-                # For baby Pokemon: all breeding uses the evolution, but offspring is the baby
-                offspring = target_species if (i == len(breeding_steps) - 1) else breeding_species
+                offspring = target_species
 
                 chain.add_step(
                     male=step_data['male'],
@@ -563,9 +515,9 @@ class ChainBreeding(commands.Cog):
                     cost=step_data['cost']
                 )
 
-                # Next step uses the offspring (which is the baby's evolution for intermediate steps)
+                # Next step uses the offspring
                 if i < len(breeding_steps) - 1:
-                    current_female = f"{breeding_species} (from Step {len(chain.steps)})"
+                    current_female = f"{target_species} (from Step {len(chain.steps)})"
 
             else:  # bridge - intermediate breeding
                 bridge_steps = step_data['bridge_data']['steps']
@@ -608,7 +560,7 @@ class ChainBreeding(commands.Cog):
 
                 # Update current female
                 if i < len(breeding_steps) - 1:
-                    current_female = f"{breeding_species} (from Step {len(chain.steps)})"
+                    current_female = f"{target_species} (from Step {len(chain.steps)})"
 
         return chain
 
@@ -641,27 +593,15 @@ class ChainBreeding(commands.Cog):
             male_pokemon = extract_pokemon_name(male)
             female_pokemon = extract_pokemon_name(female)
 
-            # Get egg groups (use evolution for baby Pokemon)
-            male_breeding = self.get_breeding_species(male_pokemon)
-            female_breeding = self.get_breeding_species(female_pokemon)
-            offspring_breeding = self.get_breeding_species(offspring)
-
-            male_groups = self.egg_groups.get(male_breeding, ['Unknown'])
-            female_groups = self.egg_groups.get(female_breeding, ['Unknown'])
-            offspring_groups = self.egg_groups.get(offspring_breeding, ['Unknown'])
+            # Get egg groups
+            male_groups = self.egg_groups.get(male_pokemon, ['Unknown'])
+            female_groups = self.egg_groups.get(female_pokemon, ['Unknown'])
+            offspring_groups = self.egg_groups.get(offspring, ['Unknown'])
 
             # Format egg groups compactly
             male_groups_str = '/'.join(male_groups)
             female_groups_str = '/'.join(female_groups)
             offspring_groups_str = '/'.join(offspring_groups)
-
-            # Add note if using evolution's egg groups
-            if self.is_baby_pokemon(male_pokemon):
-                male_groups_str += f" (via {male_breeding})"
-            if self.is_baby_pokemon(female_pokemon):
-                female_groups_str += f" (via {female_breeding})"
-            if self.is_baby_pokemon(offspring):
-                offspring_groups_str += f" (via {offspring_breeding})"
 
             # Get spawn rates
             male_spawn = "Offspring" if "(from Step" in male else self.spawn_rates.get(male_pokemon, "Unknown")
@@ -829,9 +769,6 @@ class ChainBreeding(commands.Cog):
             error_msg += "• Use pre-evolution forms, not final evolutions\n"
             error_msg += "  ❌ m!iwant dragapult sucker punch\n"
             error_msg += "  ✅ m!iwant dreepy sucker punch\n\n"
-            error_msg += "• If it's a baby Pokemon, try its evolution instead\n"
-            error_msg += "  ❌ m!iwant pichu tickle\n"
-            error_msg += "  ✅ m!iwant pikachu tickle\n\n"
             error_msg += "• Use quotes for Pokemon with multi-word names\n"
             error_msg += "  ❌ m!iwant iron boulder tackle\n"
             error_msg += '  ✅ m!iwant "iron boulder" tackle\n'
@@ -920,8 +857,7 @@ class ChainBreeding(commands.Cog):
         Check if Pokemon has the required egg groups.
         Returns: (has_all_groups, pokemon_groups)
         """
-        breeding_species = self.get_breeding_species(pokemon)
-        pokemon_groups = self.egg_groups.get(breeding_species, [])
+        pokemon_groups = self.egg_groups.get(pokemon, [])
 
         if not required_groups:
             return True, pokemon_groups
@@ -1360,6 +1296,6 @@ class ChainBreeding(commands.Cog):
         lines.append("=" * 80)
 
         return "\n".join(lines)
-        
+
 async def setup(bot):
     await bot.add_cog(ChainBreeding(bot))
