@@ -184,7 +184,7 @@ class DexCustomization(commands.Cog):
                 name="📐 Grid Layout",
                 value="`m!dc grid 5x4`\n"
                       "Set columns x rows (e.g., 5x4, 6x3)\n"
-                      "Max: 6x5 (30 Pokémon per page)",
+                      "Max: 10x10 (100 Pokémon per page)",
                 inline=False
             )
 
@@ -252,8 +252,8 @@ class DexCustomization(commands.Cog):
                 cols = int(parts[0].strip())
                 rows = int(parts[1].strip())
 
-                if cols < 1 or cols > 6 or rows < 1 or rows > 5:
-                    await ctx.send("❌ Grid must be between 1x1 and 6x5!", 
+                if cols < 1 or cols > 10 or rows < 1 or rows > 10:
+                    await ctx.send("❌ Grid must be between 1x1 and 10x10!", 
                                  reference=ctx.message, mention_author=False)
                     return
 
