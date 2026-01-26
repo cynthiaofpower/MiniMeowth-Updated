@@ -740,6 +740,7 @@ class Help(commands.Cog):
                 {
                     'name': 'Pokemon Filters',
                     'value': '`--n <name>` - Search by name\n'
+                           '`--evo <name>` - Filter by evo with alt name support.)\n'
                            '`--type <type>` - Filter by type (max 2)\n'
                            '`--region <region>` - Filter by region\n'
                            '`--g <gender>` - Filter by gender',
