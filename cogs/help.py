@@ -374,6 +374,9 @@ class Help(commands.Cog):
                             'settings mode selective',
                             'settings target pikachu, eevee',
                             'settings setmale dreepy, drakloak',
+                            'settings target tripmax',
+                            'settings target  tripzero',
+                            'settings target all',
                             'settings mychoice_inv normal,duel',
                             'settings info compact'
                         ]
