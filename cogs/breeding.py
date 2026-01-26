@@ -102,7 +102,7 @@ class Breeding(commands.Cog):
             )
 
         if not pairs:
-            await ctx.send("❌ No compatible breeding pairs found with current settings.\n > Check Your Current Mode using m!settings, if it is selective then set it to notselective using m!settings mode notselective. \n > Set target to mychoice if you are breeding for egg moves using m!settings target mychocice after settings male and female. > use m!help settings to know more.")
+            await ctx.send("❌ No compatible breeding pairs found with current settings.\n > Check Your Current Mode using `m!settings`, if it is selective then set it to notselective using m!settings mode notselective. \n > Set target to mychoice if you are breeding for egg moves using `m!settings target mychocice` after settings male and female. > use `m!help settings` to know more.")
             return
 
         # Collect IDs to add to cooldown
