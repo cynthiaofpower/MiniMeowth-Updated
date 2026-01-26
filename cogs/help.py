@@ -381,28 +381,28 @@ class Help(commands.Cog):
                     {
                         'name': 'settings target [value] ',
                         'aliases': [],
-                        'usage': 'm!settings target gigantamax, m!settings target regionals, m!settings target pikachu, eevee',
-                        'description': 'Set the targeted pokemons you want to create pair of. You can specify gigantamax as target to get pair for all gigantamax pokemons in your inventory. \n Bot tries to save male gigantamax. \n `n!settings target regionals` ame thing for regionals.\n n!settings target `pokemon names separated by comma`',
+                        'usage': 'settings target gigantamax, m!settings target regionals, m!settings target pikachu, eevee',
+                        'description': 'Set the targeted pokemons you want to create pair of. You can specify gigantamax as target to get pair for all gigantamax pokemons in your inventory.Bot tries to save male gigantamax and male regionals later to be paired with ditto.`n!settings target regionals` same thing for regionals.n!settings target `pokemon names separated by comma` to get pairs for those pokemons only, basically you are setting female and male will be automatically choosen by bot',
                         'filters': None
                     },
                     {
                         'name': 'settings setmale/setfemale [pokemon names]',
                         'aliases': [],
-                        'usage': 'm!settings setmale pikachu, eevee or m!settings setfemale ditto',
+                        'usage': 'settings setmale pikachu, eevee or m!settings setfemale ditto',
                         'description': 'Set the male and female and then set target to mychoice to get pair for your males and females',
                         'filters': None
                     },
                     {
                         'name': 'settings info [simple, detailed, compact, off]',
                         'aliases': [],
-                        'usage': 'm!settings info detailed or m!settings info off',
+                        'usage': 'settings info detailed or m!settings info off',
                         'description': 'customize how you want your created pairs to be shown',
                         'filters': None
                     },
                     {
                         'name': 'settings target mychoice',
                         'aliases': [],
-                        'usage': 'm!settings target mychoice',
+                        'usage': 'settings target mychoice',
                         'description': 'Use target as mychoice after you set the males and females you specifically want to breed. You get to choose which inventory to pick males and females from.\n use `m!settings mychoice_inv normal,duel` to set one more more inventories. ',
                         'filters': None
                     },
