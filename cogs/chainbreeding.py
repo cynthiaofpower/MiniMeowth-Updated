@@ -683,7 +683,11 @@ class ChainBreeding(commands.Cog):
                                 "Example: `m!iwant \"ralts\" shadow sneak, mystical fire`"
                     ),
                 )
-            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
+            await ctx.send(
+                view=ErrorView(), 
+                reference=ctx.message, 
+                allowed_mentions=discord.AllowedMentions(replied_user=False)
+            )
             return
 
         # If moves is None, check if pokemon contains the full command
@@ -709,7 +713,11 @@ class ChainBreeding(commands.Cog):
                                         "Example: `m!iwant \"ralts\" shadow sneak, mystical fire`"
                             ),
                         )
-                    await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
+                    await ctx.send(
+                        view=ErrorView(), 
+                        reference=ctx.message, 
+                        allowed_mentions=discord.AllowedMentions(replied_user=False)
+                    )
                     return
 
         # Clean up pokemon name (remove quotes if still present)
@@ -724,7 +732,11 @@ class ChainBreeding(commands.Cog):
                                 "Example: `m!iwant \"ralts\" shadow sneak, mystical fire`"
                     ),
                 )
-            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
+            await ctx.send(
+                view=ErrorView(), 
+                reference=ctx.message, 
+                allowed_mentions=discord.AllowedMentions(replied_user=False)
+            )
             return
 
         # Split moves
@@ -738,7 +750,11 @@ class ChainBreeding(commands.Cog):
                                 "Example: `m!iwant \"ralts\" shadow sneak, mystical fire`"
                     ),
                 )
-            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
+            await ctx.send(
+                view=ErrorView(), 
+                reference=ctx.message, 
+                allowed_mentions=discord.AllowedMentions(replied_user=False)
+            )
             return
 
         # Find in movesets (case-insensitive, exact match)
@@ -755,7 +771,11 @@ class ChainBreeding(commands.Cog):
                 container1 = discord.ui.Container(
                     discord.ui.TextDisplay(content=f"❌ Pokemon `{pokemon}` not found in database!"),
                 )
-            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
+            await ctx.send(
+                view=ErrorView(), 
+                reference=ctx.message, 
+                allowed_mentions=discord.AllowedMentions(replied_user=False)
+            )
             return
 
         # Validate moves
@@ -777,7 +797,11 @@ class ChainBreeding(commands.Cog):
                 container1 = discord.ui.Container(
                     discord.ui.TextDisplay(content=error_msg),
                 )
-            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
+            await ctx.send(
+                view=ErrorView(), 
+                reference=ctx.message, 
+                allowed_mentions=discord.AllowedMentions(replied_user=False)
+            )
             return
 
         if not valid_moves:
@@ -785,10 +809,14 @@ class ChainBreeding(commands.Cog):
                 container1 = discord.ui.Container(
                     discord.ui.TextDisplay(content="❌ No valid egg moves specified!"),
                 )
-            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
+            await ctx.send(
+                view=ErrorView(), 
+                reference=ctx.message, 
+                allowed_mentions=discord.AllowedMentions(replied_user=False)
+            )
             return
 
-        # Send "searching" message
+        # Send "searching" message WITHOUT reference
         class SearchView(discord.ui.LayoutView):
             container1 = discord.ui.Container(
                 discord.ui.TextDisplay(
@@ -796,7 +824,7 @@ class ChainBreeding(commands.Cog):
                 ),
             )
 
-        search_msg = await ctx.send(view=SearchView(), reference=ctx.message, mention_author=False)
+        search_msg = await ctx.send(view=SearchView())
 
         # Find breeding chain
         chain = self.find_breeding_chain(target_species, valid_moves)
@@ -820,13 +848,29 @@ class ChainBreeding(commands.Cog):
                     discord.ui.TextDisplay(content=error_msg),
                 )
 
-            await search_msg.edit(view=ErrorView())
+            # Delete the searching message
+            await search_msg.delete()
+
+            # Send error as NEW message with reference and no ping
+            await ctx.send(
+                view=ErrorView(), 
+                reference=ctx.message, 
+                allowed_mentions=discord.AllowedMentions(replied_user=False)
+            )
             return
 
         # Create result view
         view = self.create_chain_view(target_species, valid_moves, chain)
 
-        await search_msg.edit(view=view)
+        # Delete the searching message
+        await search_msg.delete()
+
+        # Send result as NEW message with reference and no ping
+        await ctx.send(
+            view=view, 
+            reference=ctx.message, 
+            allowed_mentions=discord.AllowedMentions(replied_user=False)
+        )
 
     @commands.hybrid_command(name='canlearn', aliases=['wholearns', 'wl'])
     @app_commands.describe(moves="Comma-separated list of moves to search for")
