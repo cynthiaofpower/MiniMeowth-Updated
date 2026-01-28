@@ -4,102 +4,6 @@ from discord import app_commands
 import config
 from database import db
 
-class MoreInfoView(discord.ui.View):
-    """Button view for showing detailed settings info"""
-    def __init__(self):
-        super().__init__(timeout=300)  # 5 minute timeout
-
-    @discord.ui.button(label="More Info", style=discord.ButtonStyle.primary, emoji="ℹ️")
-    async def more_info_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        embed = discord.Embed(
-            title="📚 Detailed Settings Guide",
-            color=config.EMBED_COLOR
-        )
-
-        # Pairing Modes
-        embed.add_field(
-            name="# Pairing Modes",
-            value=(
-                "**Selective (Old/New)**\n"
-                "> Pairs old IDs (≤271800) with new IDs (≥271900)\n"
-                "> - Same species + old/new = High compatibility\n"
-                "> - Different species + old/new = Medium compatibility\n\n"
-                "**Not Selective**\n"
-                "> Pairs any compatible Pokemon regardless of ID\n"
-                "> - Compatibility may vary based on species match"
-            ),
-            inline=False
-        )
-
-        # Target Options
-        embed.add_field(
-            name="# Target Options",
-            value=(
-                "**Special Modes:**\n"
-                "- `all` - Breed any compatible Pokemon\n"
-                "- `tripmax` - Breed from TripMax inventory (high IV)\n"
-                "- `tripzero` - Breed from TripZero inventory (low IV)\n"
-                "- `mychoice` - Use your custom male/female settings\n"
-                "- `gigantamax` or `gmax` - Gigantamax Pokemon only\n"
-                "- `regionals` or `reg` - Regional forms only\n\n"
-                "**Specific Pokemon:**\n"
-                "- Single: `pikachu`, `eevee`, `ditto`\n"
-                "- Multiple: `pikachu, eevee, meowth`\n"
-                "- Forms: `alolan meowth`, `gigantamax eevee`"
-            ),
-            inline=False
-        )
-
-        # MyChoice Settings
-        embed.add_field(
-            name="# MyChoice Settings",
-            value=(
-                "**Set Multiple Pokemon:**\n"
-                "- `setmale dreepy, drakloak, dragapult`\n"
-                "- `setfemale gastly, haunter, gengar`\n\n"
-                "**Clear Settings:**\n"
-                "- `setmale none` - Clear all males\n"
-                "- `setfemale none` - Clear all females\n\n"
-                "**Choose Inventories:**\n"  # NEW
-                "- `mychoice_inv normal` - Search normal inventory only\n"
-                "- `mychoice_inv normal,duel` - Search multiple inventories\n"
-                "- `mychoice_inv all` - Search all inventories"
-            ),
-            inline=False
-        )
-
-        # Info Display Modes
-        embed.add_field(
-            name="# Info Display Modes",
-            value=(
-                "- `detailed` - Full embed with IVs, names, compatibility, reasons\n"
-                "- `simple` - Basic non-embed with names and compatibility only\n"
-                "- `compact` - Embed, just command + compatibility\n"
-                "- `off` - Command only, non-embed, no extra info"
-            ),
-            inline=False
-        )
-
-        # Quick Commands
-        embed.add_field(
-            name="# Quick Commands",
-            value=(
-                "```\n"
-                f"{config.PREFIX[0]}settings mode selective\n"
-                f"{config.PREFIX[0]}settings target pikachu, eevee\n"
-                f"{config.PREFIX[0]}settings setmale dreepy, drakloak\n"
-                f"{config.PREFIX[0]}settings setfemale gastly, haunter\n"
-                f"{config.PREFIX[0]}settings mychoice_inv normal,duel\n"  # NEW
-                f"{config.PREFIX[0]}settings info compact\n"
-                f"{config.PREFIX[0]}reset-settings\n"
-                "```"
-            ),
-            inline=False
-        )
-
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
-
 class Settings(commands.Cog):
     """User settings management for breeding preferences"""
 
@@ -132,141 +36,464 @@ class Settings(commands.Cog):
             await self.set_mychoice_male(ctx, value)
         elif setting_type == 'setfemale':
             await self.set_mychoice_female(ctx, value)
-        elif setting_type in ['mychoice_inv', 'mychoice_inventories']:  # NEW
+        elif setting_type in ['mychoice_inv', 'mychoice_inventories']:
             await self.set_mychoice_inventories(ctx, value)
         elif setting_type == 'info':
             await self.set_info_display(ctx, value)
         else:
-            await ctx.send("❌ Invalid setting type. Use `mode`, `target`, `setmale`, `setfemale`, `mychoice_inv`, or `info`", reference=ctx.message, mention_author=False)
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ Invalid setting type. Use `mode`, `target`, `setmale`, `setfemale`, `mychoice_inv`, or `info`"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
 
     async def show_settings(self, ctx):
-        """Display current user settings - CLEAN REDESIGN"""
+        """Display current user settings - INTERACTIVE REDESIGN"""
         user_id = ctx.author.id
         settings = await db.get_settings(user_id)
 
-        embed = discord.Embed(
-            title="⚙️ Your Breeding Settings",
-            color=config.EMBED_COLOR
-        )
-
-        # ===== CURRENT MODE =====
+        # Get current values
         mode = settings.get('mode', 'notselective')
         mode_display = "Selective (Old/New)" if mode == 'selective' else "Not Selective"
 
-        embed.add_field(
-            name="# Current Mode",
-            value=f"> {mode_display}",
-            inline=False
-        )
+        show_info = settings.get('show_info', 'detailed')
+        info_display_map = {
+            "detailed": "Detailed (Full info)",
+            "simple": "Simple (Basic info)",
+            "off": "Off (Command only)"
+        }
+        info_display = info_display_map.get(show_info, "Detailed")
 
-        # ===== CURRENT TARGET =====
         targets = settings.get('target', ['all'])
 
+        # Format target display
         if 'all' in targets:
-            target_display = "> All Pokemon"
+            target_display = "All Pokemon"
         elif 'tripmax' in targets:
-            target_display = "> TripMax (High IV pairs)"
+            target_display = "TripMax (High IV)"
         elif 'tripzero' in targets:
-            target_display = "> TripZero (Low IV pairs)"
+            target_display = "TripZero (Low IV)"
         elif 'mychoice' in targets:
-            mychoice_males = settings.get('mychoice_male', [])
-            mychoice_females = settings.get('mychoice_female', [])
-
-            if not mychoice_males:
-                mychoice_males = ['Not set']
-            if not mychoice_females:
-                mychoice_females = ['Not set']
-
-            males_str = ', '.join(f"`{m}`" for m in mychoice_males)
-            females_str = ', '.join(f"`{f}`" for f in mychoice_females)
-
-            target_display = f"> MyChoice\n> - {config.GENDER_MALE} Males: {males_str}\n> - {config.GENDER_FEMALE} Females: {females_str}"
+            target_display = "MyChoice (Custom)"
         elif 'gigantamax' in targets or 'gmax' in targets:
-            target_display = "> Gigantamax Pokemon"
+            target_display = "Gigantamax"
         elif 'regionals' in targets or 'regional' in targets or 'reg' in targets:
-            target_display = "> Regional forms"
+            target_display = "Regionals"
         else:
-            if len(targets) <= 3:
-                target_list = ", ".join(f"`{t}`" for t in targets)
-                target_display = f"> {target_list}"
+            if len(targets) <= 2:
+                target_display = ", ".join(targets)
             else:
-                first_three = ", ".join(f"`{t}`" for t in targets[:3])
-                remaining = len(targets) - 3
-                target_display = f"> {first_three}\n> + {remaining} more"
+                target_display = f"{targets[0]}, {targets[1]} + {len(targets)-2} more"
 
-        embed.add_field(
-            name="# Current Target",
-            value=target_display,
-            inline=False
-        )
-
-        # ===== MYCHOICE SPECIES (if not active) =====
-        if 'mychoice' not in targets:
-            mychoice_males = settings.get('mychoice_male', [])
-            mychoice_females = settings.get('mychoice_female', [])
-
-            if mychoice_males or mychoice_females:
-                mychoice_parts = []
-                if mychoice_males:
-                    males_str = ', '.join(f"`{m}`" for m in mychoice_males)
-                    mychoice_parts.append(f"> - {config.GENDER_MALE} Males: {males_str}")
-                if mychoice_females:
-                    females_str = ', '.join(f"`{f}`" for f in mychoice_females)
-                    mychoice_parts.append(f"> - {config.GENDER_FEMALE} Females: {females_str}")
-
-                embed.add_field(
-                    name="# MyChoice Species",
-                    value="\n".join(mychoice_parts) + f"\n> *(Set target to `mychoice` to use)*",
-                    inline=False
-                )
-
-        # ===== NEW: MYCHOICE INVENTORIES =====
+        # Get mychoice settings
+        mychoice_males = settings.get('mychoice_male', [])
+        mychoice_females = settings.get('mychoice_female', [])
         mychoice_inventories = settings.get('mychoice_inventories', [config.NORMAL_CATEGORY])
 
-        if mychoice_inventories:
-            inv_display_names = {
-                config.NORMAL_CATEGORY: "📦 Normal",
-                config.TRIPMAX_CATEGORY: "⬆️ TripMax",
-                config.TRIPZERO_CATEGORY: "⬇️ TripZero",
-                config.DUEL_CATEGORY: "⚔️ Duel"
-            }
+        # Format males/females display
+        if mychoice_males:
+            if len(mychoice_males) <= 2:
+                males_display = ", ".join(f"`{m}`" for m in mychoice_males)
+            else:
+                males_display = f"`{mychoice_males[0]}`, `{mychoice_males[1]}` + {len(mychoice_males)-2} more"
+        else:
+            males_display = "Not set"
 
-            inv_list = [inv_display_names.get(inv, inv) for inv in mychoice_inventories]
-            inv_display = ", ".join(inv_list)
+        if mychoice_females:
+            if len(mychoice_females) <= 2:
+                females_display = ", ".join(f"`{f}`" for f in mychoice_females)
+            else:
+                females_display = f"`{mychoice_females[0]}`, `{mychoice_females[1]}` + {len(mychoice_females)-2} more"
+        else:
+            females_display = "Not set"
 
-            embed.add_field(
-                name="# MyChoice Inventories",
-                value=f"> {inv_display}\n> *(Used when target is `mychoice`)*",
-                inline=False
+        # Format inventories display
+        inv_display_names = {
+            config.NORMAL_CATEGORY: "Normal",
+            config.TRIPMAX_CATEGORY: "TripMax",
+            config.TRIPZERO_CATEGORY: "TripZero",
+            config.DUEL_CATEGORY: "Duel"
+        }
+        inv_list = [inv_display_names.get(inv, inv) for inv in mychoice_inventories]
+        inv_display = ", ".join(inv_list)
+
+        # Create interactive buttons and selects
+        class ModeSelect(discord.ui.Select):
+            def __init__(self, current_mode):
+                options = [
+                    discord.SelectOption(
+                        label="Not Selective",
+                        value="notselective",
+                        description="Pair any compatible Pokemon regardless of ID",
+                        default=(current_mode == "notselective")
+                    ),
+                    discord.SelectOption(
+                        label="Selective (Old/New)",
+                        value="selective",
+                        description="Pair old IDs (≤271800) with new IDs (≥271900)",
+                        default=(current_mode == "selective")
+                    ),
+                ]
+                super().__init__(
+                    custom_id="mode_select",
+                    placeholder=f"Current: {mode_display}",
+                    options=options
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != ctx.author.id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ This is not your settings menu!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                await interaction.response.defer()
+
+                new_mode = self.values[0]
+                await db.update_settings(interaction.user.id, {'mode': new_mode})
+
+                mode_name = "Selective (Old/New)" if new_mode == 'selective' else "Not Selective"
+
+                class SuccessView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content=f"✅ **Mode updated to:** {mode_name}\n\n_Run `{config.PREFIX[0]}settings` to see updated settings_"),
+                    )
+
+                await interaction.followup.send(view=SuccessView())
+
+        class InfoModeSelect(discord.ui.Select):
+            def __init__(self, current_info):
+                options = [
+                    discord.SelectOption(
+                        label="Detailed",
+                        value="detailed",
+                        description="Full info with IVs, names, compatibility, reasons",
+                        default=(current_info == "detailed")
+                    ),
+                    discord.SelectOption(
+                        label="Simple",
+                        value="simple",
+                        description="Basic info with names and compatibility only",
+                        default=(current_info == "simple")
+                    ),
+                    discord.SelectOption(
+                        label="Off",
+                        value="off",
+                        description="Command only, no extra info",
+                        default=(current_info == "off")
+                    ),
+                ]
+                super().__init__(
+                    custom_id="info_select",
+                    placeholder=f"Current: {info_display}",
+                    options=options
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != ctx.author.id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ This is not your settings menu!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                await interaction.response.defer()
+
+                new_info = self.values[0]
+                await db.update_settings(interaction.user.id, {'show_info': new_info})
+
+                info_name = info_display_map.get(new_info, new_info)
+
+                class SuccessView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content=f"✅ **Info mode updated to:** {info_name}\n\n_Run `{config.PREFIX[0]}settings` to see updated settings_"),
+                    )
+
+                await interaction.followup.send(view=SuccessView())
+
+        class TargetSelect(discord.ui.Select):
+            def __init__(self, current_targets):
+                current_target = current_targets[0] if current_targets else 'all'
+
+                options = [
+                    discord.SelectOption(
+                        label="All Pokemon",
+                        value="all",
+                        description="Breed any compatible Pokemon",
+                        default=('all' in current_targets)
+                    ),
+                    discord.SelectOption(
+                        label="MyChoice",
+                        value="mychoice",
+                        description="Use custom male/female settings",
+                        default=('mychoice' in current_targets)
+                    ),
+                    discord.SelectOption(
+                        label="TripMax",
+                        value="tripmax",
+                        description="High IV pairs from TripMax inventory",
+                        default=('tripmax' in current_targets)
+                    ),
+                    discord.SelectOption(
+                        label="TripZero",
+                        value="tripzero",
+                        description="Low IV pairs from TripZero inventory",
+                        default=('tripzero' in current_targets)
+                    ),
+                    discord.SelectOption(
+                        label="Gigantamax",
+                        value="gigantamax",
+                        description="Gigantamax Pokemon only",
+                        default=('gigantamax' in current_targets or 'gmax' in current_targets)
+                    ),
+                    discord.SelectOption(
+                        label="Regionals",
+                        value="regionals",
+                        description="Regional forms only",
+                        default=('regionals' in current_targets or 'regional' in current_targets or 'reg' in current_targets)
+                    ),
+                ]
+                super().__init__(
+                    custom_id="target_select",
+                    placeholder=f"Current: {target_display}",
+                    options=options
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != ctx.author.id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ This is not your settings menu!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                await interaction.response.defer()
+
+                new_target = self.values[0]
+                await db.update_settings(interaction.user.id, {'target': [new_target]})
+
+                target_names = {
+                    'all': 'All Pokemon',
+                    'mychoice': 'MyChoice',
+                    'tripmax': 'TripMax',
+                    'tripzero': 'TripZero',
+                    'gigantamax': 'Gigantamax',
+                    'regionals': 'Regionals'
+                }
+
+                class SuccessView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content=f"✅ **Target updated to:** {target_names.get(new_target, new_target)}\n\n_Run `{config.PREFIX[0]}settings` to see updated settings_"),
+                    )
+
+                await interaction.followup.send(view=SuccessView())
+
+        class InventorySelect(discord.ui.Select):
+            def __init__(self, current_inventories):
+                options = [
+                    discord.SelectOption(
+                        label="Normal",
+                        value="normal",
+                        description="Normal inventory only",
+                        default=(config.NORMAL_CATEGORY in current_inventories and len(current_inventories) == 1)
+                    ),
+                    discord.SelectOption(
+                        label="TripMax",
+                        value="tripmax",
+                        description="TripMax inventory only",
+                        default=(config.TRIPMAX_CATEGORY in current_inventories and len(current_inventories) == 1)
+                    ),
+                    discord.SelectOption(
+                        label="TripZero",
+                        value="tripzero",
+                        description="TripZero inventory only",
+                        default=(config.TRIPZERO_CATEGORY in current_inventories and len(current_inventories) == 1)
+                    ),
+                    discord.SelectOption(
+                        label="Duel",
+                        value="duel",
+                        description="Duel inventory only",
+                        default=(config.DUEL_CATEGORY in current_inventories and len(current_inventories) == 1)
+                    ),
+                    discord.SelectOption(
+                        label="All Inventories",
+                        value="all",
+                        description="Search all inventories",
+                        default=(len(current_inventories) > 1)
+                    ),
+                ]
+                super().__init__(
+                    custom_id="inventory_select",
+                    placeholder=f"Current: {inv_display}",
+                    options=options
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != ctx.author.id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ This is not your settings menu!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                await interaction.response.defer()
+
+                selection = self.values[0]
+
+                if selection == 'all':
+                    new_inventories = config.ALL_CATEGORIES
+                else:
+                    inventory_map = {
+                        'normal': config.NORMAL_CATEGORY,
+                        'tripmax': config.TRIPMAX_CATEGORY,
+                        'tripzero': config.TRIPZERO_CATEGORY,
+                        'duel': config.DUEL_CATEGORY
+                    }
+                    new_inventories = [inventory_map[selection]]
+
+                await db.update_settings(interaction.user.id, {'mychoice_inventories': new_inventories})
+
+                inv_names = {
+                    'normal': 'Normal',
+                    'tripmax': 'TripMax',
+                    'tripzero': 'TripZero',
+                    'duel': 'Duel',
+                    'all': 'All Inventories'
+                }
+
+                class SuccessView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content=f"✅ **MyChoice inventories updated to:** {inv_names.get(selection, selection)}\n\n_Run `{config.PREFIX[0]}settings` to see updated settings_"),
+                    )
+
+                await interaction.followup.send(view=SuccessView())
+
+        class MoreInfoButton(discord.ui.Button):
+            def __init__(self):
+                super().__init__(
+                    style=discord.ButtonStyle.primary,
+                    label="More Info",
+                    emoji="ℹ️"
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                content = (
+                    "**📚 Detailed Settings Guide**\n\n"
+                    "**Pairing Modes:**\n"
+                    f"{config.REPLY} **Selective (Old/New):** Pairs old IDs (≤271800) with new IDs (≥271900)\n"
+                    f"{config.REPLY} **Not Selective:** Pairs any compatible Pokemon regardless of ID\n\n"
+                    "**Target Options:**\n"
+                    f"{config.REPLY} **All** - Breed any compatible Pokemon\n"
+                    f"{config.REPLY} **MyChoice** - Use your custom male/female settings\n"
+                    f"{config.REPLY} **TripMax** - Breed from TripMax inventory (high IV)\n"
+                    f"{config.REPLY} **TripZero** - Breed from TripZero inventory (low IV)\n"
+                    f"{config.REPLY} **Gigantamax** - Gigantamax Pokemon only\n"
+                    f"{config.REPLY} **Regionals** - Regional forms only\n\n"
+                    "**Info Display Modes:**\n"
+                    f"{config.REPLY} **Detailed** - Full info with IVs, names, compatibility, reasons\n"
+                    f"{config.REPLY} **Simple** - Basic info with names and compatibility only\n"
+                    f"{config.REPLY} **Off** - Command only, no extra info\n\n"
+                    "**MyChoice Settings:**\n"
+                    f"{config.REPLY} Use `{config.PREFIX[0]}settings setmale <pokemon>` to set males\n"
+                    f"{config.REPLY} Use `{config.PREFIX[0]}settings setfemale <pokemon>` to set females\n"
+                    f"{config.REPLY} Supports multiple Pokemon: `dreepy, drakloak, dragapult`\n"
+                    f"{config.REPLY} Use `{config.PREFIX[0]}settings setmale none` to clear"
+                )
+
+                class InfoView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content=content),
+                    )
+
+                await interaction.response.send_message(view=InfoView(), ephemeral=True)
+
+        class ResetButton(discord.ui.Button):
+            def __init__(self):
+                super().__init__(
+                    style=discord.ButtonStyle.secondary,
+                    label="Reset to Default",
+                    emoji="🔄"
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != ctx.author.id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ This is not your settings menu!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                await interaction.response.defer()
+
+                await db.update_settings(interaction.user.id, {
+                    'mode': 'notselective',
+                    'target': ['all'],
+                    'mychoice_male': [],
+                    'mychoice_female': [],
+                    'mychoice_inventories': [config.NORMAL_CATEGORY],
+                    'show_info': 'detailed'
+                })
+
+                class SuccessView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(
+                            content="✅ **All settings reset to defaults**\n\n"
+                                    f"{config.REPLY} Mode: `Not Selective`\n"
+                                    f"{config.REPLY} Target: `All Pokemon`\n"
+                                    f"{config.REPLY} MyChoice: `Cleared`\n"
+                                    f"{config.REPLY} Inventories: `Normal`\n"
+                                    f"{config.REPLY} Info Mode: `Detailed`\n\n"
+                                    f"_Run `{config.PREFIX[0]}settings` to see updated settings_"
+                        ),
+                    )
+
+                await interaction.followup.send(view=SuccessView())
+
+        # Build the settings view
+        class SettingsView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(
+                discord.ui.TextDisplay(content="**⚙️ Your Current Settings For Daycare**"),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(content=f"{config.REPLY} **Current Mode:** {mode_display}"),
+                discord.ui.ActionRow(ModeSelect(mode)),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(content=f"{config.REPLY} **Current Info Mode:** {info_display}"),
+                discord.ui.ActionRow(InfoModeSelect(show_info)),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(content=f"{config.REPLY} **Current Target:** {target_display}"),
+                discord.ui.ActionRow(TargetSelect(targets)),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(
+                    content=f"{config.REPLY} **Current Male(s):** {males_display}\n"
+                            f"{config.REPLY} **Current Female(s):** {females_display}\n"
+                            f"{config.REPLY} **Inventory(s) for MyChoice Mode:** {inv_display}"
+                ),
+                discord.ui.ActionRow(InventorySelect(mychoice_inventories)),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.ActionRow(
+                    MoreInfoButton(),
+                    ResetButton()
+                ),
             )
 
-        # ===== INFO DISPLAY =====
-        show_info = settings.get('show_info', 'detailed')
-        info_display = {
-            "detailed": "> Detailed (Full embed)",
-            "simple": "> Simple (Non-embed)",
-            "compact": "> Compact (Basic embed)",
-            "off": "> Off (Command only)"
-        }
+        await ctx.send(view=SettingsView(), reference=ctx.message, mention_author=False)
 
-        embed.add_field(
-            name="# Info Display",
-            value=info_display.get(show_info, "> Unknown"),
-            inline=False
-        )
-
-        embed.set_footer(text=f"Use {config.PREFIX[0]}settings <type> <value> to change • Click 'More Info' for details")
-
-        # Add button for detailed info
-        view = MoreInfoView()
-        await ctx.send(embed=embed, view=view, reference=ctx.message, mention_author=False)
-
-    # ===== NEW: MYCHOICE INVENTORIES SETTING =====
+    # ===== INDIVIDUAL SETTING METHODS (for text commands) =====
 
     async def set_mychoice_inventories(self, ctx, value: str):
         """Set which inventories MyChoice should search"""
         if not value:
-            await ctx.send("❌ Please specify inventories: `normal`, `tripmax`, `tripzero`, `duel`, or `all`", reference=ctx.message, mention_author=False)
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ Please specify inventories: `normal`, `tripmax`, `tripzero`, `duel`, or `all`"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
         value = value.lower().strip()
@@ -291,11 +518,19 @@ class Settings(commands.Cog):
                 if part in inventory_map:
                     inventories.append(inventory_map[part])
                 else:
-                    await ctx.send(f"❌ Invalid inventory: `{part}`. Use: `normal`, `tripmax`, `tripzero`, `duel`, or `all`", reference=ctx.message, mention_author=False)
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content=f"❌ Invalid inventory: `{part}`. Use: `normal`, `tripmax`, `tripzero`, `duel`, or `all`"),
+                        )
+                    await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
                     return
 
             if not inventories:
-                await ctx.send("❌ No valid inventories specified", reference=ctx.message, mention_author=False)
+                class ErrorView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content="❌ No valid inventories specified"),
+                    )
+                await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
                 return
 
             # Remove duplicates while preserving order
@@ -306,12 +541,7 @@ class Settings(commands.Cog):
         user_id = ctx.author.id
         await db.update_settings(user_id, {'mychoice_inventories': inventories})
 
-        # Create response embed
-        embed = discord.Embed(
-            title="✅ MyChoice Inventories Updated",
-            color=config.EMBED_COLOR
-        )
-
+        # Create response
         inv_display_names = {
             config.NORMAL_CATEGORY: "📦 Normal",
             config.TRIPMAX_CATEGORY: "⬆️ TripMax",
@@ -320,40 +550,58 @@ class Settings(commands.Cog):
         }
 
         inv_list = [inv_display_names.get(inv, inv) for inv in inventories]
-        inv_display = "\n".join(f"> - {name}" for name in inv_list)
+        inv_display = "\n".join(f"{config.REPLY} {name}" for name in inv_list)
 
-        embed.description = (
-            f"# MyChoice will now search:\n{inv_display}\n\n"
-            f"> When target is set to `mychoice`, Pokemon will be\n"
-            f"> selected from these {len(inventories)} inventor{'y' if len(inventories) == 1 else 'ies'}."
-        )
+        class SuccessView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(
+                discord.ui.TextDisplay(
+                    content=f"✅ **MyChoice Inventories Updated**\n\n"
+                            f"**MyChoice will now search:**\n{inv_display}\n\n"
+                            f"_When target is set to `mychoice`, Pokemon will be selected from these {len(inventories)} inventor{'y' if len(inventories) == 1 else 'ies'}._"
+                ),
+            )
 
-        await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
-
-    # ===== EXISTING METHODS (keeping as-is) =====
+        await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
 
     async def set_mychoice_male(self, ctx, value: str):
         """Set male species for mychoice target - supports multiple Pokemon"""
         if not value:
-            await ctx.send("❌ Please specify species name(s) or `none` to clear", reference=ctx.message, mention_author=False)
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ Please specify species name(s) or `none` to clear"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
         if value.lower() == 'none':
             user_id = ctx.author.id
             await db.update_settings(user_id, {'mychoice_male': []})
-            await ctx.send("✅ MyChoice males cleared", reference=ctx.message, mention_author=False)
+
+            class SuccessView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="✅ MyChoice males cleared"),
+                )
+            await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
             return
 
         utils = self.bot.get_cog('Utils')
         if not utils:
-            await ctx.send("❌ Utils cog not loaded", reference=ctx.message, mention_author=False)
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ Utils cog not loaded"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
         # Parse multiple Pokemon (comma-separated)
         species_list = [s.strip().title() for s in value.split(',') if s.strip()]
 
         if not species_list:
-            await ctx.send("❌ No valid species provided", reference=ctx.message, mention_author=False)
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ No valid species provided"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
         # Validate all species
@@ -369,13 +617,17 @@ class Settings(commands.Cog):
                 valid_species.append(species_name)
 
         if invalid_species:
-            await ctx.send(
-                f"❌ Some species cannot breed:\n"
-                f"{', '.join(f'`{s}`' for s in invalid_species)}\n\n"
-                f"✅ Valid species added: {', '.join(f'`{s}`' for s in valid_species) if valid_species else 'None'}",
-                reference=ctx.message,
-                mention_author=False
-            )
+            invalid_list = ', '.join(f'`{s}`' for s in invalid_species)
+            valid_list = ', '.join(f'`{s}`' for s in valid_species) if valid_species else 'None'
+
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(
+                        content=f"❌ **Some species cannot breed:**\n{invalid_list}\n\n✅ **Valid species added:** {valid_list}"
+                    ),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
+
             if not valid_species:
                 return
 
@@ -389,30 +641,52 @@ class Settings(commands.Cog):
             await self._validate_mychoice_compatibility(ctx, valid_species, mychoice_females, utils)
         else:
             species_str = ', '.join(f"`{s}`" for s in valid_species)
-            await ctx.send(f"✅ MyChoice males set to: {species_str}", reference=ctx.message, mention_author=False)
+
+            class SuccessView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content=f"✅ **MyChoice males set to:** {species_str}"),
+                )
+            await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
 
     async def set_mychoice_female(self, ctx, value: str):
         """Set female species for mychoice target - supports multiple Pokemon"""
         if not value:
-            await ctx.send("❌ Please specify species name(s) or `none` to clear", reference=ctx.message, mention_author=False)
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ Please specify species name(s) or `none` to clear"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
         if value.lower() == 'none':
             user_id = ctx.author.id
             await db.update_settings(user_id, {'mychoice_female': []})
-            await ctx.send("✅ MyChoice females cleared", reference=ctx.message, mention_author=False)
+
+            class SuccessView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="✅ MyChoice females cleared"),
+                )
+            await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
             return
 
         utils = self.bot.get_cog('Utils')
         if not utils:
-            await ctx.send("❌ Utils cog not loaded", reference=ctx.message, mention_author=False)
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ Utils cog not loaded"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
         # Parse multiple Pokemon (comma-separated)
         species_list = [s.strip().title() for s in value.split(',') if s.strip()]
 
         if not species_list:
-            await ctx.send("❌ No valid species provided", reference=ctx.message, mention_author=False)
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ No valid species provided"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
         # Validate all species
@@ -428,13 +702,17 @@ class Settings(commands.Cog):
                 valid_species.append(species_name)
 
         if invalid_species:
-            await ctx.send(
-                f"❌ Some species cannot breed:\n"
-                f"{', '.join(f'`{s}`' for s in invalid_species)}\n\n"
-                f"✅ Valid species added: {', '.join(f'`{s}`' for s in valid_species) if valid_species else 'None'}",
-                reference=ctx.message,
-                mention_author=False
-            )
+            invalid_list = ', '.join(f'`{s}`' for s in invalid_species)
+            valid_list = ', '.join(f'`{s}`' for s in valid_species) if valid_species else 'None'
+
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(
+                        content=f"❌ **Some species cannot breed:**\n{invalid_list}\n\n✅ **Valid species added:** {valid_list}"
+                    ),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
+
             if not valid_species:
                 return
 
@@ -448,7 +726,12 @@ class Settings(commands.Cog):
             await self._validate_mychoice_compatibility(ctx, mychoice_males, valid_species, utils)
         else:
             species_str = ', '.join(f"`{s}`" for s in valid_species)
-            await ctx.send(f"✅ MyChoice females set to: {species_str}", reference=ctx.message, mention_author=False)
+
+            class SuccessView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content=f"✅ **MyChoice females set to:** {species_str}"),
+                )
+            await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
 
     async def _validate_mychoice_compatibility(self, ctx, male_species_list: list, female_species_list: list, utils):
         """Validate mychoice male/female compatibility for multiple Pokemon"""
@@ -458,7 +741,11 @@ class Settings(commands.Cog):
         all_female_dittos = all('Ditto' in utils.get_egg_groups(f) for f in female_species_list)
 
         if all_male_dittos and all_female_dittos:
-            await ctx.send("❌ Cannot set both males and females to only Ditto!", reference=ctx.message, mention_author=False)
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ Cannot set both males and females to only Ditto!"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
         # Find compatible pairs
@@ -485,160 +772,153 @@ class Settings(commands.Cog):
         for male in male_species_list:
             for female in female_species_list:
                 if utils.is_gigantamax(male) and utils.is_gigantamax(female):
-                    warnings.append(f"⚠️ Both {male} and {female} are Gigantamax - consider saving one")
+                    warnings.append(f"⚠️ Both {male} and {female} are Gigantamax")
                 if utils.is_regional(male) and utils.is_regional(female):
-                    warnings.append(f"⚠️ Both {male} and {female} are Regional forms - consider saving one")
+                    warnings.append(f"⚠️ Both {male} and {female} are Regional forms")
 
-        embed = discord.Embed(
-            title="✅ MyChoice Configuration Updated",
-            color=config.EMBED_COLOR
-        )
-
+        # Build response
         males_str = ', '.join(f"`{m}`" for m in male_species_list)
         females_str = ', '.join(f"`{f}`" for f in female_species_list)
 
-        embed.add_field(
-            name=f"# {config.GENDER_MALE} Males ({len(male_species_list)})",
-            value=f"> {males_str}",
-            inline=False
-        )
-
-        embed.add_field(
-            name=f"# {config.GENDER_FEMALE} Females ({len(female_species_list)})",
-            value=f"> {females_str}",
-            inline=False
-        )
+        content_parts = [
+            "✅ **MyChoice Configuration Updated**\n",
+            f"**{config.GENDER_MALE} Males ({len(male_species_list)}):** {males_str}",
+            f"**{config.GENDER_FEMALE} Females ({len(female_species_list)}):** {females_str}\n"
+        ]
 
         if compatible_pairs:
-            # Show first 5 compatible pairs
-            pairs_display = []
+            content_parts.append(f"**Compatible Pairs ({len(compatible_pairs)} total):**")
             for i, (male, female, reason) in enumerate(compatible_pairs[:5]):
-                pairs_display.append(f"> {i+1}. {male} × {female} ({reason})")
+                content_parts.append(f"{config.REPLY} {male} × {female} ({reason})")
 
             if len(compatible_pairs) > 5:
-                pairs_display.append(f"> ... and {len(compatible_pairs) - 5} more compatible pairs")
-
-            embed.add_field(
-                name=f"# Compatible Pairs ({len(compatible_pairs)} total)",
-                value="\n".join(pairs_display),
-                inline=False
-            )
+                content_parts.append(f"{config.REPLY} ... and {len(compatible_pairs) - 5} more compatible pairs")
         else:
-            embed.add_field(
-                name="# Compatibility",
-                value="> ❌ No compatible pairs found!\n> These Pokemon cannot breed together.",
-                inline=False
-            )
+            content_parts.append("**Compatibility:** ❌ No compatible pairs found! These Pokemon cannot breed together.")
 
         if warnings:
-            embed.add_field(
-                name="# Warnings",
-                value="\n".join(f"> {w}" for w in warnings[:5]),
-                inline=False
+            content_parts.append("\n**Warnings:**")
+            for warning in warnings[:5]:
+                content_parts.append(f"{config.REPLY} {warning}")
+
+        class SuccessView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(
+                discord.ui.TextDisplay(content="\n".join(content_parts)),
             )
 
-        await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
+        await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
 
     async def set_info_display(self, ctx, value: str):
         """Set breed info display mode"""
         if not value:
-            await ctx.send("❌ Please specify: `simple`, `detailed`, `compact`, or `off`", reference=ctx.message, mention_author=False)
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ Please specify: `simple`, `detailed`, or `off`"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
         value = value.lower()
 
-        if value not in ['simple', 'detailed', 'compact', 'off']:
-            await ctx.send("❌ Invalid option. Use: `simple`, `detailed`, `compact`, or `off`", reference=ctx.message, mention_author=False)
+        if value not in ['simple', 'detailed', 'off']:
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ Invalid option. Use: `simple`, `detailed`, or `off`"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
         user_id = ctx.author.id
         await db.update_settings(user_id, {'show_info': value})
 
-        embed = discord.Embed(
-            title="✅ Info Display Updated",
-            color=config.EMBED_COLOR
-        )
-
         descriptions = {
             'detailed': (
-                "# Detailed Mode (Embed)\n"
-                "> Shows complete pair information:\n"
-                "> - Pokemon names and IDs\n"
-                "> - IV percentages\n"
-                "> - Expected compatibility\n"
-                "> - Pairing reasons (Gmax, regional, high IV, etc.)"
-            ),
-            'compact': (
-                "# Compact Mode (Embed)\n"
-                "> Shows basic pair information:\n"
-                "> - Pokemon names and IDs\n"
-                "> - Expected compatibility only\n"
-                "> - No IV details or pairing reasons"
+                "**Detailed Mode**\n\n"
+                f"{config.REPLY} Shows complete pair information\n"
+                f"{config.REPLY} Pokemon names and IDs\n"
+                f"{config.REPLY} IV percentages\n"
+                f"{config.REPLY} Expected compatibility\n"
+                f"{config.REPLY} Pairing reasons (Gmax, regional, high IV, etc.)"
             ),
             'simple': (
-                "# Simple Mode (Non-embed)\n"
-                "> Shows command with compatibility only:\n"
-                "> - Breeding command in code block\n"
-                "> - Expected compatibility per pair\n"
-                "> - No embed formatting"
+                "**Simple Mode**\n\n"
+                f"{config.REPLY} Shows command with compatibility only\n"
+                f"{config.REPLY} Breeding command in code block\n"
+                f"{config.REPLY} Expected compatibility per pair\n"
+                f"{config.REPLY} No extra details"
             ),
             'off': (
-                "# Off Mode\n"
-                "> Shows only the breeding command:\n"
-                "> - Just the `@Pokétwo dc add` command\n"
-                "> - No additional information"
+                "**Off Mode**\n\n"
+                f"{config.REPLY} Shows only the breeding command\n"
+                f"{config.REPLY} Just the daycare add command\n"
+                f"{config.REPLY} No additional information"
             )
         }
 
-        embed.description = descriptions[value]
-        await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
+        class SuccessView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(
+                discord.ui.TextDisplay(content=f"✅ **Info Display Updated**\n\n{descriptions[value]}"),
+            )
+
+        await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
 
     async def set_mode(self, ctx, value: str):
         """Set pairing mode"""
         if not value:
-            await ctx.send("❌ Please specify mode: `selective` or `notselective`", reference=ctx.message, mention_author=False)
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ Please specify mode: `selective` or `notselective`"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
         value = value.lower()
 
         if value not in ['selective', 'notselective']:
-            await ctx.send("❌ Invalid mode. Use `selective` or `notselective`", reference=ctx.message, mention_author=False)
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ Invalid mode. Use `selective` or `notselective`"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
         user_id = ctx.author.id
         await db.update_settings(user_id, {'mode': value})
 
-        embed = discord.Embed(
-            title="✅ Mode Updated",
-            color=config.EMBED_COLOR
-        )
-
         if value == 'selective':
             description = (
-                "# Selective Mode (Old/New) Enabled\n\n"
-                "> Will pair old IDs (≤271800) with new IDs (≥271900)\n\n"
+                "**Selective Mode (Old/New) Enabled**\n\n"
+                f"{config.REPLY} Will pair old IDs (≤271800) with new IDs (≥271900)\n\n"
                 "**Compatibility:**\n"
-                "- Same species + old/new = High\n"
-                "- Different species + old/new = Medium\n"
-                "- Ditto + old/new = Medium"
+                f"{config.REPLY} Same species + old/new = High\n"
+                f"{config.REPLY} Different species + old/new = Medium\n"
+                f"{config.REPLY} Ditto + old/new = Medium"
             )
         else:
             description = (
-                "# Not Selective Mode Enabled\n\n"
-                "> Will pair any compatible Pokemon regardless of ID\n\n"
+                "**Not Selective Mode Enabled**\n\n"
+                f"{config.REPLY} Will pair any compatible Pokemon regardless of ID\n\n"
                 "**Compatibility:**\n"
-                "- Same species = Medium\n"
-                "- Different species = Low/Medium\n"
-                "- Ditto = Low/Medium"
+                f"{config.REPLY} Same species = Medium\n"
+                f"{config.REPLY} Different species = Low/Medium\n"
+                f"{config.REPLY} Ditto = Low/Medium"
             )
 
-        embed.description = description
-        await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
+        class SuccessView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(
+                discord.ui.TextDisplay(content=f"✅ **Mode Updated**\n\n{description}"),
+            )
+
+        await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
 
     async def set_target(self, ctx, value: str):
         """Set breeding target"""
         if not value:
-            await ctx.send("❌ Please specify target(s)", reference=ctx.message, mention_author=False)
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ Please specify target(s)"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
         value = value.lower()
@@ -648,7 +928,11 @@ class Settings(commands.Cog):
         else:
             targets = [t.strip() for t in value.split(',') if t.strip()]
             if not targets:
-                await ctx.send("❌ No valid targets provided", reference=ctx.message, mention_author=False)
+                class ErrorView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content="❌ No valid targets provided"),
+                    )
+                await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
                 return
 
         utils = self.bot.get_cog('Utils')
@@ -665,41 +949,43 @@ class Settings(commands.Cog):
                     invalid_targets.append(target)
 
             if invalid_targets:
-                await ctx.send(
-                    f"⚠️ **Warning**: Some targets not found:\n"
-                    f"{', '.join(f'`{t}`' for t in invalid_targets)}\n\n"
-                    f"> These may not match any Pokemon.",
-                    reference=ctx.message,
-                    mention_author=False
-                )
+                invalid_list = ', '.join(f'`{t}`' for t in invalid_targets)
+                class WarningView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(
+                            content=f"⚠️ **Warning**: Some targets not found:\n{invalid_list}\n\n"
+                                    f"_These may not match any Pokemon._"
+                        ),
+                    )
+                await ctx.send(view=WarningView(), reference=ctx.message, mention_author=False)
 
         user_id = ctx.author.id
         await db.update_settings(user_id, {'target': targets})
 
-        embed = discord.Embed(
-            title="✅ Target Updated",
-            color=config.EMBED_COLOR
-        )
-
         if 'all' in targets:
-            embed.description = (
-                "# Target: All Pokemon\n\n"
-                "> Will breed any compatible Pokemon in your inventory"
+            description = (
+                "**Target: All Pokemon**\n\n"
+                f"{config.REPLY} Will breed any compatible Pokemon in your inventory"
             )
         else:
             if len(targets) <= 5:
-                target_list = "\n".join(f"- `{t}`" for t in targets)
+                target_list = "\n".join(f"{config.REPLY} `{t}`" for t in targets)
             else:
-                first_five = "\n".join(f"- `{t}`" for t in targets[:5])
+                first_five = "\n".join(f"{config.REPLY} `{t}`" for t in targets[:5])
                 remaining = len(targets) - 5
-                target_list = f"{first_five}\n- ... and {remaining} more"
+                target_list = f"{first_five}\n{config.REPLY} ... and {remaining} more"
 
-            embed.description = (
-                f"# Breeding Targets Set\n\n{target_list}\n\n"
-                f"> Will only breed Pokemon matching these targets"
+            description = (
+                f"**Breeding Targets Set**\n\n{target_list}\n\n"
+                f"_Will only breed Pokemon matching these targets_"
             )
 
-        await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
+        class SuccessView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(
+                discord.ui.TextDisplay(content=f"✅ **Target Updated**\n\n{description}"),
+            )
+
+        await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
 
     @commands.hybrid_command(name='reset-settings', aliases=['resetsettings'])
     async def reset_settings(self, ctx):
@@ -711,29 +997,23 @@ class Settings(commands.Cog):
             'target': ['all'],
             'mychoice_male': [],
             'mychoice_female': [],
-            'mychoice_inventories': [config.NORMAL_CATEGORY],  # NEW: Reset to default
+            'mychoice_inventories': [config.NORMAL_CATEGORY],
             'show_info': 'detailed'
         })
 
-        embed = discord.Embed(
-            title="✅ Settings Reset",
-            description="All settings have been reset to defaults",
-            color=config.EMBED_COLOR
-        )
+        class SuccessView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(
+                discord.ui.TextDisplay(
+                    content="✅ **All Settings Reset to Defaults**\n\n"
+                            f"{config.REPLY} Mode: `Not Selective`\n"
+                            f"{config.REPLY} Target: `All Pokemon`\n"
+                            f"{config.REPLY} MyChoice: `Cleared`\n"
+                            f"{config.REPLY} Inventories: `Normal`\n"
+                            f"{config.REPLY} Info Mode: `Detailed`"
+                ),
+            )
 
-        embed.add_field(
-            name="# Current Settings",
-            value=(
-                "> - Mode: `notselective`\n"
-                "> - Target: `all`\n"
-                "> - MyChoice: cleared\n"
-                "> - MyChoice Inventories: `normal`\n"  # NEW
-                "> - Info Display: `detailed`"
-            ),
-            inline=False
-        )
-
-        await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
+        await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
 
 async def setup(bot):
     await bot.add_cog(Settings(bot))
