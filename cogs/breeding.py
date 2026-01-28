@@ -21,12 +21,20 @@ class Breeding(commands.Cog):
         Max 2 pairs at a time
         """
         if count < 1 or count > config.MAX_BREED_PAIRS:
-            await ctx.send(f"❌ Count must be between 1 and {config.MAX_BREED_PAIRS}")
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content=f"❌ Count must be between 1 and {config.MAX_BREED_PAIRS}"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
         utils = self.bot.get_cog('Utils')
         if not utils:
-            await ctx.send("❌ Utils cog not loaded")
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ Utils cog not loaded"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
         user_id = ctx.author.id
@@ -102,7 +110,17 @@ class Breeding(commands.Cog):
             )
 
         if not pairs:
-            await ctx.send("❌ No compatible breeding pairs found with current settings.\n > 1. Check Your Current Mode using `m!settings`, if it is selective then set it to notselective using `m!settings mode notselective`. \n > 2. Set target to mychoice if you are breeding for egg moves using `m!settings target mychocice` after settings male and female. \n > use `m!help settings` to know more.")
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(
+                        content="**❌ No compatible breeding pairs found**\n\n"
+                                "**Troubleshooting:**\n"
+                                f"{config.REPLY} Check mode: `m!settings` (try `notselective`)\n"
+                                f"{config.REPLY} For egg moves: `m!settings target mychoice`\n"
+                                f"{config.REPLY} Help: `m!help settings`"
+                    ),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
         # Collect IDs to add to cooldown
@@ -113,7 +131,7 @@ class Breeding(commands.Cog):
         # ===== OPTIMIZATION: PARALLEL EXECUTION =====
         await asyncio.gather(
             db.add_cooldowns_bulk(user_id, cooldown_ids_to_add),
-            self.send_breed_result(ctx, pairs, selective, utils, show_info, id_overrides)
+            self.send_breed_result(ctx, pairs, selective, utils, show_info, id_overrides, cooldown_ids_to_add)
         )
 
     def determine_category_from_target(self, targets):
@@ -667,8 +685,8 @@ class Breeding(commands.Cog):
                 return False
             return target_lower == pokemon_base or target_lower in pokemon_name
 
-    async def send_breed_result(self, ctx, pairs, selective, utils, show_info, overrides=None):
-        """Send breeding pair results"""
+    async def send_breed_result(self, ctx, pairs, selective, utils, show_info, overrides=None, cooldown_ids=None):
+        """Send breeding pair results using Discord Components V2"""
         command_parts = ["<@716390085896962058> daycare add"]
 
         for pair in pairs:
@@ -677,54 +695,246 @@ class Breeding(commands.Cog):
 
         command = " ".join(command_parts)
 
+        # Create button class for removing individual pair from cooldown
+        class RemovePairCooldownButton(discord.ui.Button):
+            def __init__(self, female_id, male_id, pair_num, ctx_author_id):
+                super().__init__(
+                    style=discord.ButtonStyle.secondary,
+                    label="Remove Cd",
+                )
+                self.female_id = female_id
+                self.male_id = male_id
+                self.pair_num = pair_num
+                self.ctx_author_id = ctx_author_id
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != self.ctx_author_id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ This is not your breeding result!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                # Defer the response
+                await interaction.response.defer()
+
+                # Remove this pair from cooldown
+                pair_ids = [self.female_id, self.male_id]
+                await db.remove_cooldown(interaction.user.id, pair_ids)
+
+                class SuccessView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(
+                            content=f"**🔓 Pair {self.pair_num} Removed from Cooldown**\n\n"
+                                    f"{config.REPLY} **Removed IDs:** `{self.female_id}`, `{self.male_id}`"
+                        ),
+                    )
+
+                await interaction.followup.send(view=SuccessView())
+
+        # Create button class for removing all pairs from cooldown
+        class RemoveAllCooldownButton(discord.ui.Button):
+            def __init__(self, pokemon_ids, ctx_author_id):
+                super().__init__(
+                    style=discord.ButtonStyle.secondary,
+                    label="Remove All from Cooldown",
+                    emoji="🔓"
+                )
+                self.pokemon_ids = pokemon_ids
+                self.ctx_author_id = ctx_author_id
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != self.ctx_author_id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ This is not your breeding result!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                # Defer the response
+                await interaction.response.defer()
+
+                # Remove from cooldown
+                await db.remove_cooldown(interaction.user.id, self.pokemon_ids)
+
+                class SuccessView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(
+                            content=f"**🔓 All Pairs Removed from Cooldown**\n\n"
+                                    f"{config.REPLY} **Removed {len(self.pokemon_ids)} Pokémon from cooldown**\n"
+                                    f"{config.REPLY} **IDs:** {', '.join(f'`{pid}`' for pid in self.pokemon_ids)}"
+                        ),
+                    )
+
+                await interaction.followup.send(view=SuccessView())
+
+        # Create button class for generating next pair
+        class NextPairButton(discord.ui.Button):
+            def __init__(self, ctx_obj, count):
+                super().__init__(
+                    style=discord.ButtonStyle.primary,
+                    label="Generate Next Pair",
+                    emoji="🔄"
+                )
+                self.ctx_obj = ctx_obj
+                self.count = count
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != self.ctx_obj.author.id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ This is not your breeding result!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                # Defer the response
+                await interaction.response.defer()
+
+                # Create a temporary message to trigger breed command again
+                class TempMessage:
+                    def __init__(self, original_msg):
+                        self.author = original_msg.author
+                        self.channel = original_msg.channel
+                        self.guild = original_msg.guild
+                        self.reference = None
+
+                temp_msg = TempMessage(self.ctx_obj.message)
+
+                # Create a context-like object for the new breed command
+                class TempContext:
+                    def __init__(self, bot, msg, original_ctx):
+                        self.bot = bot
+                        self.message = msg
+                        self.author = msg.author
+                        self.channel = msg.channel
+                        self.guild = msg.guild
+                        self.interaction = None
+                        self._original_ctx = original_ctx
+
+                    async def send(self, *args, **kwargs):
+                        # Remove reference parameter to avoid error
+                        kwargs.pop('reference', None)
+                        kwargs.pop('mention_author', None)
+                        return await self._original_ctx.send(*args, **kwargs)
+
+                temp_ctx = TempContext(self.ctx_obj.bot, temp_msg, self.ctx_obj)
+
+                # Get the breeding cog and call breed_command
+                breeding_cog = self.ctx_obj.bot.get_cog('Breeding')
+                if breeding_cog:
+                    await breeding_cog.breed_command(temp_ctx, self.count)
+
+        # Handle different show_info modes
+        if show_info == 'off':
+            # Simple text output with buttons
+            class SimpleView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content=f"**📝 Breeding Command**"),
+                    discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                    discord.ui.TextDisplay(content=f"`{command}`"),
+                    discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                    discord.ui.ActionRow(
+                        NextPairButton(ctx, len(pairs)),
+                        RemoveAllCooldownButton(cooldown_ids, ctx.author.id)
+                    ),
+                )
+
+            await ctx.send(view=SimpleView(), reference=ctx.message, mention_author=False)
+            return
+
         if show_info == 'simple':
-            message = f"```{command}```\n"
+            # Build compatibility info
+            content_lines = []
+
             for i, pair in enumerate(pairs, 1):
                 female = pair['female']
                 male = pair['male']
                 comp = utils.get_compatibility(female, male, selective, overrides)
-                if len(pairs) > 1:
-                    message += f"**Pair {i}:** Compatibility - {comp}\n"
-                else:
-                    message += f"Compatibility - {comp}"
-            await ctx.send(message, reference=ctx.message, mention_author=False)
+                content_lines.append(f"{config.REPLY}**Pair {i}/{len(pairs)}:** Compatibility - {comp}")
+
+            content = "\n".join(content_lines)
+
+            class SimpleView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content=f"**📝 Breeding Command**"),
+                    discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                    discord.ui.TextDisplay(content=f"```{command}```"),
+                    discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                    discord.ui.TextDisplay(content=content),
+                    discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                    discord.ui.TextDisplay(content=f"_These Pokémon have been added to cooldown for {config.COOLDOWN_DAYS}d {config.COOLDOWN_HOURS}h_"),
+                    discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                    discord.ui.ActionRow(
+                        NextPairButton(ctx, len(pairs)),
+                        RemoveAllCooldownButton(cooldown_ids, ctx.author.id)
+                    ),
+                )
+
+            await ctx.send(view=SimpleView(), reference=ctx.message, mention_author=False)
             return
 
-        if show_info == 'off':
-            await ctx.send(f"`{command}`", reference=ctx.message, mention_author=False)
-            return
-
-        embed = discord.Embed(
-            title="📝 Next Breeding Command",
-            color=config.EMBED_COLOR
-        )
-        embed.description = f"```{command}```"
+        # Detailed mode (default)
+        # Build components list
+        components = [
+            discord.ui.TextDisplay(content=f"**📝 Next Breeding Command**"),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay(content=f"```{command}```"),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+        ]
 
         for i, pair in enumerate(pairs, 1):
             female = pair['female']
             male = pair['male']
             comp = utils.get_compatibility(female, male, selective, overrides)
+
             female_icon = config.GENDER_FEMALE if female['gender'] == 'female' else config.GENDER_UNKNOWN
             male_icon = config.GENDER_MALE if male['gender'] == 'male' else config.GENDER_UNKNOWN
 
-            pair_info = (
-                f"**Female:** `{female['pokemon_id']}` {female['name']} {female_icon} • {female['iv_percent']}% IV\n"
-                f"**Male:** `{male['pokemon_id']}` {male['name']} {male_icon} • {male['iv_percent']}% IV\n"
-                f"**Compatibility:** {comp}"
+            pair_text = (
+                f"**Pair {i}/{len(pairs)}**\n\n"
+                f"{config.REPLY} **Female:** `{female['pokemon_id']}` {female['name']} {female_icon} • {female['iv_percent']}% IV\n"
+                f"{config.REPLY} **Male:** `{male['pokemon_id']}` {male['name']} {male_icon} • {male['iv_percent']}% IV\n"
+                f"{config.REPLY} **Compatibility:** {comp}"
             )
 
             reason = self.get_pairing_reason(female, male, utils, selective, overrides)
             if reason:
-                pair_info += f"\n**Reason:** {reason}"
+                pair_text += f"\n{config.REPLY} **Reason:** {reason}"
 
-            embed.add_field(
-                name=f"Pair {i}/{len(pairs)}",
-                value=pair_info,
-                inline=False
+            # Add Section with individual Remove Cd button
+            components.append(
+                discord.ui.Section(
+                    discord.ui.TextDisplay(content=pair_text),
+                    accessory=RemovePairCooldownButton(
+                        female['pokemon_id'], 
+                        male['pokemon_id'], 
+                        i, 
+                        ctx.author.id
+                    )
+                )
             )
 
-        embed.set_footer(text=f"These Pokemon have been added to cooldown for {config.COOLDOWN_DAYS}d {config.COOLDOWN_HOURS}h")
-        await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
+            # Always add separator after each pair
+            components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
+
+        # Add footer and buttons
+        components.extend([
+            discord.ui.TextDisplay(content=f"_These Pokémon have been added to cooldown for {config.COOLDOWN_DAYS}d {config.COOLDOWN_HOURS}h_"),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+            discord.ui.ActionRow(
+                NextPairButton(ctx, len(pairs)),
+                RemoveAllCooldownButton(cooldown_ids, ctx.author.id)
+            ),
+        ])
+
+        # Create the view dynamically
+        class DetailedView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(*components)
+
+        await ctx.send(view=DetailedView(), reference=ctx.message, mention_author=False)
 
     def get_pairing_reason(self, female, male, utils, selective, overrides=None):
         """Get human-readable reason for pairing"""
