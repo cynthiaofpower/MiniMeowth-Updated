@@ -16,74 +16,219 @@ def normalize_string(s):
     return ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
 
 
-class ShinyDexView(discord.ui.View):
-    """Pagination view for shiny dex"""
+def create_shiny_dex_view(ctx, pages, total_caught, total_pokemon, dex_type="basic", total_shiny_count=0, 
+                          display_cog=None, utils=None, filtered_entries=None, current_page=0):
+    """Factory function to create a ShinyDexView class with proper class-level containers"""
 
-    def __init__(self, ctx, pages, total_caught, total_pokemon, dex_type="basic", total_shiny_count=0, timeout=180):
-        super().__init__(timeout=timeout)
-        self.ctx = ctx
-        self.pages = pages
-        self.total_caught = total_caught
-        self.total_pokemon = total_pokemon
-        self.dex_type = dex_type
-        self.total_shiny_count = total_shiny_count
-        self.current_page = 0
-        self.message = None
-        self.update_buttons()
+    page_content = pages[current_page]
 
-    def update_buttons(self):
-        """Enable/disable buttons based on current page"""
-        self.previous_button.disabled = (self.current_page == 0)
-        self.next_button.disabled = (self.current_page >= len(self.pages) - 1)
+    title = f"✨ Your Shiny Dex ({dex_type.title()})"
+    count_line = f"You've caught {total_caught} out of {total_pokemon} pokémons!"
 
-    def create_embed(self):
-        """Create embed for current page"""
-        title = f"✨ Your Shiny Dex ({self.dex_type.title()})"
-        embed = discord.Embed(title=title, color=EMBED_COLOR)
+    footer_text = f"Page {current_page + 1}/{len(pages)}"
+    if total_shiny_count > 0:
+        footer_text += f" • Total Shinies: {total_shiny_count}"
 
-        # Add count line at the top of description
-        count_line = f"You've caught {self.total_caught} out of {self.total_pokemon} pokémons!\n\n"
-        embed.description = count_line + self.pages[self.current_page]
+    # Create custom button classes with callbacks
+    class PreviousButton(discord.ui.Button):
+        def __init__(self):
+            super().__init__(
+                style=discord.ButtonStyle.secondary,
+                label="Previous",
+                emoji="⬅️",
+                disabled=False  # Never disabled - wraps to last page
+            )
 
-        footer_text = f"Page {self.current_page + 1}/{len(self.pages)}"
-        if self.total_shiny_count > 0:
-            footer_text += f" • Total Shinies: {self.total_shiny_count}"
-        embed.set_footer(text=footer_text)
+        async def callback(self, interaction: discord.Interaction):
+            # Get the view instance
+            view = self.view
+            if interaction.user.id != ctx.author.id:
+                await interaction.response.send_message("❌ This is not your shiny dex!", ephemeral=True)
+                return
 
-        return embed
+            # If on first page, go to last page. Otherwise, go to previous page
+            if current_page == 0:
+                new_page = len(pages) - 1
+            else:
+                new_page = current_page - 1
 
-    @discord.ui.button(label="Previous", style=discord.ButtonStyle.primary, emoji="◀️")
-    async def previous_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.ctx.author.id:
-            await interaction.response.send_message("❌ This is not your shiny dex!", ephemeral=True)
-            return
-        if self.current_page > 0:
-            self.current_page -= 1
-            self.update_buttons()
-            await interaction.response.edit_message(embed=self.create_embed(), view=self)
-        else:
+            ViewClass = create_shiny_dex_view(
+                ctx, pages, total_caught, total_pokemon,
+                dex_type, total_shiny_count, display_cog,
+                utils, filtered_entries, new_page
+            )
+            new_view = ViewClass()
+            new_view.message = view.message
+            await interaction.response.edit_message(view=new_view)
+
+    class NextButton(discord.ui.Button):
+        def __init__(self):
+            super().__init__(
+                style=discord.ButtonStyle.secondary,
+                label="Next",
+                emoji="➡️",
+                disabled=False  # Never disabled - wraps to first page
+            )
+
+        async def callback(self, interaction: discord.Interaction):
+            view = self.view
+            if interaction.user.id != ctx.author.id:
+                await interaction.response.send_message("❌ This is not your shiny dex!", ephemeral=True)
+                return
+
+            # If on last page, go to first page. Otherwise, go to next page
+            if current_page >= len(pages) - 1:
+                new_page = 0
+            else:
+                new_page = current_page + 1
+
+            ViewClass = create_shiny_dex_view(
+                ctx, pages, total_caught, total_pokemon,
+                dex_type, total_shiny_count, display_cog,
+                utils, filtered_entries, new_page
+            )
+            new_view = ViewClass()
+            new_view.message = view.message
+            await interaction.response.edit_message(view=new_view)
+
+    class ImageButton(discord.ui.Button):
+        def __init__(self):
+            super().__init__(
+                style=discord.ButtonStyle.secondary,
+                label="Image",
+                emoji="🎨",
+            )
+
+        async def callback(self, interaction: discord.Interaction):
+            if interaction.user.id != ctx.author.id:
+                await interaction.response.send_message("❌ This is not your shiny dex!", ephemeral=True)
+                return
+
+            if not display_cog or not utils or not filtered_entries:
+                await interaction.response.send_message("❌ Image generation not available!", ephemeral=True)
+                return
+
+            # Just defer the interaction (no visible response)
             await interaction.response.defer()
 
-    @discord.ui.button(label="Next", style=discord.ButtonStyle.primary, emoji="▶️")
-    async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.ctx.author.id:
-            await interaction.response.send_message("❌ This is not your shiny dex!", ephemeral=True)
-            return
-        if self.current_page < len(self.pages) - 1:
-            self.current_page += 1
-            self.update_buttons()
-            await interaction.response.edit_message(embed=self.create_embed(), view=self)
-        else:
-            await interaction.response.defer()
-
-    async def on_timeout(self):
-        if self.message:
             try:
-                for item in self.children:
-                    item.disabled = True
-                await self.message.edit(view=self)
-            except:
-                pass
+                header_info = {'dex_type': f'{dex_type.title()} Shiny Dex'}
+                await display_cog.send_dex_image(
+                    ctx, 
+                    filtered_entries, 
+                    utils, 
+                    current_page + 1, 
+                    header_info,
+                    interaction  # Pass interaction for loading message
+                )
+            except Exception as e:
+                await interaction.followup.send(f"❌ Error generating image: {str(e)}")
+
+    class ListButton(discord.ui.Button):
+        def __init__(self):
+            super().__init__(
+                style=discord.ButtonStyle.secondary,
+                label="List",
+                emoji="📝",
+            )
+
+        async def callback(self, interaction: discord.Interaction):
+            if interaction.user.id != ctx.author.id:
+                await interaction.response.send_message("❌ This is not your shiny dex!", ephemeral=True)
+                return
+
+            if not display_cog or not filtered_entries:
+                await interaction.response.send_message("❌ List export not available!", ephemeral=True)
+                return
+
+            # Just defer the interaction (no visible response)
+            await interaction.response.defer()
+
+            try:
+                pokemon_names = [name for _, name, _, _ in filtered_entries]
+                seen = set()
+                unique_names = []
+                for name in pokemon_names:
+                    if name not in seen:
+                        seen.add(name)
+                        unique_names.append(name)
+
+                await display_cog.send_pokemon_list_simple(ctx, unique_names)
+            except Exception as e:
+                await interaction.followup.send(f"❌ Error generating list: {str(e)}")
+
+    class SmartListButton(discord.ui.Button):
+        def __init__(self):
+            super().__init__(
+                style=discord.ButtonStyle.secondary,
+                label="Smart List",
+                emoji="📋",
+            )
+
+        async def callback(self, interaction: discord.Interaction):
+            if interaction.user.id != ctx.author.id:
+                await interaction.response.send_message("❌ This is not your shiny dex!", ephemeral=True)
+                return
+
+            if not display_cog or not utils or not filtered_entries:
+                await interaction.response.send_message("❌ Smart list export not available!", ephemeral=True)
+                return
+
+            # Just defer the interaction (no visible response)
+            await interaction.response.defer()
+
+            try:
+                pokemon_data = [(name, gender_key, count) for _, name, gender_key, count in filtered_entries]
+                await display_cog.send_pokemon_smartlist(ctx, pokemon_data, utils)
+            except Exception as e:
+                await interaction.followup.send(f"❌ Error generating smart list: {str(e)}")
+
+    class ShinyDexView(discord.ui.LayoutView):
+        """Pagination view for shiny dex using new UI components"""
+
+        # Class-level container with button instances
+        container1 = discord.ui.Container(
+            discord.ui.TextDisplay(content=f"**{title}**"),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay(content=count_line),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay(content=page_content),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay(content=f"_{footer_text}_"),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+            # Navigation buttons
+            discord.ui.ActionRow(PreviousButton(), NextButton()),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+            # Export options - all in one row
+            discord.ui.ActionRow(ImageButton(), ListButton(), SmartListButton()),
+        )
+
+        def __init__(self, timeout=180):
+            super().__init__(timeout=timeout)
+            self.ctx = ctx
+            self.pages = pages
+            self.total_caught = total_caught
+            self.total_pokemon = total_pokemon
+            self.dex_type = dex_type
+            self.total_shiny_count = total_shiny_count
+            self.current_page = current_page
+            self.message = None
+            self.display_cog = display_cog
+            self.utils = utils
+            self.filtered_entries = filtered_entries
+
+        async def on_timeout(self):
+            if self.message:
+                try:
+                    pass
+                except:
+                    pass
+
+    return ShinyDexView
+
+
+class ShinyDexView_OLD(discord.ui.LayoutView):
+    """DEPRECATED - kept for reference but not used"""
 
 
 class ShinyDexDisplay(commands.Cog):
@@ -111,7 +256,7 @@ class ShinyDexDisplay(commands.Cog):
         show_image = False
         ignore_male = False
         ignore_female = False
-        evo_filters = []  # Changed: Now a list to support multiple --evo filters
+        evo_filters = []
 
         if not filter_string:
             return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters
@@ -159,7 +304,6 @@ class ShinyDexDisplay(commands.Cog):
                 ignore_female = True
                 i += 1
             elif arg in ['--evo', '--evolution']:
-                # Evolution family filter (can be used multiple times)
                 if i + 1 < len(args):
                     evo_parts = []
                     i += 1
@@ -297,16 +441,12 @@ class ShinyDexDisplay(commands.Cog):
         all_family_members = set()
 
         for evo_filter in evo_filters:
-            # Resolve the input name (handles foreign language names)
             canonical_name = utils.resolve_pokemon_name(evo_filter)
-
-            # Get the evolution family
             family_members = utils.get_evolution_family(canonical_name)
 
             if not family_members:
                 return None
 
-            # Add all members to the combined set
             all_family_members.update(family_members)
 
         return all_family_members
@@ -318,19 +458,15 @@ class ShinyDexDisplay(commands.Cog):
         """
         combined_set = set()
 
-        # Add Pokemon from evolution families
         if evo_filters:
             evo_set = self.get_evolution_family_set(utils, evo_filters)
             if evo_set is None:
-                return None  # Invalid evolution family
+                return None
             combined_set.update(evo_set)
 
-        # Add Pokemon from name searches (we'll check these during filtering)
-        # If only name searches exist, return None so we do the check later
         if name_searches and not evo_filters:
             return None
 
-        # If we have evo filters, return the set (name searches will be OR'd during filtering)
         return combined_set if combined_set else None
 
     async def send_pokemon_list_simple(self, ctx, pokemon_names: list):
@@ -379,44 +515,51 @@ class ShinyDexDisplay(commands.Cog):
                 mention_author=False
             )
 
-    async def send_dex_image(self, ctx, pokemon_entries: list, utils, page: int = 1, header_info: dict = None):
-        """Generate and send dex image"""
-        # Get user's grid settings to calculate max per page
+    async def send_dex_image(self, ctx, pokemon_entries: list, utils, page: int = 1, header_info: dict = None, interaction: discord.Interaction = None):
+        """Generate and send dex image in a LayoutView container with navigation"""
         user_settings = await self.image_generator.get_user_settings(ctx.author.id)
-        max_per_page = user_settings['max_pokemon']  # This is grid_cols * grid_rows
+        max_per_page = user_settings['max_pokemon']
 
-        # Calculate which Pokemon to show based on page and user's grid settings
         start_idx = (page - 1) * max_per_page
         end_idx = start_idx + max_per_page
         page_entries = pokemon_entries[start_idx:end_idx]
 
         if not page_entries:
-            await ctx.send("❌ No Pokémon on this page!", ephemeral=True)
+            if interaction:
+                await interaction.followup.send("❌ No Pokémon on this page!")
+            else:
+                await ctx.send("❌ No Pokémon on this page!")
             return
 
-        # Check if this is a slash command (interaction) or regular command
-        is_interaction = hasattr(ctx, 'interaction') and ctx.interaction is not None
-
-        if is_interaction:
-            # For slash commands, defer the response first (this prevents auto-deletion)
-            if not ctx.interaction.response.is_done():
-                await ctx.interaction.response.defer()
-            # Don't send a status message for slash commands - just generate directly
-            status_msg = None
+        # Calculate estimated time based on grid size
+        grid_size = max_per_page
+        if grid_size <= 20:
+            time_estimate = "a few seconds"
+        elif grid_size <= 50:
+            time_estimate = "10-30 seconds"
+        elif grid_size <= 100:
+            time_estimate = "30-60 seconds"
         else:
-            # For regular commands, send status message
-            status_msg = await ctx.send("🎨 Generating dex image...", reference=ctx.message, mention_author=False)
+            time_estimate = "1-2 minutes"
+
+        loading_msg = f"🎨 Generating dex image... This may take {time_estimate}."
+
+        # Send loading message
+        if interaction:
+            # For button interactions, send as followup
+            status_msg = await interaction.followup.send(loading_msg)
+        else:
+            # For command calls
+            status_msg = await ctx.send(loading_msg, reference=ctx.message, mention_author=False)
 
         try:
-            # Build page info based on user's grid settings
-            total_pages = (len(pokemon_entries) + max_per_page - 1) // max_per_page  # Ceil division
+            total_pages = (len(pokemon_entries) + max_per_page - 1) // max_per_page
             page_info = {
                 'current_page': page,
                 'total_pages': total_pages,
                 'total_count': len(pokemon_entries)
             }
 
-            # Pass user_id so image generator uses their custom settings
             img = await self.image_generator.create_dex_image(
                 page_entries, 
                 utils, 
@@ -426,40 +569,97 @@ class ShinyDexDisplay(commands.Cog):
             )
 
             if img:
-                # Save to bytes
+                # Save image to bytes
                 img_bytes = io.BytesIO()
                 img.save(img_bytes, format='PNG')
                 img_bytes.seek(0)
 
+                # Create a Discord file attachment
                 file = discord.File(img_bytes, filename='shinydex.png')
 
-                if is_interaction:
-                    # For slash commands, send image directly as followup
-                    await ctx.interaction.followup.send(file=file)
-                else:
-                    # For regular commands, delete status and send image
-                    if status_msg:
+                # Determine if this is the last page
+                is_last_page = (page >= total_pages)
+
+                # Store reference to send_dex_image for button callbacks
+                send_dex_image_ref = self.send_dex_image
+
+                # Create button class with callback
+                class NextPageButton(discord.ui.Button):
+                    def __init__(self):
+                        super().__init__(
+                            style=discord.ButtonStyle.secondary,
+                            label="Next Page",
+                            emoji="➡️",
+                            disabled=is_last_page
+                        )
+
+                    async def callback(self, interaction: discord.Interaction):
+                        if interaction.user.id != ctx.author.id:
+                            await interaction.response.send_message(
+                                "❌ This is not your dex!", 
+                                ephemeral=True
+                            )
+                            return
+
+                        # Defer the interaction
+                        await interaction.response.defer()
+
+                        # Generate next page (pass interaction for loading message)
+                        next_page = page + 1
+                        await send_dex_image_ref(
+                            ctx, 
+                            pokemon_entries, 
+                            utils, 
+                            next_page, 
+                            header_info,
+                            interaction  # Pass interaction here
+                        )
+
+                # Create a LayoutView with the image, separator, and button
+                class ImageView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.MediaGallery(
+                            discord.MediaGalleryItem(
+                                media="attachment://shinydex.png",
+                            ),
+                        ),
+                        discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                        discord.ui.Section(
+                            discord.ui.TextDisplay(
+                                content=f"🎨 **Dex Image** - Page {page}/{total_pages}"
+                            ),
+                            accessory=NextPageButton(),
+                        ),
+                    )
+
+                    def __init__(self):
+                        super().__init__(timeout=180)
+
+                image_view = ImageView()
+
+                # Delete loading message and send image
+                if status_msg:
+                    try:
                         await status_msg.delete()
-                    await ctx.send(file=file, reference=ctx.message, mention_author=False)
+                    except:
+                        pass
+
+                await ctx.send(view=image_view, file=file, reference=ctx.message, mention_author=False)
             else:
-                if is_interaction:
-                    await ctx.interaction.followup.send("❌ Failed to generate image!")
+                # Update loading message with error
+                if status_msg:
+                    await status_msg.edit(content="❌ Failed to generate image!")
                 else:
-                    if status_msg:
-                        await status_msg.edit(content="❌ Failed to generate image!")
-                    else:
-                        await ctx.send("❌ Failed to generate image!", reference=ctx.message, mention_author=False)
+                    await ctx.send("❌ Failed to generate image!", reference=ctx.message, mention_author=False)
 
         except Exception as e:
             error_msg = f"❌ Error generating image: {str(e)}"
 
-            if is_interaction:
-                await ctx.interaction.followup.send(error_msg)
+            # Update loading message with error
+            if status_msg:
+                await status_msg.edit(content=error_msg)
             else:
-                if status_msg:
-                    await status_msg.edit(content=error_msg)
-                else:
-                    await ctx.send(error_msg, reference=ctx.message, mention_author=False)
+                await ctx.send(error_msg, reference=ctx.message, mention_author=False)
 
             print(f"Error in dex image generation: {e}")
 
@@ -474,15 +674,12 @@ class ShinyDexDisplay(commands.Cog):
 
         user_id = ctx.author.id
 
-        # Parse filters
         show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters = self.parse_filters(filters)
 
-        # Check conflicting flags
         if show_image and (show_list or show_smartlist):
             await ctx.send("❌ Cannot use --image with --list or --smartlist!", reference=ctx.message, mention_author=False)
             return
 
-        # Get evolution family if --evo is specified
         evo_family_set = None
         if evo_filters:
             evo_family_set = self.get_evolution_family_set(utils, evo_filters)
@@ -490,10 +687,8 @@ class ShinyDexDisplay(commands.Cog):
                 await ctx.send(f"❌ Evolution family not found for one of: {', '.join(evo_filters)}!", reference=ctx.message, mention_author=False)
                 return
 
-        # Get user's shinies
         user_shinies = await db.get_all_shinies(user_id)
 
-        # Build dex number -> count map (count ALL shinies with that dex number)
         dex_counts = {}
         for shiny in user_shinies:
             dex_num = shiny['dex_number']
@@ -501,36 +696,27 @@ class ShinyDexDisplay(commands.Cog):
                 dex_counts[dex_num] = 0
             dex_counts[dex_num] += 1
 
-        # Get all dex entries from CSV (one per dex number - the first/top one)
         all_dex_entries = utils.get_basic_dex_entries()
 
-        # Build filtered list
         dex_entries = []
         for dex_num, pokemon_name in all_dex_entries:
-            # Apply name search and evolution family filter (OR logic)
-            # If both --n and --evo are specified, Pokemon must match EITHER condition
             if name_searches or evo_filters:
                 matches_name = False
                 matches_evo = False
 
-                # Check name search match (accent-insensitive)
                 if name_searches:
                     normalized_pokemon = normalize_string(pokemon_name.lower())
                     matches_name = any(normalize_string(search.lower()) in normalized_pokemon for search in name_searches)
 
-                # Check evolution family match
                 if evo_family_set:
                     matches_evo = pokemon_name in evo_family_set
 
-                # Must match at least one condition (OR logic)
                 if not (matches_name or matches_evo):
                     continue
 
-            # Apply exclude filter
             if self.is_excluded(pokemon_name, exclude_names):
                 continue
 
-            # Apply region/type filters
             if region_filter or type_filters:
                 if not self.matches_filters(pokemon_name, utils, region_filter, type_filters):
                     continue
@@ -538,7 +724,6 @@ class ShinyDexDisplay(commands.Cog):
             count = dex_counts.get(dex_num, 0)
             dex_entries.append((dex_num, pokemon_name, count))
 
-        # Apply caught/uncaught filters
         filtered_entries = []
         for dex_num, name, count in dex_entries:
             if count > 0 and not show_caught:
@@ -547,7 +732,6 @@ class ShinyDexDisplay(commands.Cog):
                 continue
             filtered_entries.append((dex_num, name, count))
 
-        # Apply ordering
         if order == 'desc':
             filtered_entries.sort(key=lambda x: x[2], reverse=True)
         elif order == 'asc':
@@ -557,12 +741,8 @@ class ShinyDexDisplay(commands.Cog):
             await ctx.send("❌ No shinies match your filters!", reference=ctx.message, mention_author=False)
             return
 
-        # If --image flag is set, generate image
         if show_image:
-            # Convert to format expected by image generator (dex_num, name, gender_key, count)
             image_entries = [(dex_num, name, None, count) for dex_num, name, count in filtered_entries]
-
-            # Build header info
             header_info = {'dex_type': 'Basic Shiny Dex'}
             if type_filters:
                 header_info['types'] = type_filters
@@ -574,39 +754,32 @@ class ShinyDexDisplay(commands.Cog):
             await self.send_dex_image(ctx, image_entries, utils, page or 1, header_info)
             return
 
-        # If --list flag is set, send simple list format
         if show_list:
             pokemon_names = [name for _, name, _ in filtered_entries]
             await self.send_pokemon_list_simple(ctx, pokemon_names)
             return
 
-        # If --smartlist flag is set, send smartlist format
         if show_smartlist:
-            # For basic dex, we don't track gender, so just mark all as no gender diff
             pokemon_data = [(name, None, count) for _, name, count in filtered_entries]
             await self.send_pokemon_smartlist(ctx, pokemon_data, utils)
             return
 
-        # Calculate stats
         total_caught = sum(1 for _, _, count in dex_entries if count > 0)
         total_pokemon = len(dex_entries)
         total_shiny_count = sum(count for _, _, count in filtered_entries)
 
-        # Create pages
         lines = []
         for dex_num, name, count in filtered_entries:
             icon = f"{config.TICK}" if count > 0 else f"{config.CROSS}"
             sparkles = f"{count} ✨" if count > 0 else "0"
             lines.append(f"{icon} **#{dex_num}** {name} - {sparkles}")
 
-        # Paginate
         per_page = 21
         pages = []
         for i in range(0, len(lines), per_page):
             page_content = "\n".join(lines[i:i+per_page])
             pages.append(page_content)
 
-        # Create view with filters in display name
         filter_text = "basic"
         if evo_filters:
             filter_text += f" - {', '.join(evo_filters)} families"
@@ -615,18 +788,18 @@ class ShinyDexDisplay(commands.Cog):
         if type_filters:
             filter_text += f" - {'/'.join(type_filters)}"
 
-        view = ShinyDexView(ctx, pages, total_caught, total_pokemon, filter_text, total_shiny_count)
+        # Convert filtered_entries to format expected by view (add None for gender_key)
+        view_entries = [(dex_num, name, None, count) for dex_num, name, count in filtered_entries]
 
-        # Apply page number if specified
-        if page is not None:
-            if 1 <= page <= len(pages):
-                view.current_page = page - 1
-                view.update_buttons()
-            else:
-                await ctx.send(f"❌ Invalid page number! Valid range: 1-{len(pages)}", reference=ctx.message, mention_author=False)
-                return
+        # Create view using factory function
+        ViewClass = create_shiny_dex_view(
+            ctx, pages, total_caught, total_pokemon, filter_text, total_shiny_count,
+            display_cog=self, utils=utils, filtered_entries=view_entries, current_page=(page - 1) if page else 0
+        )
+        view = ViewClass()
 
-        message = await ctx.send(embed=view.create_embed(), view=view, reference=ctx.message, mention_author=False)
+        # Send view only (no embed or content needed with LayoutView)
+        message = await ctx.send(view=view, reference=ctx.message, mention_author=False)  # Add this
         view.message = message
 
     @commands.hybrid_command(name='shinydexfull', aliases=['sdf','fulldex','fd','fullshinydex','fsd'])
@@ -640,15 +813,12 @@ class ShinyDexDisplay(commands.Cog):
 
         user_id = ctx.author.id
 
-        # Parse filters
         show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters = self.parse_filters(filters)
 
-        # Check conflicting flags
         if show_image and (show_list or show_smartlist):
             await ctx.send("❌ Cannot use --image with --list or --smartlist!", reference=ctx.message, mention_author=False)
             return
 
-        # Get evolution family if --evo is specified
         evo_family_set = None
         if evo_filters:
             evo_family_set = self.get_evolution_family_set(utils, evo_filters)
@@ -656,10 +826,8 @@ class ShinyDexDisplay(commands.Cog):
                 await ctx.send(f"❌ Evolution family not found for one of: {', '.join(evo_filters)}!", reference=ctx.message, mention_author=False)
                 return
 
-        # Get user's shinies
         user_shinies = await db.get_all_shinies(user_id)
 
-        # Build counts: (dex_num, name, gender_key) -> count
         form_counts = {}
         for shiny in user_shinies:
             dex_num = shiny['dex_number']
@@ -677,50 +845,39 @@ class ShinyDexDisplay(commands.Cog):
                 form_counts[key] = 0
             form_counts[key] += 1
 
-        # Get all forms from CSV
         all_forms = utils.get_full_dex_entries()
 
-        # Build filtered list
         form_entries = []
         for dex_num, pokemon_name, has_gender_diff in all_forms:
-            # Apply name search and evolution family filter (OR logic)
-            # If both --n and --evo are specified, Pokemon must match EITHER condition
             if name_searches or evo_filters:
                 matches_name = False
                 matches_evo = False
 
-                # Check name search match (accent-insensitive)
                 if name_searches:
                     normalized_pokemon = normalize_string(pokemon_name.lower())
                     matches_name = any(normalize_string(search.lower()) in normalized_pokemon for search in name_searches)
 
-                # Check evolution family match
                 if evo_family_set:
                     matches_evo = pokemon_name in evo_family_set
 
-                # Must match at least one condition (OR logic)
                 if not (matches_name or matches_evo):
                     continue
 
-            # Apply exclude filter
             if self.is_excluded(pokemon_name, exclude_names):
                 continue
 
-            # Apply region/type filters
             if region_filter or type_filters:
                 if not self.matches_filters(pokemon_name, utils, region_filter, type_filters):
                     continue
 
             if has_gender_diff:
                 if ignore_gender:
-                    # Combine male and female counts into single entry
                     male_count = form_counts.get((dex_num, pokemon_name, 'male'), 0)
                     female_count = form_counts.get((dex_num, pokemon_name, 'female'), 0)
                     combined_count = form_counts.get((dex_num, pokemon_name, None), 0)
                     total_count = male_count + female_count + combined_count
                     form_entries.append((dex_num, pokemon_name, None, total_count))
                 else:
-                    # Add male and female entries (unless explicitly ignored)
                     if not ignore_male:
                         male_count = form_counts.get((dex_num, pokemon_name, 'male'), 0)
                         form_entries.append((dex_num, pokemon_name, 'male', male_count))
@@ -729,11 +886,9 @@ class ShinyDexDisplay(commands.Cog):
                         female_count = form_counts.get((dex_num, pokemon_name, 'female'), 0)
                         form_entries.append((dex_num, pokemon_name, 'female', female_count))
             else:
-                # Add single entry
                 count = form_counts.get((dex_num, pokemon_name, None), 0)
                 form_entries.append((dex_num, pokemon_name, None, count))
 
-        # Apply caught/uncaught filters
         filtered_entries = []
         for entry in form_entries:
             dex_num, name, gender_key, count = entry
@@ -743,7 +898,6 @@ class ShinyDexDisplay(commands.Cog):
                 continue
             filtered_entries.append(entry)
 
-        # Apply ordering
         if order == 'desc':
             filtered_entries.sort(key=lambda x: x[3], reverse=True)
         elif order == 'asc':
@@ -753,9 +907,7 @@ class ShinyDexDisplay(commands.Cog):
             await ctx.send("❌ No shinies match your filters!", reference=ctx.message, mention_author=False)
             return
 
-        # If --image flag is set, generate image
         if show_image:
-            # Build header info
             header_info = {'dex_type': 'Full Shiny Dex'}
             if type_filters:
                 header_info['types'] = type_filters
@@ -767,10 +919,8 @@ class ShinyDexDisplay(commands.Cog):
             await self.send_dex_image(ctx, filtered_entries, utils, page or 1, header_info)
             return
 
-        # If --list flag is set, send simple list format
         if show_list:
             pokemon_names = [name for _, name, _, _ in filtered_entries]
-            # Remove duplicates while preserving order
             seen = set()
             unique_names = []
             for name in pokemon_names:
@@ -780,24 +930,20 @@ class ShinyDexDisplay(commands.Cog):
             await self.send_pokemon_list_simple(ctx, unique_names)
             return
 
-        # If --smartlist flag is set, send smartlist format
         if show_smartlist:
             pokemon_data = [(name, gender_key, count) for _, name, gender_key, count in filtered_entries]
             await self.send_pokemon_smartlist(ctx, pokemon_data, utils)
             return
 
-        # Calculate stats
         total_caught = sum(1 for entry in form_entries if entry[3] > 0)
         total_forms = len(form_entries)
         total_shiny_count = sum(entry[3] for entry in filtered_entries)
 
-        # Create pages
         lines = []
         for dex_num, name, gender_key, count in filtered_entries:
             icon = f"{config.TICK}" if count > 0 else f"{config.CROSS}"
             sparkles = f"{count} ✨" if count > 0 else "0"
 
-            # Add gender emoji if applicable
             gender_emoji = ""
             if gender_key == 'male':
                 gender_emoji = f" {config.GENDER_MALE}"
@@ -806,14 +952,12 @@ class ShinyDexDisplay(commands.Cog):
 
             lines.append(f"{icon} **#{dex_num}** {name}{gender_emoji} - {sparkles}")
 
-        # Paginate
         per_page = 21
         pages = []
         for i in range(0, len(lines), per_page):
             page_content = "\n".join(lines[i:i+per_page])
             pages.append(page_content)
 
-        # Create view with filters in display name
         filter_text = "full"
         if evo_filters:
             filter_text += f" - {', '.join(evo_filters)} families"
@@ -822,18 +966,15 @@ class ShinyDexDisplay(commands.Cog):
         if type_filters:
             filter_text += f" - {'/'.join(type_filters)}"
 
-        view = ShinyDexView(ctx, pages, total_caught, total_forms, filter_text, total_shiny_count)
+        # Create view using factory function
+        ViewClass = create_shiny_dex_view(
+            ctx, pages, total_caught, total_forms, filter_text, total_shiny_count,
+            display_cog=self, utils=utils, filtered_entries=filtered_entries, current_page=(page - 1) if page else 0
+        )
+        view = ViewClass()
 
-        # Apply page number if specified
-        if page is not None:
-            if 1 <= page <= len(pages):
-                view.current_page = page - 1
-                view.update_buttons()
-            else:
-                await ctx.send(f"❌ Invalid page number! Valid range: 1-{len(pages)}", reference=ctx.message, mention_author=False)
-                return
-
-        message = await ctx.send(embed=view.create_embed(), view=view, reference=ctx.message, mention_author=False)
+        # Send view only (no embed or content needed with LayoutView)
+        message = await ctx.send(view=view, reference=ctx.message, mention_author=False)  # Add this
         view.message = message
 
     @commands.hybrid_command(name='filter', aliases=['f'])
@@ -848,7 +989,6 @@ class ShinyDexDisplay(commands.Cog):
             await ctx.send("❌ Utils cog not loaded", reference=ctx.message, mention_author=False)
             return
 
-        # If no filter name provided, show available filters
         if not filter_name:
             available_filters = get_all_filter_names()
             filter_list = ", ".join([f"`{f}`" for f in available_filters])
@@ -860,7 +1000,6 @@ class ShinyDexDisplay(commands.Cog):
             await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
             return
 
-        # Get the filter
         filter_data = get_filter(filter_name)
         if not filter_data:
             available_filters = get_all_filter_names()
@@ -873,15 +1012,12 @@ class ShinyDexDisplay(commands.Cog):
 
         user_id = ctx.author.id
 
-        # Parse options
         show_caught, show_uncaught, order, region_filter, type_filters, _, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters = self.parse_filters(options)
 
-        # Check conflicting flags
         if show_image and (show_list or show_smartlist):
             await ctx.send("❌ Cannot use --image with --list or --smartlist!", reference=ctx.message, mention_author=False)
             return
 
-        # Get evolution family if --evo is specified
         evo_family_set = None
         if evo_filters:
             evo_family_set = self.get_evolution_family_set(utils, evo_filters)
@@ -889,45 +1025,36 @@ class ShinyDexDisplay(commands.Cog):
                 await ctx.send(f"❌ Evolution family not found for one of: {', '.join(evo_filters)}!", reference=ctx.message, mention_author=False)
                 return
 
-        # Get user's shinies
         user_shinies = await db.get_all_shinies(user_id)
 
-        # Get filter Pokemon set and apply region/type/exclude/evo filters
         filter_pokemon_set = set()
         for pokemon_name in filter_data['pokemon']:
-            # Apply evolution family filter (if specified, only include Pokemon in the family)
             if evo_family_set and pokemon_name not in evo_family_set:
                 continue
 
-            # Apply exclude filter
             if self.is_excluded(pokemon_name, exclude_names):
                 continue
 
-            # Apply region/type filters
             if region_filter or type_filters:
                 if not self.matches_filters(pokemon_name, utils, region_filter, type_filters):
                     continue
             filter_pokemon_set.add(pokemon_name)
 
-        # If no Pokemon match the filters, return early
         if not filter_pokemon_set:
             await ctx.send("❌ No Pokémon in this filter match your filters!", reference=ctx.message, mention_author=False)
             return
 
-        # Build counts
         form_counts = {}
         for shiny in user_shinies:
             dex_num = shiny['dex_number']
             name = shiny['name']
             gender = shiny['gender']
 
-            # Only process if name is in filter
             if name not in filter_pokemon_set:
                 continue
 
             has_gender_diff = utils.has_gender_difference(name)
 
-            # If ignore_gender is True, combine all genders into one entry
             if ignore_gender or not has_gender_diff:
                 key = (dex_num, name, None)
             elif has_gender_diff and gender in ['male', 'female']:
@@ -939,7 +1066,6 @@ class ShinyDexDisplay(commands.Cog):
                 form_counts[key] = 0
             form_counts[key] += 1
 
-        # Build entries from filter list
         dex_entries = []
         for pokemon_name in filter_pokemon_set:
             dex_num = utils.get_dex_number(pokemon_name)
@@ -948,9 +1074,7 @@ class ShinyDexDisplay(commands.Cog):
 
             has_gender_diff = utils.has_gender_difference(pokemon_name)
 
-            # If ignore_gender is True, create single entry with combined count
             if ignore_gender:
-                # Combine male and female counts
                 male_count = form_counts.get((dex_num, pokemon_name, 'male'), 0)
                 female_count = form_counts.get((dex_num, pokemon_name, 'female'), 0)
                 combined_count = form_counts.get((dex_num, pokemon_name, None), 0)
@@ -958,12 +1082,10 @@ class ShinyDexDisplay(commands.Cog):
 
                 dex_entries.append((dex_num, pokemon_name, None, total_count))
             elif has_gender_diff:
-                # Add male entry (unless ignored)
                 if not ignore_male:
                     male_count = form_counts.get((dex_num, pokemon_name, 'male'), 0)
                     dex_entries.append((dex_num, pokemon_name, 'male', male_count))
 
-                # Add female entry (unless ignored)
                 if not ignore_female:
                     female_count = form_counts.get((dex_num, pokemon_name, 'female'), 0)
                     dex_entries.append((dex_num, pokemon_name, 'female', female_count))
@@ -971,10 +1093,8 @@ class ShinyDexDisplay(commands.Cog):
                 count = form_counts.get((dex_num, pokemon_name, None), 0)
                 dex_entries.append((dex_num, pokemon_name, None, count))
 
-        # Sort by dex number by default
         dex_entries.sort(key=lambda x: x[0])
 
-        # Apply caught/uncaught filters
         filtered_entries = []
         for entry in dex_entries:
             dex_num, name, gender_key, count = entry
@@ -984,7 +1104,6 @@ class ShinyDexDisplay(commands.Cog):
                 continue
             filtered_entries.append(entry)
 
-        # Apply ordering
         if order == 'desc':
             filtered_entries.sort(key=lambda x: x[3], reverse=True)
         elif order == 'asc':
@@ -994,9 +1113,7 @@ class ShinyDexDisplay(commands.Cog):
             await ctx.send("❌ No shinies match your filters!", reference=ctx.message, mention_author=False)
             return
 
-        # If --image flag is set, generate image
         if show_image:
-            # Build header info
             header_info = {'filter_name': filter_data['name']}
             if type_filters:
                 header_info['types'] = type_filters
@@ -1008,10 +1125,8 @@ class ShinyDexDisplay(commands.Cog):
             await self.send_dex_image(ctx, filtered_entries, utils, page or 1, header_info)
             return
 
-        # If --list flag is set, send simple list format
         if show_list:
             pokemon_names = [name for _, name, _, _ in filtered_entries]
-            # Remove duplicates while preserving order
             seen = set()
             unique_names = []
             for name in pokemon_names:
@@ -1021,18 +1136,15 @@ class ShinyDexDisplay(commands.Cog):
             await self.send_pokemon_list_simple(ctx, unique_names)
             return
 
-        # If --smartlist flag is set, send smartlist format
         if show_smartlist:
             pokemon_data = [(name, gender_key, count) for _, name, gender_key, count in filtered_entries]
             await self.send_pokemon_smartlist(ctx, pokemon_data, utils)
             return
 
-        # Calculate stats
         total_caught = sum(1 for entry in dex_entries if entry[3] > 0)
         total_pokemon = len(dex_entries)
         total_shiny_count = sum(entry[3] for entry in filtered_entries)
 
-        # Create pages
         lines = []
         for dex_num, name, gender_key, count in filtered_entries:
             icon = f"{config.TICK}" if count > 0 else f"{config.CROSS}"
@@ -1046,14 +1158,12 @@ class ShinyDexDisplay(commands.Cog):
 
             lines.append(f"{icon} **#{dex_num}** {name}{gender_emoji} - {sparkles}")
 
-        # Paginate
         per_page = 21
         pages = []
         for i in range(0, len(lines), per_page):
             page_content = "\n".join(lines[i:i+per_page])
             pages.append(page_content)
 
-        # Create view with filters in display name
         filter_display_name = filter_data['name']
         if evo_filters:
             filter_display_name += f" - {', '.join(evo_filters)} families"
@@ -1062,19 +1172,17 @@ class ShinyDexDisplay(commands.Cog):
         if type_filters:
             filter_display_name += f" - {'/'.join(type_filters)}"
 
-        view = ShinyDexView(ctx, pages, total_caught, total_pokemon, filter_display_name, total_shiny_count)
+        # Create view using factory function
+        ViewClass = create_shiny_dex_view(
+            ctx, pages, total_caught, total_pokemon, filter_display_name, total_shiny_count,
+            display_cog=self, utils=utils, filtered_entries=filtered_entries, current_page=(page - 1) if page else 0
+        )
+        view = ViewClass()
 
-        # Apply page number if specified
-        if page is not None:
-            if 1 <= page <= len(pages):
-                view.current_page = page - 1
-                view.update_buttons()
-            else:
-                await ctx.send(f"❌ Invalid page number! Valid range: 1-{len(pages)}", reference=ctx.message, mention_author=False)
-                return
-
-        message = await ctx.send(embed=view.create_embed(), view=view, reference=ctx.message, mention_author=False)
+        # Send view only (no embed or content needed with LayoutView)
+        message = await ctx.send(view=view, reference=ctx.message, mention_author=False)  # Add this
         view.message = message
+
 
 async def setup(bot):
     await bot.add_cog(ShinyDexDisplay(bot))
