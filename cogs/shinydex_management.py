@@ -170,7 +170,11 @@ class ShinyDexManagement(commands.Cog):
                     discord.ui.TextDisplay(content="❌ Utils cog not loaded"),
                 )
 
-            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
+            await ctx.send(
+                view=ErrorView(), 
+                reference=ctx.message, 
+                allowed_mentions=discord.AllowedMentions(replied_user=False)
+            )
             return
 
         user_id = ctx.author.id
@@ -216,7 +220,11 @@ class ShinyDexManagement(commands.Cog):
                             discord.ui.TextDisplay(content="❌ Please reply to a Pokétwo shiny list message!"),
                         )
 
-                    await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
+                    await ctx.send(
+                        view=ErrorView(), 
+                        reference=ctx.message, 
+                        allowed_mentions=discord.AllowedMentions(replied_user=False)
+                    )
                     return
 
                 await process_embed(replied_msg.embeds[0])
@@ -228,7 +236,11 @@ class ShinyDexManagement(commands.Cog):
                         discord.ui.TextDisplay(content=f"❌ Error fetching replied message: {str(e)}"),
                     )
 
-                await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
+                await ctx.send(
+                    view=ErrorView(), 
+                    reference=ctx.message, 
+                    allowed_mentions=discord.AllowedMentions(replied_user=False)
+                )
                 return
 
         elif message_ids:
@@ -247,22 +259,26 @@ class ShinyDexManagement(commands.Cog):
                     discord.ui.TextDisplay(content="❌ No shinies found to track!"),
                 )
 
-            await ctx.send(view=NoShinyView(), reference=ctx.message, mention_author=False)
+            await ctx.send(
+                view=NoShinyView(), 
+                reference=ctx.message, 
+                allowed_mentions=discord.AllowedMentions(replied_user=False)
+            )
             return
 
-        # Initial status message
+        # Initial status message WITHOUT reference
         class StatusView(discord.ui.LayoutView):
             container1 = discord.ui.Container(
                 discord.ui.TextDisplay(content="🔄 **Tracking shinies...**"),
             )
 
-        status_msg = await ctx.send(view=StatusView(), reference=ctx.message, mention_author=False)
+        status_msg = await ctx.send(view=StatusView())
 
         # Add shinies to database
         new_count = await db.add_shinies_bulk(user_id, all_shinies)
         total_in_inventory = await db.count_shinies(user_id)
 
-        event_note = "\n\n⚠️ **Event Pokémon Are Not Counted Towards Dex!**" if event_pokemon_count > 0 else ""
+        event_note = "\n\n⚠️ **Event Pokémon Are Not Added!**" if event_pokemon_count > 0 else ""
 
         # Update status message
         class TrackingView(discord.ui.LayoutView):
@@ -270,9 +286,9 @@ class ShinyDexManagement(commands.Cog):
                 discord.ui.TextDisplay(content="**✅ Shiny Tracking In Progress**"),
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
                 discord.ui.TextDisplay(
-                    content=f"> **Total Shiny Tracked:** {total_found_in_embed} (including {event_pokemon_count} events)\n"
-                            f"> **Total Shiny Added (excluding events):** {new_count}\n"
-                            f"> **Currently In Inventory:** {total_in_inventory}{event_note}"
+                    content=f"{config.REPLY} **Total Shiny Tracked:** {total_found_in_embed} (including {event_pokemon_count} events)\n"
+                            f"{config.REPLY} **Total Shinies Added:** {new_count}\n"
+                            f"{config.REPLY} **Currently In Inventory:** {total_in_inventory}{event_note}"
                 ),
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
                 discord.ui.TextDisplay(content="💡 Keep clicking pages, I'll auto-detect more!"),
@@ -324,7 +340,7 @@ class ShinyDexManagement(commands.Cog):
                         last_update = asyncio.get_event_loop().time()
                         total_in_inventory = await db.count_shinies(user_id)
 
-                        event_note = "\n\n⚠️ **Event Pokémon Are Not Counted Towards Dex!**" if event_pokemon_count > 0 else ""
+                        event_note = "\n\n⚠️ **Event Pokémon Are Not Added!**" if event_pokemon_count > 0 else ""
 
                         # Update with new page data
                         class UpdatedTrackingView(discord.ui.LayoutView):
@@ -332,9 +348,9 @@ class ShinyDexManagement(commands.Cog):
                                 discord.ui.TextDisplay(content="**✅ Page detected! Adding more shinies**"),
                                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
                                 discord.ui.TextDisplay(
-                                    content=f"> **Total Shiny Tracked:** {total_found_in_embed} (including {event_pokemon_count} events)\n"
-                                            f"> **Total Shiny Added:** {new_count}\n"
-                                            f"> **Currently In Inventory:** {total_in_inventory}{event_note}"
+                                    content=f"{config.REPLY} **Total Shiny Tracked:** {total_found_in_embed} (including {event_pokemon_count} events)\n"
+                                            f"{config.REPLY} **Total Shiny Added:** {new_count}\n"
+                                            f"{config.REPLY} **Currently In Inventory:** {total_in_inventory}{event_note}"
                                 ),
                                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
                                 discord.ui.TextDisplay(content="💡 Keep clicking for more!"),
@@ -347,11 +363,11 @@ class ShinyDexManagement(commands.Cog):
                         break
                     continue
 
-        # Final summary
+        # Final summary - delete status message and send new one
         total_processed = len(all_shinies)
         duplicates = total_processed - new_count
 
-        event_warning = "\n\n⚠️ **Event Pokémon Are Not Counted Towards Dex!**" if event_pokemon_count > 0 else ""
+        event_warning = "\n\n⚠️ **Event Pokémon Are Not Added!**" if event_pokemon_count > 0 else ""
 
         class FinalView(discord.ui.LayoutView):
             container1 = discord.ui.Container(
@@ -359,16 +375,24 @@ class ShinyDexManagement(commands.Cog):
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
                 discord.ui.TextDisplay(
                     content=f"**📊 Summary**\n"
-                            f"> **Total Shiny Tracked:** {total_found_in_embed} (including {event_pokemon_count} events)\n"
-                            f"> **Total Shiny Added:** {new_count}\n"
-                            f"> **Currently In Inventory:** {total_in_inventory}\n"
-                            f"> **Duplicates Ignored:** {duplicates}{event_warning}"
+                            f"{config.REPLY} **Total Shiny Tracked:** {total_found_in_embed} (including {event_pokemon_count} events)\n"
+                            f"{config.REPLY} **Total Shiny Added:** {new_count}\n"
+                            f"{config.REPLY} **Currently In Inventory:** {total_in_inventory}\n"
+                            f"{config.REPLY} **Duplicates Ignored:** {duplicates}{event_warning}"
                 ),
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
                 discord.ui.TextDisplay(content="_⚠️ Note: Reindexing in Pokétwo may break ID tracking!_"),
             )
 
-        await status_msg.edit(view=FinalView())
+        # Delete the status message
+        await status_msg.delete()
+
+        # Send final result as NEW message with reference and no ping
+        await ctx.send(
+            view=FinalView(), 
+            reference=ctx.message, 
+            allowed_mentions=discord.AllowedMentions(replied_user=False)
+        )
 
     def parse_shiny_embed(self, description: str, utils):
         """Parse Pokétwo shiny embed to extract shiny data"""
