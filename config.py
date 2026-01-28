@@ -41,6 +41,7 @@ MAX_BREED_PAIRS = 2  # Maximum pairs per breed command
 GENDER_MALE = "<:male_sign:1449750028536250420>"
 GENDER_FEMALE = "<:female_sign:1449750041035145407>"
 GENDER_UNKNOWN = "<:grey_question:1449750016481562787>"
+REPLY = "<:reply:1466004727581118494>"
 
 # Tick/Cross display
 TICK = "<:white_check_mark:1449749985057964094>"
