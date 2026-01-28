@@ -23,15 +23,22 @@ class ShinyDexManagement(commands.Cog):
         """Context menu command to add shinies from a message"""
         # Check if message is from Pokétwo
         if message.author.id != POKETWO_BOT_ID or not message.embeds:
-            await interaction.response.send_message(
-                "❌ Please use this on a Pokétwo shiny list message!",
-                ephemeral=True
-            )
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ Please use this on a Pokétwo shiny list message!"),
+                )
+
+            await interaction.response.send_message(view=ErrorView(), ephemeral=True)
             return
 
         utils = self.bot.get_cog('Utils')
         if not utils:
-            await interaction.response.send_message("❌ Utils cog not loaded", ephemeral=True)
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ Utils cog not loaded"),
+                )
+
+            await interaction.response.send_message(view=ErrorView(), ephemeral=True)
             return
 
         # Defer the response as ephemeral (works even in archived threads)
@@ -60,35 +67,45 @@ class ShinyDexManagement(commands.Cog):
                     processed_shiny_ids.add(shiny['pokemon_id'])
 
         if total_found_in_embed == 0:
-            await interaction.followup.send("❌ No shinies found to track!")
+            class NoShinyView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ No shinies found to track!"),
+                )
+
+            await interaction.followup.send(view=NoShinyView())
             return
 
         # Add shinies to database
         new_count = await db.add_shinies_bulk(user_id, all_shinies)
         total_in_inventory = await db.count_shinies(user_id)
 
-        event_note = f"\n⚠️ **Event Pokémon Are Not Counted Towards Dex!**" if event_pokemon_count > 0 else ""
+        event_note = f"\n\n⚠️ **Event Pokémon Are Not Counted Towards Dex!**" if event_pokemon_count > 0 else ""
 
-        # Create success embed
-        result_embed = discord.Embed(title="✨ Shinies Added", color=EMBED_COLOR)
-        result_embed.add_field(
-            name="📊 Summary",
-            value=f"**Total Shiny Tracked:** {total_found_in_embed} (including {event_pokemon_count} events)\n"
-                  f"**Total Shiny Added:** {new_count}\n"
-                  f"**Currently In Inventory:** {total_in_inventory}{event_note}",
-            inline=False
-        )
+        # Create success view
+        class SuccessView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(
+                discord.ui.TextDisplay(content="**✨ Shinies Added**"),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(
+                    content=f"**📊 Summary**\n"
+                            f"{config.REPLY} **Total Shiny Tracked:** {total_found_in_embed} (including {event_pokemon_count} events)\n"
+                            f"{config.REPLY} **Total Shiny Added:** {new_count}\n"
+                            f"{config.REPLY} **Currently In Inventory:** {total_in_inventory}{event_note}"
+                ),
+            )
 
-        await interaction.followup.send(embed=result_embed)
+        await interaction.followup.send(view=SuccessView())
 
     async def remove_shiny_context_callback(self, interaction: discord.Interaction, message: discord.Message):
         """Context menu command to remove shinies from a message"""
         # Check if message is from Pokétwo
         if message.author.id != POKETWO_BOT_ID or not message.embeds:
-            await interaction.response.send_message(
-                "❌ Please use this on a Pokétwo shiny list message!",
-                ephemeral=True
-            )
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ Please use this on a Pokétwo shiny list message!"),
+                )
+
+            await interaction.response.send_message(view=ErrorView(), ephemeral=True)
             return
 
         # Defer the response as ephemeral (works even in archived threads)
@@ -113,31 +130,34 @@ class ShinyDexManagement(commands.Cog):
                         continue
 
         if not all_ids:
-            await interaction.followup.send("❌ No Pokemon IDs found in this message!")
+            class NoIDView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ No Pokemon IDs found in this message!"),
+                )
+
+            await interaction.followup.send(view=NoIDView())
             return
 
         # Remove the shinies
         removed_count = await db.remove_shinies(user_id, all_ids)
         total_in_inventory = await db.count_shinies(user_id)
 
-        # Create success embed
-        result_embed = discord.Embed(title="🗑️ Shinies Removed", color=EMBED_COLOR)
-        result_embed.add_field(
-            name="📊 Summary",
-            value=f"**IDs Found in Message:** {len(all_ids)}\n"
-                  f"**Shinies Removed:** {removed_count}\n"
-                  f"**Currently In Inventory:** {total_in_inventory}",
-            inline=False
-        )
+        note = f"\n\nℹ️ **Note:** None of these IDs were in your tracked shinies." if removed_count == 0 else ""
 
-        if removed_count == 0:
-            result_embed.add_field(
-                name="ℹ️ Note",
-                value="None of these IDs were in your tracked shinies.",
-                inline=False
+        # Create success view
+        class RemoveView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(
+                discord.ui.TextDisplay(content="**🗑️ Shinies Removed**"),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(
+                    content=f"**📊 Summary**\n"
+                            f"{config.REPLY} **IDs Found in Message:** {len(all_ids)}\n"
+                            f"{config.REPLY} **Shinies Removed:** {removed_count}\n"
+                            f"{config.REPLY} **Currently In Inventory:** {total_in_inventory}{note}"
+                ),
             )
 
-        await interaction.followup.send(embed=result_embed)
+        await interaction.followup.send(view=RemoveView())
 
     @commands.hybrid_command(name='trackshiny', aliases=['addshiny'])
     @app_commands.describe(message_ids="Message IDs to track shinies from (space-separated)")
@@ -145,7 +165,12 @@ class ShinyDexManagement(commands.Cog):
         """Track shinies from Pokétwo --sh embed messages"""
         utils = self.bot.get_cog('Utils')
         if not utils:
-            await ctx.send("❌ Utils cog not loaded", reference=ctx.message, mention_author=False)
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ Utils cog not loaded"),
+                )
+
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
         user_id = ctx.author.id
@@ -186,14 +211,24 @@ class ShinyDexManagement(commands.Cog):
                 replied_msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
 
                 if replied_msg.author.id != POKETWO_BOT_ID or not replied_msg.embeds:
-                    await ctx.send("❌ Please reply to a Pokétwo shiny list message!", reference=ctx.message, mention_author=False)
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ Please reply to a Pokétwo shiny list message!"),
+                        )
+
+                    await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
                     return
 
                 await process_embed(replied_msg.embeds[0])
                 monitored_message_id = replied_msg.id
 
             except Exception as e:
-                await ctx.send(f"❌ Error fetching replied message: {str(e)}", reference=ctx.message, mention_author=False)
+                class ErrorView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content=f"❌ Error fetching replied message: {str(e)}"),
+                    )
+
+                await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
                 return
 
         elif message_ids:
@@ -207,24 +242,43 @@ class ShinyDexManagement(commands.Cog):
                     continue
 
         if total_found_in_embed == 0:
-            await ctx.send("❌ No shinies found to track!", reference=ctx.message, mention_author=False)
+            class NoShinyView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ No shinies found to track!"),
+                )
+
+            await ctx.send(view=NoShinyView(), reference=ctx.message, mention_author=False)
             return
 
-        status_msg = await ctx.send(f"🔄 **Tracking shinies...**", reference=ctx.message, mention_author=False)
+        # Initial status message
+        class StatusView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(
+                discord.ui.TextDisplay(content="🔄 **Tracking shinies...**"),
+            )
+
+        status_msg = await ctx.send(view=StatusView(), reference=ctx.message, mention_author=False)
 
         # Add shinies to database
         new_count = await db.add_shinies_bulk(user_id, all_shinies)
         total_in_inventory = await db.count_shinies(user_id)
 
-        event_note = f"\n⚠️ **Event Pokémon Are Not Counted Towards Dex!**" if event_pokemon_count > 0 else ""
+        event_note = "\n\n⚠️ **Event Pokémon Are Not Counted Towards Dex!**" if event_pokemon_count > 0 else ""
 
-        await status_msg.edit(
-            content=f"✅ **Shiny Tracking In Progress**\n"
-                    f"**Total Shiny Tracked:** {total_found_in_embed} (including {event_pokemon_count} events)\n"
-                    f"**Total Shiny Added (excluding events):** {new_count}\n"
-                    f"**Currently In Inventory:** {total_in_inventory}{event_note}\n\n"
-                    f"💡 Keep clicking pages, I'll auto-detect more!"
-        )
+        # Update status message
+        class TrackingView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(
+                discord.ui.TextDisplay(content="**✅ Shiny Tracking In Progress**"),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(
+                    content=f"> **Total Shiny Tracked:** {total_found_in_embed} (including {event_pokemon_count} events)\n"
+                            f"> **Total Shiny Added (excluding events):** {new_count}\n"
+                            f"> **Currently In Inventory:** {total_in_inventory}{event_note}"
+                ),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(content="💡 Keep clicking pages, I'll auto-detect more!"),
+            )
+
+        await status_msg.edit(view=TrackingView())
 
         # Monitor for page changes
         if monitored_message_id:
@@ -270,15 +324,23 @@ class ShinyDexManagement(commands.Cog):
                         last_update = asyncio.get_event_loop().time()
                         total_in_inventory = await db.count_shinies(user_id)
 
-                        event_note = f"\n⚠️ **Event Pokémon Are Not Counted Towards Dex!**" if event_pokemon_count > 0 else ""
+                        event_note = "\n\n⚠️ **Event Pokémon Are Not Counted Towards Dex!**" if event_pokemon_count > 0 else ""
 
-                        await status_msg.edit(
-                            content=f"✅ **Page detected! Adding more shinies**\n"
-                                    f"**Total Shiny Tracked:** {total_found_in_embed} (including {event_pokemon_count} events)\n"
-                                    f"**Total Shiny Added:** {new_count}\n"
-                                    f"**Currently In Inventory:** {total_in_inventory}{event_note}\n\n"
-                                    f"💡 Keep clicking for more!"
-                        )
+                        # Update with new page data
+                        class UpdatedTrackingView(discord.ui.LayoutView):
+                            container1 = discord.ui.Container(
+                                discord.ui.TextDisplay(content="**✅ Page detected! Adding more shinies**"),
+                                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                                discord.ui.TextDisplay(
+                                    content=f"> **Total Shiny Tracked:** {total_found_in_embed} (including {event_pokemon_count} events)\n"
+                                            f"> **Total Shiny Added:** {new_count}\n"
+                                            f"> **Currently In Inventory:** {total_in_inventory}{event_note}"
+                                ),
+                                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                                discord.ui.TextDisplay(content="💡 Keep clicking for more!"),
+                            )
+
+                        await status_msg.edit(view=UpdatedTrackingView())
 
                 except asyncio.TimeoutError:
                     if asyncio.get_event_loop().time() - last_update > 15:
@@ -286,27 +348,27 @@ class ShinyDexManagement(commands.Cog):
                     continue
 
         # Final summary
-        embed = discord.Embed(title="✨ Shiny Tracking Complete", color=EMBED_COLOR)
         total_processed = len(all_shinies)
         duplicates = total_processed - new_count
 
-        summary_text = (
-            f"**Total Shiny Tracked:** {total_found_in_embed} (including {event_pokemon_count} events)\n"
-            f"**Total Shiny Added:** {new_count}\n"
-            f"**Currently In Inventory:** {total_in_inventory}\n"
-            f"**Duplicates Ignored:** {duplicates}"
-        )
+        event_warning = "\n\n⚠️ **Event Pokémon Are Not Counted Towards Dex!**" if event_pokemon_count > 0 else ""
 
-        if event_pokemon_count > 0:
-            summary_text += f"\n\n⚠️ **Event Pokémon Are Not Counted Towards Dex!**"
+        class FinalView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(
+                discord.ui.TextDisplay(content="**✨ Shiny Tracking Complete**"),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(
+                    content=f"**📊 Summary**\n"
+                            f"> **Total Shiny Tracked:** {total_found_in_embed} (including {event_pokemon_count} events)\n"
+                            f"> **Total Shiny Added:** {new_count}\n"
+                            f"> **Currently In Inventory:** {total_in_inventory}\n"
+                            f"> **Duplicates Ignored:** {duplicates}{event_warning}"
+                ),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(content="_⚠️ Note: Reindexing in Pokétwo may break ID tracking!_"),
+            )
 
-        embed.add_field(
-            name="📊 Summary",
-            value=summary_text,
-            inline=False
-        )
-
-        await status_msg.edit(content="", embed=embed)
+        await status_msg.edit(view=FinalView())
 
     def parse_shiny_embed(self, description: str, utils):
         """Parse Pokétwo shiny embed to extract shiny data"""
@@ -359,13 +421,11 @@ class ShinyDexManagement(commands.Cog):
                 iv_match = self.iv_pattern.search(line)
                 iv_percent = float(iv_match.group(1)) if iv_match else 0.0
 
-                # FIXED: Check if Pokemon name exists in the regular dex CSV first
-                # This prevents event Pokemon from being added with wrong dex numbers
+                # Check if Pokemon name exists in the regular dex CSV first
                 if pokemon_name not in utils.dex_data:
-                    # Pokemon not in regular dex CSV - skip it (event Pokemon, etc.)
                     continue
 
-                # Get dex number from utils (now safe since we know it exists in CSV)
+                # Get dex number from utils
                 dex_number = utils.get_dex_number(pokemon_name)
 
                 shinies.append({
@@ -387,66 +447,125 @@ class ShinyDexManagement(commands.Cog):
     async def remove_shiny(self, ctx, *, pokemon_ids: str):
         """Remove shinies by their IDs"""
         if not pokemon_ids:
-            await ctx.send("❌ Please provide Pokemon IDs to remove", reference=ctx.message, mention_author=False)
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ Please provide Pokemon IDs to remove"),
+                )
+
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
         try:
             ids = [int(pid) for pid in pokemon_ids.split()]
         except ValueError:
-            await ctx.send("❌ Invalid Pokemon IDs provided", reference=ctx.message, mention_author=False)
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ Invalid Pokemon IDs provided"),
+                )
+
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
         count = await db.remove_shinies(ctx.author.id, ids)
 
         if count > 0:
-            await ctx.send(f"✅ Removed **{count}** shinies from tracking", reference=ctx.message, mention_author=False)
+            class SuccessView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content=f"✅ Removed **{count}** shinies from tracking"),
+                )
+
+            await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
         else:
-            await ctx.send("❌ No shinies found with those IDs", reference=ctx.message, mention_author=False)
+            class NoShinyView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ No shinies found with those IDs"),
+                )
+
+            await ctx.send(view=NoShinyView(), reference=ctx.message, mention_author=False)
 
     @commands.hybrid_command(name='clearshiny')
     async def clear_shiny(self, ctx):
         """Clear all tracked shinies"""
         user_id = ctx.author.id
 
-        class ConfirmView(discord.ui.View):
+        class ConfirmButton(discord.ui.Button):
+            def __init__(self):
+                super().__init__(
+                    label="Confirm",
+                    style=discord.ButtonStyle.danger,
+                    emoji="✅"
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != ctx.author.id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ Not your confirmation!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                await interaction.response.defer()
+
+                count = await db.clear_all_shinies(user_id)
+
+                class ClearedView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content=f"🗑️ Cleared **{count}** tracked shinies"),
+                    )
+
+                await ctx.send(view=ClearedView())
+
+        class CancelButton(discord.ui.Button):
+            def __init__(self):
+                super().__init__(
+                    label="Cancel",
+                    style=discord.ButtonStyle.secondary,
+                    emoji="❌"
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != ctx.author.id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ Not your confirmation!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                await interaction.response.defer()
+
+                class CancelledView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content="❌ Clear cancelled"),
+                    )
+
+                await ctx.send(view=CancelledView())
+
+        class ConfirmView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(
+                discord.ui.TextDisplay(content="**⚠️ WARNING: Delete ALL tracked shinies?**"),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(content="⚠️ **IMPORTANT:** This will NOT affect your actual Pokémon in Pokétwo!"),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(content="_Click Confirm or Cancel (30s)_"),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.ActionRow(ConfirmButton(), CancelButton()),
+            )
+
             def __init__(self):
                 super().__init__(timeout=30.0)
-                self.value = None
 
-            @discord.ui.button(label="Confirm", style=discord.ButtonStyle.danger, emoji="✅")
-            async def confirm_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-                if interaction.user.id != ctx.author.id:
-                    await interaction.response.send_message("❌ Not your confirmation!", ephemeral=True)
-                    return
-                self.value = True
-                self.stop()
-                await interaction.response.defer()
+            async def on_timeout(self):
+                class TimeoutView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content="⏰ Confirmation timed out"),
+                    )
 
-            @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary, emoji="❌")
-            async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-                if interaction.user.id != ctx.author.id:
-                    await interaction.response.send_message("❌ Not your confirmation!", ephemeral=True)
-                    return
-                self.value = False
-                self.stop()
-                await interaction.response.defer()
+                await ctx.send(view=TimeoutView())
 
         view = ConfirmView()
-        await ctx.send(
-            f"⚠️ **WARNING:** Delete ALL tracked shinies?\n"
-            f"⚠️ **IMPORTANT:** This will NOT affect your actual Pokémon in Pokétwo!\n"
-            f"Click Confirm or Cancel (30s)",
-            reference=ctx.message, mention_author=False, view=view
-        )
-        await view.wait()
-
-        if view.value is True:
-            count = await db.clear_all_shinies(user_id)
-            await ctx.send(f"🗑️ Cleared **{count}** tracked shinies")
-        elif view.value is False:
-            await ctx.send("❌ Clear cancelled")
-        else:
-            await ctx.send("⏰ Confirmation timed out")
+        await ctx.send(view=view, reference=ctx.message, mention_author=False)
 
     @commands.hybrid_command(name='shinystats')
     async def shiny_stats(self, ctx):
@@ -458,31 +577,34 @@ class ShinyDexManagement(commands.Cog):
         all_shinies = await db.get_all_shinies(user_id)
 
         if not all_shinies:
-            await ctx.send("❌ You haven't tracked any shinies yet!\nUse `?trackshiny` to get started.", 
-                          reference=ctx.message, mention_author=False)
+            class NoShinyView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(
+                        content="❌ You haven't tracked any shinies yet!\nUse `?trackshiny` to get started."
+                    ),
+                )
+
+            await ctx.send(view=NoShinyView(), reference=ctx.message, mention_author=False)
             return
 
         # Calculate stats
         total_tracked = len(all_shinies)
 
-        # Basic Dex: unique dex numbers (count all Pokemon with same dex number)
+        # Basic Dex: unique dex numbers
         unique_dex = len(set(s['dex_number'] for s in all_shinies))
 
-        # Full Dex: Count unique (dex_number, name, gender) combinations based on CSV
+        # Full Dex: Count unique (dex_number, name, gender) combinations
         unique_forms_set = set()
         for shiny in all_shinies:
             dex_num = shiny['dex_number']
             name = shiny['name']
             gender = shiny['gender']
 
-            # Check if this specific name has gender difference in CSV
             has_gender_diff = utils.has_gender_difference(name)
 
             if has_gender_diff and gender in ['male', 'female']:
-                # Track with gender
                 unique_forms_set.add((dex_num, name, gender))
             else:
-                # Track without gender
                 unique_forms_set.add((dex_num, name, None))
 
         unique_forms = len(unique_forms_set)
@@ -510,72 +632,88 @@ class ShinyDexManagement(commands.Cog):
         basic_completion = (unique_dex / total_unique_dex) * 100 if total_unique_dex > 0 else 0
         full_completion = (unique_forms / total_forms_count) * 100 if total_forms_count > 0 else 0
 
-        # Special categories using utils methods
+        # Special categories
         rare_count = utils.count_rare_shinies(all_shinies)
         regional_count = utils.count_regional_shinies(all_shinies)
         mint_count = utils.count_mint_shinies(all_shinies)
 
-        embed = discord.Embed(
-            title="✨ Shiny Collection Statistics",
-            color=EMBED_COLOR
+        # IV Statistics text
+        iv_stats_text = (
+            f"{config.REPLY} **Average:** {avg_iv:.2f}%\n"
+            f"{config.REPLY} **Highest:** {max_iv:.2f}%\n"
+            f"{config.REPLY} **Lowest:** {min_iv:.2f}%"
         )
-
-        # Set author with user's avatar
-        embed.set_author(
-            name=ctx.author.display_name,
-            icon_url=ctx.author.display_avatar.url
-        )
-
-        # Collection Overview field
-        embed.add_field(
-            name="",
-            value=f"**Total Non-Event Shiny:** {total_tracked}\n"
-                  f"> **Basic Dex:** {unique_dex}/{total_unique_dex} ({basic_completion:.1f}%)\n"
-                  f"> **Full Dex:** {unique_forms}/{total_forms_count} ({full_completion:.1f}%)\n"
-                  f"> **Males:** {males}\n"
-                  f"> **Females:** {females}\n"
-                  f"> **Unknown:** {unknown}",
-            inline=True
-        )
-
-        # IV Statistics field - only show "Lowest Non-Zero" if different from "Lowest"
-        iv_stats_text = f"> **Average:** {avg_iv:.2f}%\n> **Highest:** {max_iv:.2f}%\n> **Lowest:** {min_iv:.2f}%"
-
-        # Only add "Lowest Non-Zero" if it's different from the regular lowest
         if min_non_zero_iv != min_iv:
-            iv_stats_text += f"\n> **Lowest Non-Zero:** {min_non_zero_iv:.2f}%"
-
-        embed.add_field(
-            name="📈 IV Statistics",
-            value=iv_stats_text,
-            inline=True
-        )
-
-        embed.add_field(
-            name="⭐ Special Categories",
-            value=f"> **Rare Shinies:** {rare_count}\n"
-                  f"> **Regional Forms:** {regional_count}\n"
-                  f"> **Mint Shinies:** {mint_count}",
-            inline=False
-        )
+            iv_stats_text += f"\n{config.REPLY} **Lowest Non-Zero:** {min_non_zero_iv:.2f}%"
 
         # Find most common shinies
         from collections import Counter
         name_counts = Counter(s['name'] for s in all_shinies)
         most_common = name_counts.most_common(3)
 
+        most_common_text = ""
         if most_common:
-            medals = ["> 🥇", "> 🥈", "> 🥉", "> 🏅", "> 🏅"]
-            common_str = "\n".join(f"{medals[i]}  **{name}:** {count}x" for i, (name, count) in enumerate(most_common))
-            embed.add_field(
-                name="🏆 Most Collected",
-                value=common_str,
-                inline=False
+            medals = ["🥇", "🥈", "🥉"]
+            most_common_text = "\n".join(
+                f"{config.REPLY} {medals[i]} **{name}:** {count}x" 
+                for i, (name, count) in enumerate(most_common)
             )
 
-        embed.set_footer(text="⚠️ Note: Reindexing in Pokétwo may break ID tracking!")
+        # Get user avatar URL
+        avatar_url = ctx.author.display_avatar.url
 
-        await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
+        # Build components list
+        components = [
+            discord.ui.Section(
+                discord.ui.TextDisplay(
+                    content=f"**✨ Shiny Collection Statistics**\n"
+                            f"_{ctx.author.display_name}_\n\n"
+                            f"**Basic Dex:** {unique_dex}/{total_unique_dex} ({basic_completion:.1f}%)\n"
+                            f"**Full Dex:** {unique_forms}/{total_forms_count} ({full_completion:.1f}%)"
+                ),
+                accessory=discord.ui.Thumbnail(media=avatar_url),
+            ),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay(
+                content=f"**📊 Collection Overview**\n"
+                        f"{config.REPLY} **Total Non-Event Shiny:** {total_tracked}\n"
+                        f"{config.REPLY} **Males:** {males}\n"
+                        f"{config.REPLY} **Females:** {females}\n"
+                        f"{config.REPLY} **Unknown:** {unknown}"
+            ),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay(
+                content=f"**📈 IV Statistics**\n{iv_stats_text}"
+            ),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay(
+                content=f"**⭐ Special Categories**\n"
+                        f"{config.REPLY} **Rare Shinies:** {rare_count}\n"
+                        f"{config.REPLY} **Regional Forms:** {regional_count}\n"
+                        f"{config.REPLY} **Mint Shinies:** {mint_count}"
+            ),
+        ]
+
+        # Add most common section if available
+        if most_common_text:
+            components.extend([
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(
+                    content=f"**🏆 Most Collected**\n{most_common_text}"
+                ),
+            ])
+
+        # Add footer
+        components.extend([
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay(content="_⚠️ Note: Reindexing in Pokétwo may break ID tracking!_"),
+        ])
+
+        # Build the view
+        class StatsView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(*components)
+
+        await ctx.send(view=StatsView(), reference=ctx.message, mention_author=False)
 
 
 async def setup(bot):
