@@ -6,204 +6,9 @@ import asyncio
 import config
 from database import db
 
-class CooldownView(discord.ui.View):
-    """View for cooldown list pagination with OPTIMIZED lazy loading"""
-
-    def __init__(self, ctx, cooldowns_dict, category_filter=None, timeout=180):
-        super().__init__(timeout=timeout)
-        self.ctx = ctx
-        self.cooldowns_dict = cooldowns_dict
-        self.category_filter = category_filter  # NEW: Track category filter
-        self.pokemon_ids = list(cooldowns_dict.keys())
-        self.current_page = 0
-        self.per_page = 10
-        self.total_pages = (len(self.pokemon_ids) + self.per_page - 1) // self.per_page
-        self.message = None
-
-        # Cache loaded Pokemon data by page
-        self.page_cache = {}
-
-        self.update_buttons()
-
-    def update_buttons(self):
-        """Enable/disable buttons based on current page"""
-        self.previous_button.disabled = (self.current_page == 0)
-        self.next_button.disabled = (self.current_page >= self.total_pages - 1)
-
-    async def load_page_data(self, page_num):
-        """OPTIMIZED: Load Pokemon data for a specific page using bulk query"""
-        if page_num in self.page_cache:
-            return self.page_cache[page_num]
-
-        # Calculate which Pokemon IDs are on this page
-        start_idx = page_num * self.per_page
-        end_idx = min(start_idx + self.per_page, len(self.pokemon_ids))
-        page_pokemon_ids = self.pokemon_ids[start_idx:end_idx]
-
-        # ===== OPTIMIZATION: Single bulk query instead of N queries =====
-        pokemon_dict = await db.get_pokemon_by_ids_bulk(self.ctx.author.id, page_pokemon_ids)
-
-        # Build result list maintaining order
-        pokemon_list = []
-        for pid in page_pokemon_ids:
-            if pid in pokemon_dict:
-                pokemon = pokemon_dict[pid]
-                pokemon['expiry'] = self.cooldowns_dict[pid]
-                pokemon_list.append(pokemon)
-
-        # Cache this page
-        self.page_cache[page_num] = pokemon_list
-        return pokemon_list
-
-    async def create_embed(self):
-        """Create embed for current page"""
-
-        # Title based on category filter
-        if self.category_filter:
-            category_names = {
-                config.NORMAL_CATEGORY: "Normal",
-                config.TRIPMAX_CATEGORY: "TripMax",
-                config.TRIPZERO_CATEGORY: "TripZero",
-                config.DUEL_CATEGORY: "Duel"
-            }
-            category_display = category_names.get(self.category_filter, self.category_filter)
-            title = f"🔒 {category_display} Pokemon on Cooldown"
-        else:
-            title = "🔒 Pokemon on Cooldown"
-
-        embed = discord.Embed(
-            title=title,
-            color=config.EMBED_COLOR
-        )
-
-        # Load current page data
-        pokemon_list = await self.load_page_data(self.current_page)
-
-        description_lines = []
-        now = datetime.utcnow()
-
-        for p in pokemon_list:
-            time_left = p['expiry'] - now
-
-            if time_left.total_seconds() <= 0:
-                time_display = "**Expired**"
-            else:
-                days = time_left.days
-                hours = time_left.seconds // 3600
-                minutes = (time_left.seconds % 3600) // 60
-
-                time_str = []
-                if days > 0:
-                    time_str.append(f"{days}d")
-                if hours > 0:
-                    time_str.append(f"{hours}h")
-                if minutes > 0 or (days == 0 and hours == 0):
-                    time_str.append(f"{minutes}m")
-
-                time_display = ' '.join(time_str)
-
-            gender_icon = (
-                config.GENDER_MALE if p['gender'] == 'male' else 
-                config.GENDER_FEMALE if p['gender'] == 'female' else 
-                config.GENDER_UNKNOWN
-            )
-
-            # Show categories the Pokemon belongs to
-            categories = p.get('categories', [])
-            category_badges = []
-            if config.NORMAL_CATEGORY in categories:
-                category_badges.append("📦")
-            if config.TRIPMAX_CATEGORY in categories:
-                category_badges.append("⬆️")
-            if config.TRIPZERO_CATEGORY in categories:
-                category_badges.append("⬇️")
-            if config.DUEL_CATEGORY in categories:
-                category_badges.append("⚔️")
-
-            category_str = " ".join(category_badges) if category_badges else ""
-
-            description_lines.append(
-                f"`{p['pokemon_id']}` {category_str} **{p['name']}** {gender_icon} • {p['iv_percent']}% IV\n"
-                f"⏰ {time_display} remaining"
-            )
-
-        embed.description = "\n\n".join(description_lines) if description_lines else "No Pokemon data available"
-        embed.set_footer(text=f"Page {self.current_page + 1}/{self.total_pages} • Total: {len(self.pokemon_ids)} Pokemon")
-
-        return embed
-
-    @discord.ui.button(label="Previous", style=discord.ButtonStyle.primary, emoji="◀️")
-    async def previous_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Go to previous page"""
-        if interaction.user.id != self.ctx.author.id:
-            await interaction.response.send_message("❌ This is not your cooldown list!", ephemeral=True)
-            return
-
-        if self.current_page > 0:
-            self.current_page -= 1
-            self.update_buttons()
-            await interaction.response.defer()
-            embed = await self.create_embed()
-            await interaction.edit_original_response(embed=embed, view=self)
-        else:
-            await interaction.response.defer()
-
-    @discord.ui.button(label="Next", style=discord.ButtonStyle.primary, emoji="▶️")
-    async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Go to next page"""
-        if interaction.user.id != self.ctx.author.id:
-            await interaction.response.send_message("❌ This is not your cooldown list!", ephemeral=True)
-            return
-
-        if self.current_page < self.total_pages - 1:
-            self.current_page += 1
-            self.update_buttons()
-            await interaction.response.defer()
-            embed = await self.create_embed()
-            await interaction.edit_original_response(embed=embed, view=self)
-        else:
-            await interaction.response.defer()
-
-    async def on_timeout(self):
-        """Disable all buttons when view times out"""
-        if self.message:
-            try:
-                for item in self.children:
-                    item.disabled = True
-                await self.message.edit(view=self)
-            except:
-                pass
-
-
-class ConfirmView(discord.ui.View):
-    """Confirmation view for clearing all cooldowns"""
-
-    def __init__(self, ctx):
-        super().__init__(timeout=30.0)
-        self.ctx = ctx
-        self.value = None
-
-    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.danger, emoji="✅")
-    async def confirm_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.ctx.author.id:
-            await interaction.response.send_message("❌ Not your confirmation!", ephemeral=True)
-            return
-        self.value = True
-        self.stop()
-        await interaction.response.defer()
-
-    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary, emoji="❌")
-    async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.ctx.author.id:
-            await interaction.response.send_message("❌ Not your confirmation!", ephemeral=True)
-            return
-        self.value = False
-        self.stop()
-        await interaction.response.defer()
-
 
 class Cooldown(commands.Cog):
-    """Cooldown management for breeding pairs - OPTIMIZED"""
+    """Cooldown management for breeding pairs - OPTIMIZED with Components V2"""
 
     def __init__(self, bot):
         self.bot = bot
@@ -357,13 +162,21 @@ class Cooldown(commands.Cog):
             await self.clear_all_cooldowns(ctx)
         elif action in ['add', 'remove']:
             if not pokemon_ids:
-                await ctx.send(f"❌ Please provide Pokemon IDs to {action}", reference=ctx.message, mention_author=False)
+                class ErrorView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content=f"❌ Please provide Pokemon IDs to {action}"),
+                    )
+                await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
                 return
 
             try:
                 ids = [int(pid) for pid in pokemon_ids.split()]
             except ValueError:
-                await ctx.send("❌ Invalid Pokemon IDs provided", reference=ctx.message, mention_author=False)
+                class ErrorView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content="❌ Invalid Pokemon IDs provided"),
+                    )
+                await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
                 return
 
             if action == 'add':
@@ -371,7 +184,11 @@ class Cooldown(commands.Cog):
             else:
                 await self.remove_cooldowns(ctx, ids)
         else:
-            await ctx.send("❌ Invalid action. Use `add`, `remove`, `list`, or `clear`", reference=ctx.message, mention_author=False)
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ Invalid action. Use `add`, `remove`, `list`, or `clear`"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
 
     async def clear_all_cooldowns(self, ctx):
         """Clear all Pokemon cooldowns for the user"""
@@ -383,41 +200,91 @@ class Cooldown(commands.Cog):
         cooldowns = await db.get_cooldowns(user_id)
 
         if not cooldowns:
-            await ctx.send("✅ No Pokemon are currently on cooldown", reference=ctx.message, mention_author=False)
+            class SuccessView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="✅ No Pokemon are currently on cooldown"),
+                )
+            await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
             return
 
         count = len(cooldowns)
 
-        view = ConfirmView(ctx)
-        confirm_msg = await ctx.send(
-            f"⚠️ **WARNING:** Clear all **{count}** Pokemon from cooldown?\n"
-            "Click Confirm or Cancel (30 seconds)",
-            reference=ctx.message,
-            mention_author=False,
-            view=view
-        )
+        # Create confirmation buttons
+        class ConfirmButton(discord.ui.Button):
+            def __init__(self, ctx_obj, cooldown_count):
+                super().__init__(
+                    style=discord.ButtonStyle.danger,
+                    label="Confirm Clear",
+                    emoji="✅"
+                )
+                self.ctx_obj = ctx_obj
+                self.cooldown_count = cooldown_count
 
-        await view.wait()
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != self.ctx_obj.author.id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ Not your confirmation!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
 
-        if view.value is True:
-            cleared_count = await db.clear_all_cooldowns(user_id)
+                await interaction.response.defer()
 
-            embed = discord.Embed(
-                title="🧹 All Cooldowns Cleared",
-                description=f"✅ Cleared **{cleared_count}** Pokemon from cooldown",
-                color=config.EMBED_COLOR
+                cleared_count = await db.clear_all_cooldowns(interaction.user.id)
+
+                class SuccessView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(
+                            content=f"✅ **All Cooldowns Cleared**\n\n"
+                                    f"{config.REPLY} Cleared **{cleared_count}** Pokemon from cooldown"
+                        ),
+                    )
+
+                await interaction.followup.send(view=SuccessView())
+
+        class CancelButton(discord.ui.Button):
+            def __init__(self, ctx_obj):
+                super().__init__(
+                    style=discord.ButtonStyle.secondary,
+                    label="Cancel",
+                    emoji="❌"
+                )
+                self.ctx_obj = ctx_obj
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != self.ctx_obj.author.id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ Not your confirmation!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                await interaction.response.defer()
+
+                class CancelView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content="❌ Clear cancelled"),
+                    )
+
+                await interaction.followup.send(view=CancelView())
+
+        class ConfirmView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(
+                discord.ui.TextDisplay(
+                    content=f"⚠️ **WARNING**\n\n"
+                            f"Clear all **{count}** Pokemon from cooldown?\n\n"
+                            f"_This action cannot be undone._"
+                ),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.ActionRow(
+                    ConfirmButton(ctx, count),
+                    CancelButton(ctx)
+                ),
             )
-            embed.add_field(
-                name="Action",
-                value=f"All ({cleared_count} Pokemon IDs) cooldowns removed",
-                inline=False
-            )
 
-            await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
-        elif view.value is False:
-            await ctx.send("❌ Clear cancelled", reference=ctx.message, mention_author=False)
-        else:
-            await ctx.send("⏰ Confirmation timed out. Cooldowns not cleared", reference=ctx.message, mention_author=False)
+        await ctx.send(view=ConfirmView(), reference=ctx.message, mention_author=False)
 
     async def add_cooldowns(self, ctx, pokemon_ids: list):
         """Add Pokemon to cooldown - OPTIMIZED with bulk query"""
@@ -431,34 +298,36 @@ class Cooldown(commands.Cog):
         valid_ids = list(pokemon_dict.keys())
 
         if not valid_ids:
-            await ctx.send("❌ None of the provided IDs exist in your inventory", reference=ctx.message, mention_author=False)
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ None of the provided IDs exist in your inventory"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
         await db.add_cooldowns_bulk(user_id, valid_ids)
 
-        embed = discord.Embed(
-            title="🔒 Cooldown Added",
-            description=f"Added **{len(valid_ids)}** Pokemon to cooldown",
-            color=config.EMBED_COLOR
-        )
+        ids_display = ", ".join(f"`{pid}`" for pid in valid_ids[:10])
+        if len(valid_ids) > 10:
+            ids_display += f"\n... and {len(valid_ids) - 10} more"
 
-        embed.add_field(
-            name="Pokemon IDs",
-            value=", ".join(f"`{pid}`" for pid in valid_ids),
-            inline=False
-        )
-
-        embed.add_field(
-            name="Duration",
-            value=f"**{config.COOLDOWN_DAYS}** days, **{config.COOLDOWN_HOURS}** hour",
-            inline=False
-        )
-
+        footer_text = ""
         if len(valid_ids) < len(pokemon_ids):
             ignored = len(pokemon_ids) - len(valid_ids)
-            embed.set_footer(text=f"{ignored} IDs not found in inventory and were ignored")
+            footer_text = f"\n\n_Note: {ignored} IDs not found in inventory and were ignored_"
 
-        await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
+        class SuccessView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(
+                discord.ui.TextDisplay(
+                    content=f"✅ **Cooldown Added**\n\n"
+                            f"{config.REPLY} Added **{len(valid_ids)}** Pokemon to cooldown\n"
+                            f"{config.REPLY} Duration: **{config.COOLDOWN_DAYS}d {config.COOLDOWN_HOURS}h**"
+                ),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(content=f"**Pokemon IDs:**\n{ids_display}{footer_text}"),
+            )
+
+        await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
 
     async def remove_cooldowns(self, ctx, pokemon_ids: list):
         """Remove Pokemon from cooldown"""
@@ -472,34 +341,48 @@ class Cooldown(commands.Cog):
         invalid_ids = [pid for pid in pokemon_ids if pid not in current_cooldowns]
 
         if not valid_ids:
-            await ctx.send("❌ None of the provided IDs are currently on cooldown", reference=ctx.message, mention_author=False)
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ None of the provided IDs are currently on cooldown"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
         await db.remove_cooldown(user_id, valid_ids)
 
-        embed = discord.Embed(
-            title="🔓 Cooldown Removed",
-            description=f"Removed **{len(valid_ids)}** Pokemon from cooldown",
-            color=config.EMBED_COLOR
-        )
+        valid_display = ", ".join(f"`{pid}`" for pid in valid_ids[:10])
+        if len(valid_ids) > 10:
+            valid_display += f"\n... and {len(valid_ids) - 10} more"
 
-        embed.add_field(
-            name="Pokemon IDs Removed",
-            value=", ".join(f"`{pid}`" for pid in valid_ids),
-            inline=False
-        )
+        components = [
+            discord.ui.TextDisplay(
+                content=f"✅ **Cooldown Removed**\n\n"
+                        f"{config.REPLY} Removed **{len(valid_ids)}** Pokemon from cooldown"
+            ),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay(content=f"**Pokemon IDs Removed:**\n{valid_display}"),
+        ]
 
         if invalid_ids:
-            embed.add_field(
-                name="⚠️ Not on Cooldown",
-                value=", ".join(f"`{pid}`" for pid in invalid_ids),
-                inline=False
-            )
-            embed.set_footer(text=f"{len(invalid_ids)} IDs were not on cooldown and were ignored")
+            invalid_display = ", ".join(f"`{pid}`" for pid in invalid_ids[:10])
+            if len(invalid_ids) > 10:
+                invalid_display += f"\n... and {len(invalid_ids) - 10} more"
 
-        await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
+            components.extend([
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(
+                    content=f"⚠️ **Not on Cooldown:**\n{invalid_display}\n\n"
+                            f"_{len(invalid_ids)} IDs were not on cooldown and were ignored_"
+                ),
+            ])
 
-    async def list_cooldowns(self, ctx, category_filter: str = None, name_filters: list = None, type_filters: list = None, region_filter: str = None, gender_filter: str = None):
+        class SuccessView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(*components)
+
+        await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
+
+    async def list_cooldowns(self, ctx, category_filter: str = None, name_filters: list = None, 
+                           type_filters: list = None, region_filter: str = None, gender_filter: str = None):
         """
         List all Pokemon on cooldown with OPTIMIZED lazy loading
         NEW: Support category filtering and name/type/region/gender filters
@@ -514,8 +397,11 @@ class Cooldown(commands.Cog):
         all_cooldowns = await db.get_cooldowns(user_id)
 
         if not all_cooldowns:
-            await ctx.send("✅ No Pokemon are currently on cooldown", 
-                          reference=ctx.message, mention_author=False)
+            class SuccessView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="✅ No Pokemon are currently on cooldown"),
+                )
+            await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
             return
 
         # Fetch all Pokemon data for filtering
@@ -539,11 +425,12 @@ class Cooldown(commands.Cog):
                     config.DUEL_CATEGORY: "Duel"
                 }
                 category_display = category_names.get(category_filter, category_filter)
-                await ctx.send(
-                    f"✅ No {category_display} Pokemon are currently on cooldown",
-                    reference=ctx.message,
-                    mention_author=False
-                )
+
+                class SuccessView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content=f"✅ No {category_display} Pokemon are currently on cooldown"),
+                    )
+                await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
                 return
 
             cooldowns = filtered_cooldowns
@@ -556,7 +443,11 @@ class Cooldown(commands.Cog):
 
         if name_filters or type_filters or region_filter or gender_filter:
             if not utils:
-                await ctx.send("❌ Utils cog not loaded (needed for filters)", reference=ctx.message, mention_author=False)
+                class ErrorView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content="❌ Utils cog not loaded (needed for filters)"),
+                    )
+                await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
                 return
 
             filtered_cooldowns = {}
@@ -567,23 +458,207 @@ class Cooldown(commands.Cog):
                         filtered_cooldowns[pid] = expiry
 
             if not filtered_cooldowns:
-                await ctx.send(
-                    "✅ No Pokemon match your filters",
-                    reference=ctx.message,
-                    mention_author=False
-                )
+                class SuccessView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content="✅ No Pokemon match your filters"),
+                    )
+                await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
                 return
 
             cooldowns = filtered_cooldowns
 
-        # Create view with lazy loading (no Pokemon data loaded yet)
-        view = CooldownView(ctx, cooldowns, category_filter)
+        # Display cooldowns with pagination
+        await self.display_cooldown_pages(ctx, cooldowns, pokemon_dict, category_filter)
 
-        # Load and display first page
-        embed = await view.create_embed()
-        message = await ctx.send(embed=embed, view=view,
-                                reference=ctx.message, mention_author=False)
-        view.message = message
+    async def display_cooldown_pages(self, ctx, cooldowns: dict, pokemon_dict: dict, category_filter: str = None):
+        """Display cooldowns with pagination using Components V2"""
+        pokemon_ids = list(cooldowns.keys())
+        per_page = 10
+        total_pages = (len(pokemon_ids) + per_page - 1) // per_page
+        current_page = [0]  # Use list to allow modification in nested functions
+
+        def get_page_content(page_num: int):
+            """Generate content for a specific page"""
+            # Title based on category filter
+            if category_filter:
+                category_names = {
+                    config.NORMAL_CATEGORY: "Normal",
+                    config.TRIPMAX_CATEGORY: "TripMax",
+                    config.TRIPZERO_CATEGORY: "TripZero",
+                    config.DUEL_CATEGORY: "Duel"
+                }
+                category_display = category_names.get(category_filter, category_filter)
+                title = f"🔒 {category_display} Pokemon on Cooldown"
+            else:
+                title = f"🔒 Pokemon on Cooldown"
+
+            # Get Pokemon for this page
+            start_idx = page_num * per_page
+            end_idx = min(start_idx + per_page, len(pokemon_ids))
+            page_pokemon_ids = pokemon_ids[start_idx:end_idx]
+
+            description_lines = []
+            now = datetime.utcnow()
+
+            for pid in page_pokemon_ids:
+                if pid not in pokemon_dict:
+                    continue
+
+                p = pokemon_dict[pid]
+                expiry = cooldowns[pid]
+                time_left = expiry - now
+
+                if time_left.total_seconds() <= 0:
+                    time_display = "**Expired**"
+                else:
+                    days = time_left.days
+                    hours = time_left.seconds // 3600
+                    minutes = (time_left.seconds % 3600) // 60
+
+                    time_str = []
+                    if days > 0:
+                        time_str.append(f"{days}d")
+                    if hours > 0:
+                        time_str.append(f"{hours}h")
+                    if minutes > 0 or (days == 0 and hours == 0):
+                        time_str.append(f"{minutes}m")
+
+                    time_display = ' '.join(time_str)
+
+                gender_icon = (
+                    config.GENDER_MALE if p['gender'] == 'male' else 
+                    config.GENDER_FEMALE if p['gender'] == 'female' else 
+                    config.GENDER_UNKNOWN
+                )
+
+                # Show categories the Pokemon belongs to
+                categories = p.get('categories', [])
+                category_badges = []
+                if config.NORMAL_CATEGORY in categories:
+                    category_badges.append("📦")
+                if config.TRIPMAX_CATEGORY in categories:
+                    category_badges.append("⬆️")
+                if config.TRIPZERO_CATEGORY in categories:
+                    category_badges.append("⬇️")
+                if config.DUEL_CATEGORY in categories:
+                    category_badges.append("⚔️")
+
+                category_str = " ".join(category_badges) if category_badges else ""
+
+                description_lines.append(
+                    f"`{p['pokemon_id']}` {category_str} **{p['name']}** {gender_icon} • {p['iv_percent']}% IV\n"
+                    f"⏰ {time_display} remaining"
+                )
+
+            content = "\n\n".join(description_lines) if description_lines else "No Pokemon data available"
+            footer = f"Page {page_num + 1}/{total_pages} • Total: {len(pokemon_ids)} Pokemon"
+
+            return title, content, footer
+
+        # Create pagination buttons
+        class PreviousButton(discord.ui.Button):
+            def __init__(self, ctx_obj, disabled=False):
+                super().__init__(
+                    style=discord.ButtonStyle.primary,
+                    label="Previous",
+                    emoji="◀️",
+                    disabled=disabled
+                )
+                self.ctx_obj = ctx_obj
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != self.ctx_obj.author.id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ This is not your cooldown list!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                if current_page[0] > 0:
+                    current_page[0] -= 1
+                    title, content, footer = get_page_content(current_page[0])
+
+                    # Rebuild view with updated buttons
+                    class UpdatedView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content=f"**{title}**"),
+                            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                            discord.ui.TextDisplay(content=content),
+                            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                            discord.ui.TextDisplay(content=f"_{footer}_"),
+                            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                            discord.ui.ActionRow(
+                                PreviousButton(self.ctx_obj, disabled=(current_page[0] == 0)),
+                                NextButton(self.ctx_obj, disabled=(current_page[0] >= total_pages - 1))
+                            ),
+                        )
+
+                    await interaction.response.edit_message(view=UpdatedView())
+                else:
+                    await interaction.response.defer()
+
+        class NextButton(discord.ui.Button):
+            def __init__(self, ctx_obj, disabled=False):
+                super().__init__(
+                    style=discord.ButtonStyle.primary,
+                    label="Next",
+                    emoji="▶️",
+                    disabled=disabled
+                )
+                self.ctx_obj = ctx_obj
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != self.ctx_obj.author.id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ This is not your cooldown list!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                if current_page[0] < total_pages - 1:
+                    current_page[0] += 1
+                    title, content, footer = get_page_content(current_page[0])
+
+                    # Rebuild view with updated buttons
+                    class UpdatedView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content=f"**{title}**"),
+                            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                            discord.ui.TextDisplay(content=content),
+                            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                            discord.ui.TextDisplay(content=f"_{footer}_"),
+                            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                            discord.ui.ActionRow(
+                                PreviousButton(self.ctx_obj, disabled=(current_page[0] == 0)),
+                                NextButton(self.ctx_obj, disabled=(current_page[0] >= total_pages - 1))
+                            ),
+                        )
+
+                    await interaction.response.edit_message(view=UpdatedView())
+                else:
+                    await interaction.response.defer()
+
+        # Create initial view
+        title, content, footer = get_page_content(0)
+
+        class CooldownListView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(
+                discord.ui.TextDisplay(content=f"**{title}**"),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(content=content),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(content=f"_{footer}_"),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.ActionRow(
+                    PreviousButton(ctx, disabled=True),
+                    NextButton(ctx, disabled=(total_pages <= 1))
+                ),
+            )
+
+        await ctx.send(view=CooldownListView(), reference=ctx.message, mention_author=False)
+
 
 async def setup(bot):
     await bot.add_cog(Cooldown(bot))
