@@ -200,7 +200,7 @@ class Cooldown(commands.Cog):
             cooldown_expiry = datetime.now(timezone.utc) + timedelta(days=self.daycare_cooldown_days)
 
             for pokemon in found_pokemon:
-                await db.add_cooldown(user_id, pokemon['pokemon_id'], cooldown_expiry)
+                await db.add_cooldown_with_expiry(user_id, pokemon['pokemon_id'], cooldown_expiry)
 
             # Send confirmation reply
             female_pokemon = found_pokemon[0] if found_pokemon[0]['pokemon_id'] == female_id else found_pokemon[1]
