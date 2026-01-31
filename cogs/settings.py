@@ -793,46 +793,65 @@ class Settings(commands.Cog):
         for male in male_species_list:
             for female in female_species_list:
                 if utils.is_gigantamax(male) and utils.is_gigantamax(female):
-                    warnings.append(f"⚠️ Both {male} and {female} are Gigantamax consider saving one.")
+                    warnings.append(f"⚠️ Both {male} and {female} are Gigantamax - consider saving one.")
                 if utils.is_regional(male) and utils.is_regional(female):
-                    warnings.append(f"⚠️ Both {male} and {female} are Regional forms consider saving one.")
+                    warnings.append(f"⚠️ Both {male} and {female} are Regional forms - consider saving one.")
 
-        # Build response
+        # Build response components
         males_str = ', '.join(f"`{m}`" for m in male_species_list)
         females_str = ', '.join(f"`{f}`" for f in female_species_list)
 
-        content_parts = [
-            "✅ **MyChoice Configuration Updated**\n",
-            f"**{config.GENDER_MALE} Males ({len(male_species_list)}):** {males_str}",
-            f"**{config.GENDER_FEMALE} Females ({len(female_species_list)}):** {females_str}\n"
+        components = [
+            discord.ui.TextDisplay(content="✅ **MyChoice Configuration Updated**"),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay(
+                content=f"**{config.GENDER_MALE} Males ({len(male_species_list)}):** {males_str}\n"
+                        f"**{config.GENDER_FEMALE} Females ({len(female_species_list)}):** {females_str}"
+            ),
         ]
 
-        # Add instruction message
-        content_parts.append(
-            f"{config.REPLY} Now that you’ve set males and females, set your target to `mychoice` to create custom pairs.\n"
-            f"{config.REPLY} Use `m!settings` or change it directly with `m!settings target mychoice` and you are all set!"
-        )
-
-
+        # Add compatibility section
         if compatible_pairs:
-            content_parts.append(f"**Compatible Pairs ({len(compatible_pairs)} total):**")
+            compat_lines = [f"**Compatible Pairs ({len(compatible_pairs)} total):**"]
             for i, (male, female, reason) in enumerate(compatible_pairs[:5]):
-                content_parts.append(f"{config.REPLY} {male} × {female} ({reason})")
+                compat_lines.append(f"{config.REPLY} {male} × {female} ({reason})")
 
             if len(compatible_pairs) > 5:
-                content_parts.append(f"{config.REPLY} ... and {len(compatible_pairs) - 5} more compatible pairs")
-        else:
-            content_parts.append("**Compatibility:** ❌ No compatible pairs found! These Pokemon cannot breed together.")
+                compat_lines.append(f"{config.REPLY} ... and {len(compatible_pairs) - 5} more compatible pairs")
 
+            components.extend([
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(content="\n".join(compat_lines)),
+            ])
+        else:
+            components.extend([
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(content="**Compatibility:** ❌ No compatible pairs found! These Pokemon cannot breed together."),
+            ])
+
+        # Add warnings section if any
         if warnings:
-            content_parts.append("\n**Warnings:**")
+            warning_lines = ["**⚠️ Warnings:**"]
             for warning in warnings[:5]:
-                content_parts.append(f"{config.REPLY} {warning}")
+                warning_lines.append(f"{config.REPLY} {warning}")
+
+            components.extend([
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(content="\n".join(warning_lines)),
+            ])
+
+        # Add instruction at the end
+        components.extend([
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay(
+                content=f"**Next Steps:**\n"
+                        f"{config.REPLY} Set your target to `mychoice` to use these custom pairs\n"
+                        f"{config.REPLY} Use `{config.PREFIX[0]}settings` or `{config.PREFIX[0]}settings target mychoice`"
+            ),
+        ])
 
         class SuccessView(discord.ui.LayoutView):
-            container1 = discord.ui.Container(
-                discord.ui.TextDisplay(content="\n".join(content_parts)),
-            )
+            container1 = discord.ui.Container(*components)
 
         await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
 
