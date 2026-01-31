@@ -1055,7 +1055,7 @@ class ChainBreeding(commands.Cog):
         # Create embed
         embed = discord.Embed(
             title="🎓 Pokemon That Can Learn These Moves",
-            color={config.EMBED_COLOR}
+            color=config.EMBED_COLOR
         )
 
         # Add search info
