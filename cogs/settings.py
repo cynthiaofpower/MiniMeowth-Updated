@@ -222,7 +222,7 @@ class Settings(commands.Cog):
                     discord.SelectOption(
                         label="All Pokemon",
                         value="all",
-                        description="Breed any compatible Pokemon",
+                        description="Breed any compatible Pokemon from Normal Inventory",
                         default=('all' in current_targets)
                     ),
                     discord.SelectOption(
@@ -460,19 +460,19 @@ class Settings(commands.Cog):
             container1 = discord.ui.Container(
                 discord.ui.TextDisplay(content="**⚙️ Your Current Settings For Daycare**"),
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                discord.ui.TextDisplay(content=f"{config.REPLY} **Current Mode:** {mode_display}"),
+                discord.ui.TextDisplay(content=f"- **Current Mode:** {mode_display}"),
                 discord.ui.ActionRow(ModeSelect(mode)),
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                discord.ui.TextDisplay(content=f"{config.REPLY} **Current Info Mode:** {info_display}"),
+                discord.ui.TextDisplay(content=f"- **Current Info Mode:** {info_display}"),
                 discord.ui.ActionRow(InfoModeSelect(show_info)),
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                discord.ui.TextDisplay(content=f"{config.REPLY} **Current Target:** {target_display}"),
+                discord.ui.TextDisplay(content=f"- **Current Target:** {target_display}"),
                 discord.ui.ActionRow(TargetSelect(targets)),
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
                 discord.ui.TextDisplay(
-                    content=f"{config.REPLY} **Current Male(s):** {males_display}\n"
-                            f"{config.REPLY} **Current Female(s):** {females_display}\n"
-                            f"{config.REPLY} **Inventory(s) for MyChoice Mode:** {inv_display}"
+                    content=f"- **Current Male(s):** {males_display}\n"
+                            f"- **Current Female(s):** {females_display}\n"
+                            f"- **Inventory(s) for MyChoice Mode:** {inv_display}"
                 ),
                 discord.ui.ActionRow(InventorySelect(mychoice_inventories)),
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
@@ -772,9 +772,9 @@ class Settings(commands.Cog):
         for male in male_species_list:
             for female in female_species_list:
                 if utils.is_gigantamax(male) and utils.is_gigantamax(female):
-                    warnings.append(f"⚠️ Both {male} and {female} are Gigantamax")
+                    warnings.append(f"⚠️ Both {male} and {female} are Gigantamax consider saving one.")
                 if utils.is_regional(male) and utils.is_regional(female):
-                    warnings.append(f"⚠️ Both {male} and {female} are Regional forms")
+                    warnings.append(f"⚠️ Both {male} and {female} are Regional forms consider saving one.")
 
         # Build response
         males_str = ', '.join(f"`{m}`" for m in male_species_list)
