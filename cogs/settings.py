@@ -402,7 +402,10 @@ class Settings(commands.Cog):
                     f"{config.REPLY} Use `{config.PREFIX[0]}settings setmale <pokemon>` to set males\n"
                     f"{config.REPLY} Use `{config.PREFIX[0]}settings setfemale <pokemon>` to set females\n"
                     f"{config.REPLY} Supports multiple Pokemon: `dreepy, drakloak, dragapult`\n"
-                    f"{config.REPLY} Use `{config.PREFIX[0]}settings setmale none` to clear"
+                    f"{config.REPLY} Use `{config.PREFIX[0]}settings setmale none` to clear\n\n"
+                    "**Inventory For MyChoice Settings:**\n"
+                    f"{config.REPLY} Use `{config.PREFIX[0]}settings mychoice_inv <inv name(s)>` to set inventory\n"
+                    f"{config.REPLY} Supports multiple Inventories: `normal, duel, tripmax, tripzero`"
                 )
 
                 class InfoView(discord.ui.LayoutView):
