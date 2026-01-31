@@ -68,7 +68,7 @@ class Settings(commands.Cog):
 
         # Format target display
         if 'all' in targets:
-            target_display = "All Pokemon"
+            target_display = "Any Pokemon"
         elif 'tripmax' in targets:
             target_display = "TripMax (High IV)"
         elif 'tripzero' in targets:
