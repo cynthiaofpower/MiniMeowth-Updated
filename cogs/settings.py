@@ -504,6 +504,8 @@ class Settings(commands.Cog):
                 ),
             )
 
+        await ctx.send(view=SettingsView(), reference=ctx.message, mention_author=False)
+
     # ===== INDIVIDUAL SETTING METHODS (for text commands) =====
 
     async def set_target_inventories(self, ctx, value: str):
