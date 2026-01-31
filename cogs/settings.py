@@ -492,9 +492,10 @@ class Settings(commands.Cog):
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
                 discord.ui.TextDisplay(
                     content=f"- **Current Male(s):** {males_display}\n"
-                            f"- **Current Female(s):** {females_display}\n"
-                            f"- **Breeding Inventory(s):** {inv_display}{inventory_note}"
+                            f"- **Current Female(s):** {females_display}"
                 ),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(content=f"- **Breeding Inventory(s) For Current Target:** {inv_display}{inventory_note}"),
                 discord.ui.ActionRow(InventorySelect(target_inventories, target_uses_fixed_inventory)),
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
                 discord.ui.ActionRow(
@@ -502,8 +503,6 @@ class Settings(commands.Cog):
                     ResetButton()
                 ),
             )
-
-        await ctx.send(view=SettingsView(), reference=ctx.message, mention_author=False)
 
     # ===== INDIVIDUAL SETTING METHODS (for text commands) =====
 
