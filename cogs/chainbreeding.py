@@ -920,30 +920,17 @@ class ChainBreeding(commands.Cog):
         # Create detailed txt file
         txt_content = self.create_canlearn_txt(search_moves, results, egg_group_filters)
 
-        # Save txt file in temp directory
-        import tempfile
-        import os
-
-        # Create temp file
-        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', suffix='.txt', delete=False) as f:
-            f.write(txt_content)
-            txt_path = f.name
-
-        try:
-            # Send view and file
-            with open(txt_path, 'rb') as f:
-                await ctx.send(
-                    view=view,
-                    file=discord.File(f, filename="canlearn_full_results.txt"), 
-                    reference=ctx.message, 
-                    mention_author=False
-                )
-        finally:
-            # Clean up temp file
-            try:
-                os.remove(txt_path)
-            except:
-                pass
+        # Create file using BytesIO instead of temp file
+        import io
+        txt_file = io.BytesIO(txt_content.encode('utf-8'))
+        
+        # Send view and file
+        await ctx.send(
+            view=view,
+            file=discord.File(txt_file, filename="canlearn_full_results.txt"), 
+            reference=ctx.message, 
+            mention_author=False
+        )
 
     def pokemon_has_egg_groups(self, pokemon: str, required_groups: List[str]) -> Tuple[bool, List[str]]:
         """
