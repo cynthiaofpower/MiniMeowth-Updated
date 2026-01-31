@@ -323,7 +323,7 @@ class Settings(commands.Cog):
                         label="All Inventories",
                         value="all",
                         description="Search all inventories",
-                        default=(len(current_inventories) > 1)
+                        default=is_all_inventories  # CHANGED THIS LINE
                     ),
                 ]
                 super().__init__(
