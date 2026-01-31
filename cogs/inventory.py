@@ -443,7 +443,7 @@ class Inventory(commands.Cog):
                 container1 = discord.ui.Container(
                     discord.ui.TextDisplay(
                         content=f"❌ Please provide name filters using `--n`\n\n"
-                                f"**Example:** `{config.PREFIX[0]}releaseall --n gigantamax pikachu`"
+                                f"**Example:** `{config.PREFIX[0]}releaseall --n gigantamax pikachu`\n To clear whole inventory(s)use `m!clear` command!"
                     ),
                 )
             await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
