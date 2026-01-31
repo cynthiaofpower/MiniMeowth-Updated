@@ -175,7 +175,7 @@ class Settings(commands.Cog):
                     discord.SelectOption(
                         label="Simple",
                         value="simple",
-                        description="Basic info with names and compatibility only",
+                        description="Basic info with compatibility only",
                         default=(current_info == "simple")
                     ),
                     discord.SelectOption(
@@ -220,7 +220,7 @@ class Settings(commands.Cog):
 
                 options = [
                     discord.SelectOption(
-                        label="All Pokemon",
+                        label="Any Pokemon",
                         value="all",
                         description="Breed any compatible Pokemon from Normal Inventory",
                         default=('all' in current_targets)
