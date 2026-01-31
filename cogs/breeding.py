@@ -967,6 +967,8 @@ class Breeding(commands.Cog):
                     discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
                     discord.ui.TextDisplay(content=f"```{command}```"),
                     discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                    discord.ui.TextDisplay(content=f"`{command}`"),
+                    discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
                     discord.ui.TextDisplay(content=content),
                     discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
                     discord.ui.TextDisplay(content=f"_These Pokémon have been added to cooldown for {config.COOLDOWN_DAYS}d {config.COOLDOWN_HOURS}h_"),
@@ -986,6 +988,8 @@ class Breeding(commands.Cog):
             discord.ui.TextDisplay(content=f"**📝 Next Breeding Command**"),
             discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
             discord.ui.TextDisplay(content=f"```{command}```"),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay(content=f"`{command}`"),
             discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
         ]
 
