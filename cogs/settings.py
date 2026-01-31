@@ -88,7 +88,7 @@ class Settings(commands.Cog):
         # Get mychoice settings
         mychoice_males = settings.get('mychoice_male', [])
         mychoice_females = settings.get('mychoice_female', [])
-        
+
         # CHANGED: Get target_inventories instead of mychoice_inventories
         target_inventories = settings.get('target_inventories', [config.NORMAL_CATEGORY])
 
@@ -121,7 +121,7 @@ class Settings(commands.Cog):
 
         # Check if current target uses fixed inventory
         target_uses_fixed_inventory = 'tripmax' in targets or 'tripzero' in targets
-        
+
         # Calculate if "All Inventories" is selected
         is_all_inventories = len(target_inventories) == len(config.ALL_CATEGORIES) and set(target_inventories) == set(config.ALL_CATEGORIES)
 
@@ -476,7 +476,7 @@ class Settings(commands.Cog):
                 inventory_note = "\n_TripMax target uses TripMax inventory (fixed)_"
             elif 'tripzero' in targets:
                 inventory_note = "\n_TripZero target uses TripZero inventory (fixed)_"
-        
+
         class SettingsView(discord.ui.LayoutView):
             container1 = discord.ui.Container(
                 discord.ui.TextDisplay(content="**⚙️ Your Current Settings For Daycare**"),
@@ -806,6 +806,13 @@ class Settings(commands.Cog):
             f"**{config.GENDER_MALE} Males ({len(male_species_list)}):** {males_str}",
             f"**{config.GENDER_FEMALE} Females ({len(female_species_list)}):** {females_str}\n"
         ]
+
+        # Add instruction message
+        content_parts.append(
+            f"{config.REPLY} Now that you’ve set males and females, set your target to `mychoice` to create custom pairs.\n"
+            f"{config.REPLY} Use `m!settings` or change it directly with `m!settings target mychoice` and you are all set!"
+        )
+
 
         if compatible_pairs:
             content_parts.append(f"**Compatible Pairs ({len(compatible_pairs)} total):**")
