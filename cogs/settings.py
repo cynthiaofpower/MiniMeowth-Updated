@@ -94,18 +94,18 @@ class Settings(commands.Cog):
 
         # Format males/females display
         if mychoice_males:
-            if len(mychoice_males) <= 2:
+            if len(mychoice_males) <= 7:
                 males_display = ", ".join(f"`{m}`" for m in mychoice_males)
             else:
-                males_display = f"`{mychoice_males[0]}`, `{mychoice_males[1]}` + {len(mychoice_males)-2} more"
+                males_display = f"`{mychoice_males[0]}`, `{mychoice_males[1]}` + {len(mychoice_males)-1} more"
         else:
             males_display = "Not set"
 
         if mychoice_females:
-            if len(mychoice_females) <= 2:
+            if len(mychoice_females) <= 7:
                 females_display = ", ".join(f"`{f}`" for f in mychoice_females)
             else:
-                females_display = f"`{mychoice_females[0]}`, `{mychoice_females[1]}` + {len(mychoice_females)-2} more"
+                females_display = f"`{mychoice_females[0]}`, `{mychoice_females[1]}` + {len(mychoice_females)-1} more"
         else:
             females_display = "Not set"
 
