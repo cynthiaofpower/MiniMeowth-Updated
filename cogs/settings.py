@@ -12,7 +12,7 @@ class Settings(commands.Cog):
 
     @commands.hybrid_command(name='settings')
     @app_commands.describe(
-        setting_type="Setting to change: mode, target, setmale, setfemale, mychoice_inv, or info",
+        setting_type="Setting to change: mode, target, setmale, setfemale, inventory, or info",
         value="New value for the setting"
     )
     async def settings_command(self, ctx, setting_type: str = None, *, value: str = None):
@@ -36,14 +36,14 @@ class Settings(commands.Cog):
             await self.set_mychoice_male(ctx, value)
         elif setting_type == 'setfemale':
             await self.set_mychoice_female(ctx, value)
-        elif setting_type in ['mychoice_inv', 'mychoice_inventories']:
-            await self.set_mychoice_inventories(ctx, value)
+        elif setting_type in ['inventory', 'inventories', 'inv']:
+            await self.set_target_inventories(ctx, value)
         elif setting_type == 'info':
             await self.set_info_display(ctx, value)
         else:
             class ErrorView(discord.ui.LayoutView):
                 container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content="❌ Invalid setting type. Use `mode`, `target`, `setmale`, `setfemale`, `mychoice_inv`, or `info`"),
+                    discord.ui.TextDisplay(content="❌ Invalid setting type. Use `mode`, `target`, `setmale`, `setfemale`, `inventory`, or `info`"),
                 )
             await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
 
@@ -88,7 +88,9 @@ class Settings(commands.Cog):
         # Get mychoice settings
         mychoice_males = settings.get('mychoice_male', [])
         mychoice_females = settings.get('mychoice_female', [])
-        mychoice_inventories = settings.get('mychoice_inventories', [config.NORMAL_CATEGORY])
+        
+        # CHANGED: Get target_inventories instead of mychoice_inventories
+        target_inventories = settings.get('target_inventories', [config.NORMAL_CATEGORY])
 
         # Format males/females display
         if mychoice_males:
@@ -114,8 +116,14 @@ class Settings(commands.Cog):
             config.TRIPZERO_CATEGORY: "TripZero",
             config.DUEL_CATEGORY: "Duel"
         }
-        inv_list = [inv_display_names.get(inv, inv) for inv in mychoice_inventories]
+        inv_list = [inv_display_names.get(inv, inv) for inv in target_inventories]
         inv_display = ", ".join(inv_list)
+
+        # Check if current target uses fixed inventory
+        target_uses_fixed_inventory = 'tripmax' in targets or 'tripzero' in targets
+        
+        # Calculate if "All Inventories" is selected
+        is_all_inventories = len(target_inventories) == len(config.ALL_CATEGORIES) and set(target_inventories) == set(config.ALL_CATEGORIES)
 
         # Create interactive buttons and selects
         class ModeSelect(discord.ui.Select):
@@ -222,7 +230,7 @@ class Settings(commands.Cog):
                     discord.SelectOption(
                         label="Any Pokemon",
                         value="all",
-                        description="Breed any compatible Pokemon from Normal Inventory",
+                        description="Breed any compatible Pokemon",
                         default=('all' in current_targets)
                     ),
                     discord.SelectOption(
@@ -234,13 +242,13 @@ class Settings(commands.Cog):
                     discord.SelectOption(
                         label="TripMax",
                         value="tripmax",
-                        description="High IV pairs from TripMax inventory",
+                        description="High IV pairs (uses TripMax inventory)",
                         default=('tripmax' in current_targets)
                     ),
                     discord.SelectOption(
                         label="TripZero",
                         value="tripzero",
-                        description="Low IV pairs from TripZero inventory",
+                        description="Low IV pairs (uses TripZero inventory)",
                         default=('tripzero' in current_targets)
                     ),
                     discord.SelectOption(
@@ -293,7 +301,7 @@ class Settings(commands.Cog):
                 await interaction.followup.send(view=SuccessView())
 
         class InventorySelect(discord.ui.Select):
-            def __init__(self, current_inventories):
+            def __init__(self, current_inventories, is_disabled):
                 options = [
                     discord.SelectOption(
                         label="Normal",
@@ -323,13 +331,14 @@ class Settings(commands.Cog):
                         label="All Inventories",
                         value="all",
                         description="Search all inventories",
-                        default=is_all_inventories  # CHANGED THIS LINE
+                        default=is_all_inventories
                     ),
                 ]
                 super().__init__(
                     custom_id="inventory_select",
                     placeholder=f"Current: {inv_display}",
-                    options=options
+                    options=options,
+                    disabled=is_disabled
                 )
 
             async def callback(self, interaction: discord.Interaction):
@@ -356,7 +365,7 @@ class Settings(commands.Cog):
                     }
                     new_inventories = [inventory_map[selection]]
 
-                await db.update_settings(interaction.user.id, {'mychoice_inventories': new_inventories})
+                await db.update_settings(interaction.user.id, {'target_inventories': new_inventories})
 
                 inv_names = {
                     'normal': 'Normal',
@@ -368,7 +377,7 @@ class Settings(commands.Cog):
 
                 class SuccessView(discord.ui.LayoutView):
                     container1 = discord.ui.Container(
-                        discord.ui.TextDisplay(content=f"✅ **MyChoice inventories updated to:** {inv_names.get(selection, selection)}\n\n_Run `{config.PREFIX[0]}settings` to see updated settings_"),
+                        discord.ui.TextDisplay(content=f"✅ **Breeding inventories updated to:** {inv_names.get(selection, selection)}\n\n_Run `{config.PREFIX[0]}settings` to see updated settings_"),
                     )
 
                 await interaction.followup.send(view=SuccessView())
@@ -390,8 +399,8 @@ class Settings(commands.Cog):
                     "**Target Options:**\n"
                     f"{config.REPLY} **All** - Breed any compatible Pokemon\n"
                     f"{config.REPLY} **MyChoice** - Use your custom male/female settings\n"
-                    f"{config.REPLY} **TripMax** - Breed from TripMax inventory (high IV)\n"
-                    f"{config.REPLY} **TripZero** - Breed from TripZero inventory (low IV)\n"
+                    f"{config.REPLY} **TripMax** - High IV pairs (fixed TripMax inventory)\n"
+                    f"{config.REPLY} **TripZero** - Low IV pairs (fixed TripZero inventory)\n"
                     f"{config.REPLY} **Gigantamax** - Gigantamax Pokemon only\n"
                     f"{config.REPLY} **Regionals** - Regional forms only\n\n"
                     "**Info Display Modes:**\n"
@@ -403,9 +412,10 @@ class Settings(commands.Cog):
                     f"{config.REPLY} Use `{config.PREFIX[0]}settings setfemale <pokemon>` to set females\n"
                     f"{config.REPLY} Supports multiple Pokemon: `dreepy, drakloak, dragapult`\n"
                     f"{config.REPLY} Use `{config.PREFIX[0]}settings setmale none` to clear\n\n"
-                    "**Inventory For MyChoice Settings:**\n"
-                    f"{config.REPLY} Use `{config.PREFIX[0]}settings mychoice_inv <inv name(s)>` to set inventory\n"
-                    f"{config.REPLY} Supports multiple Inventories: `normal, duel, tripmax, tripzero`"
+                    "**Breeding Inventories:**\n"
+                    f"{config.REPLY} Use `{config.PREFIX[0]}settings inventory <inv name(s)>` to set inventories\n"
+                    f"{config.REPLY} Supports multiple: `normal, duel, tripmax, tripzero` or `all`\n"
+                    f"{config.REPLY} TripMax/TripZero targets use fixed inventories"
                 )
 
                 class InfoView(discord.ui.LayoutView):
@@ -439,7 +449,7 @@ class Settings(commands.Cog):
                     'target': ['all'],
                     'mychoice_male': [],
                     'mychoice_female': [],
-                    'mychoice_inventories': [config.NORMAL_CATEGORY],
+                    'target_inventories': [config.NORMAL_CATEGORY],
                     'show_info': 'detailed'
                 })
 
@@ -459,6 +469,14 @@ class Settings(commands.Cog):
                 await interaction.followup.send(view=SuccessView())
 
         # Build the settings view
+        # CHANGED: Update inventory section text
+        inventory_note = ""
+        if target_uses_fixed_inventory:
+            if 'tripmax' in targets:
+                inventory_note = "\n_TripMax target uses TripMax inventory (fixed)_"
+            elif 'tripzero' in targets:
+                inventory_note = "\n_TripZero target uses TripZero inventory (fixed)_"
+        
         class SettingsView(discord.ui.LayoutView):
             container1 = discord.ui.Container(
                 discord.ui.TextDisplay(content="**⚙️ Your Current Settings For Daycare**"),
@@ -475,9 +493,9 @@ class Settings(commands.Cog):
                 discord.ui.TextDisplay(
                     content=f"- **Current Male(s):** {males_display}\n"
                             f"- **Current Female(s):** {females_display}\n"
-                            f"- **Inventory(s) for MyChoice Mode:** {inv_display}"
+                            f"- **Breeding Inventory(s):** {inv_display}{inventory_note}"
                 ),
-                discord.ui.ActionRow(InventorySelect(mychoice_inventories)),
+                discord.ui.ActionRow(InventorySelect(target_inventories, target_uses_fixed_inventory)),
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
                 discord.ui.ActionRow(
                     MoreInfoButton(),
@@ -489,8 +507,8 @@ class Settings(commands.Cog):
 
     # ===== INDIVIDUAL SETTING METHODS (for text commands) =====
 
-    async def set_mychoice_inventories(self, ctx, value: str):
-        """Set which inventories MyChoice should search"""
+    async def set_target_inventories(self, ctx, value: str):
+        """Set which inventories to search for breeding"""
         if not value:
             class ErrorView(discord.ui.LayoutView):
                 container1 = discord.ui.Container(
@@ -542,7 +560,7 @@ class Settings(commands.Cog):
 
         # Save setting
         user_id = ctx.author.id
-        await db.update_settings(user_id, {'mychoice_inventories': inventories})
+        await db.update_settings(user_id, {'target_inventories': inventories})
 
         # Create response
         inv_display_names = {
@@ -558,9 +576,9 @@ class Settings(commands.Cog):
         class SuccessView(discord.ui.LayoutView):
             container1 = discord.ui.Container(
                 discord.ui.TextDisplay(
-                    content=f"✅ **MyChoice Inventories Updated**\n\n"
-                            f"**MyChoice will now search:**\n{inv_display}\n\n"
-                            f"_When target is set to `mychoice`, Pokemon will be selected from these {len(inventories)} inventor{'y' if len(inventories) == 1 else 'ies'}._"
+                    content=f"✅ **Breeding Inventories Updated**\n\n"
+                            f"**Breeding will now search:**\n{inv_display}\n\n"
+                            f"_Note: TripMax and TripZero targets use their own fixed inventories._"
                 ),
             )
 
@@ -1000,7 +1018,7 @@ class Settings(commands.Cog):
             'target': ['all'],
             'mychoice_male': [],
             'mychoice_female': [],
-            'mychoice_inventories': [config.NORMAL_CATEGORY],
+            'target_inventories': [config.NORMAL_CATEGORY],
             'show_info': 'detailed'
         })
 
