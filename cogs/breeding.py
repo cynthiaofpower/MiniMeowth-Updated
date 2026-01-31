@@ -68,44 +68,44 @@ class Breeding(commands.Cog):
                     cooldown_ids.add(int(pid_str))
 
         # Determine category and breeding mode
-        category, breeding_mode = self.determine_category_from_target(targets)
+        categories, breeding_mode = self.determine_categories_from_target(targets, settings)
 
         # ===== OPTIMIZATION: FETCH ONLY NEEDED POKEMON =====
         # Instead of fetching ALL pokemon then filtering, we filter in the database query
 
         if breeding_mode == 'mychoice':
             pairs = await self.handle_mychoice_breeding_optimized(
-                user_id, category, settings, utils, selective, count, 
+                user_id, categories, settings, utils, selective, count, 
                 id_overrides, cooldown_ids
             )
         elif breeding_mode == 'tripmax':
             pairs = await self.handle_tripmax_breeding_optimized(
-                user_id, category, utils, selective, count, 
+                user_id, categories, utils, selective, count, 
                 id_overrides, cooldown_ids
             )
         elif breeding_mode == 'tripzero':
             pairs = await self.handle_tripzero_breeding_optimized(
-                user_id, category, utils, selective, count, 
+                user_id, categories, utils, selective, count, 
                 id_overrides, cooldown_ids
             )
         elif breeding_mode == 'gmax':
             pairs = await self.handle_gmax_breeding_optimized(
-                user_id, category, targets, utils, selective, count, 
+                user_id, categories, targets, utils, selective, count, 
                 id_overrides, cooldown_ids
             )
         elif breeding_mode == 'regionals':
             pairs = await self.handle_regionals_breeding_optimized(
-                user_id, category, targets, utils, selective, count, 
+                user_id, categories, targets, utils, selective, count, 
                 id_overrides, cooldown_ids
             )
         elif breeding_mode == 'all':
             pairs = await self.handle_all_breeding_optimized(
-                user_id, category, utils, selective, count, 
+                user_id, categories, utils, selective, count, 
                 id_overrides, cooldown_ids
             )
         else:
             pairs = await self.handle_specific_targets_breeding_optimized(
-                user_id, category, targets, utils, selective, count, 
+                user_id, categories, targets, utils, selective, count, 
                 id_overrides, cooldown_ids
             )
 
@@ -134,44 +134,86 @@ class Breeding(commands.Cog):
             self.send_breed_result(ctx, pairs, selective, utils, show_info, id_overrides, cooldown_ids_to_add)
         )
 
-    def determine_category_from_target(self, targets):
-        """Determine which inventory category to use and breeding mode"""
+    def determine_categories_from_target(self, targets, settings):
+        """
+        Determine which inventory categories to use and breeding mode
+        
+        Returns: (list of categories, breeding_mode)
+        
+        CHANGED: Now returns multiple categories from target_inventories setting
+        except for TripMax/TripZero which use fixed inventories
+        """
+        # TripMax and TripZero use FIXED inventories
         if 'tripmax' in targets:
-            return (config.TRIPMAX_CATEGORY, 'tripmax')
+            return ([config.TRIPMAX_CATEGORY], 'tripmax')
         elif 'tripzero' in targets:
-            return (config.TRIPZERO_CATEGORY, 'tripzero')
-        elif 'mychoice' in targets:
-            return (config.NORMAL_CATEGORY, 'mychoice')
+            return ([config.TRIPZERO_CATEGORY], 'tripzero')
+        
+        # All other targets use target_inventories setting
+        target_inventories = settings.get('target_inventories', [config.NORMAL_CATEGORY])
+        
+        # Handle legacy mychoice_inventories (backward compatibility)
+        if not target_inventories:
+            target_inventories = settings.get('mychoice_inventories', [config.NORMAL_CATEGORY])
+        
+        # Determine breeding mode
+        if 'mychoice' in targets:
+            return (target_inventories, 'mychoice')
         elif 'gigantamax' in targets or 'gmax' in targets:
-            return (config.NORMAL_CATEGORY, 'gmax')
+            return (target_inventories, 'gmax')
         elif 'regionals' in targets:
-            return (config.NORMAL_CATEGORY, 'regionals')
+            return (target_inventories, 'regionals')
         elif 'all' in targets:
-            return (config.NORMAL_CATEGORY, 'all')
+            return (target_inventories, 'all')
         else:
-            return (config.NORMAL_CATEGORY, 'specific')
+            return (target_inventories, 'specific')
 
     # ===== OPTIMIZED BREEDING HANDLERS =====
+    # CHANGED: All handlers now accept 'categories' (list) instead of 'category' (single)
 
-    async def handle_all_breeding_optimized(self, user_id, category, utils, selective, 
+    async def handle_all_breeding_optimized(self, user_id, categories, utils, selective, 
                                            count, overrides, cooldown_ids):
         """Handle 'all' target - OPTIMIZED with targeted queries"""
 
-        # Fetch females and males in parallel (excluding cooldowns in query)
-        females_task = db.get_pokemon_for_breeding(
-            user_id, category, gender='female', cooldown_ids=cooldown_ids
-        )
-        males_task = db.get_pokemon_for_breeding(
-            user_id, category, gender='male', cooldown_ids=cooldown_ids
-        )
+        # CHANGED: Fetch from multiple categories
+        all_females = []
+        all_males = []
+        
+        for category in categories:
+            females_task = db.get_pokemon_for_breeding(
+                user_id, category, gender='female', cooldown_ids=cooldown_ids
+            )
+            males_task = db.get_pokemon_for_breeding(
+                user_id, category, gender='male', cooldown_ids=cooldown_ids
+            )
+            
+            category_females, category_males = await asyncio.gather(females_task, males_task)
+            all_females.extend(category_females)
+            all_males.extend(category_males)
 
-        females, all_males = await asyncio.gather(females_task, males_task)
+        # Remove duplicates by pokemon_id
+        seen_female_ids = set()
+        females = []
+        for f in all_females:
+            if f['pokemon_id'] not in seen_female_ids:
+                females.append(f)
+                seen_female_ids.add(f['pokemon_id'])
+        
+        seen_male_ids = set()
+        males_and_dittos = []
+        for m in all_males:
+            if m['pokemon_id'] not in seen_male_ids:
+                males_and_dittos.append(m)
+                seen_male_ids.add(m['pokemon_id'])
 
         # Separate dittos from regular males
-        dittos = [m for m in all_males if m.get('is_ditto', False)]
-        males = [m for m in all_males if not m.get('is_ditto', False)]
+        dittos = [m for m in males_and_dittos if m.get('is_ditto', False)]
+        males = [m for m in males_and_dittos if not m.get('is_ditto', False)]
 
-        # Already sorted by IV (descending) from database query
+        # Sort by IV (descending)
+        females.sort(key=lambda x: x['iv_percent'], reverse=True)
+        males.sort(key=lambda x: x['iv_percent'], reverse=True)
+        dittos.sort(key=lambda x: x['iv_percent'], reverse=True)
 
         pairs = []
         used_male_ids = set()
@@ -206,28 +248,47 @@ class Breeding(commands.Cog):
 
         return pairs
 
-    async def handle_gmax_breeding_optimized(self, user_id, category, targets, utils, 
+    async def handle_gmax_breeding_optimized(self, user_id, categories, targets, utils, 
                                             selective, count, overrides, cooldown_ids):
         """Handle Gmax target - OPTIMIZED"""
 
-        # Fetch specific Pokemon types in parallel
-        gmax_females_task = db.get_pokemon_for_breeding(
-            user_id, category, gender='female', is_gmax=True, cooldown_ids=cooldown_ids
-        )
-        gmax_males_task = db.get_pokemon_for_breeding(
-            user_id, category, gender='male', is_gmax=True, cooldown_ids=cooldown_ids
-        )
-        normal_males_task = db.get_pokemon_for_breeding(
-            user_id, category, gender='male', is_gmax=False, cooldown_ids=cooldown_ids
-        )
+        # CHANGED: Fetch from multiple categories
+        all_gmax_females = []
+        all_gmax_males = []
+        all_normal_males = []
+        
+        for category in categories:
+            gmax_females_task = db.get_pokemon_for_breeding(
+                user_id, category, gender='female', is_gmax=True, cooldown_ids=cooldown_ids
+            )
+            gmax_males_task = db.get_pokemon_for_breeding(
+                user_id, category, gender='male', is_gmax=True, cooldown_ids=cooldown_ids
+            )
+            normal_males_task = db.get_pokemon_for_breeding(
+                user_id, category, gender='male', is_gmax=False, cooldown_ids=cooldown_ids
+            )
 
-        gmax_females, gmax_males, all_normal_males = await asyncio.gather(
-            gmax_females_task, gmax_males_task, normal_males_task
-        )
+            cat_gmax_f, cat_gmax_m, cat_normal_m = await asyncio.gather(
+                gmax_females_task, gmax_males_task, normal_males_task
+            )
+            all_gmax_females.extend(cat_gmax_f)
+            all_gmax_males.extend(cat_gmax_m)
+            all_normal_males.extend(cat_normal_m)
+
+        # Remove duplicates
+        gmax_females = self._deduplicate_pokemon(all_gmax_females)
+        gmax_males = self._deduplicate_pokemon(all_gmax_males)
+        normal_males_all = self._deduplicate_pokemon(all_normal_males)
 
         # Separate dittos
-        dittos = [m for m in all_normal_males if m.get('is_ditto', False)]
-        normal_males = [m for m in all_normal_males if not m.get('is_ditto', False)]
+        dittos = [m for m in normal_males_all if m.get('is_ditto', False)]
+        normal_males = [m for m in normal_males_all if not m.get('is_ditto', False)]
+
+        # Sort by IV
+        gmax_females.sort(key=lambda x: x['iv_percent'], reverse=True)
+        gmax_males.sort(key=lambda x: x['iv_percent'], reverse=True)
+        normal_males.sort(key=lambda x: x['iv_percent'], reverse=True)
+        dittos.sort(key=lambda x: x['iv_percent'], reverse=True)
 
         pairs = []
         used_male_ids = set()
@@ -260,26 +321,44 @@ class Breeding(commands.Cog):
 
         return pairs
 
-    async def handle_regionals_breeding_optimized(self, user_id, category, targets, 
+    async def handle_regionals_breeding_optimized(self, user_id, categories, targets, 
                                                   utils, selective, count, overrides, cooldown_ids):
         """Handle Regionals target - OPTIMIZED"""
 
-        regional_females_task = db.get_pokemon_for_breeding(
-            user_id, category, gender='female', is_regional=True, cooldown_ids=cooldown_ids
-        )
-        regional_males_task = db.get_pokemon_for_breeding(
-            user_id, category, gender='male', is_regional=True, cooldown_ids=cooldown_ids
-        )
-        normal_males_task = db.get_pokemon_for_breeding(
-            user_id, category, gender='male', is_regional=False, cooldown_ids=cooldown_ids
-        )
+        # CHANGED: Fetch from multiple categories
+        all_regional_females = []
+        all_regional_males = []
+        all_normal_males = []
+        
+        for category in categories:
+            regional_females_task = db.get_pokemon_for_breeding(
+                user_id, category, gender='female', is_regional=True, cooldown_ids=cooldown_ids
+            )
+            regional_males_task = db.get_pokemon_for_breeding(
+                user_id, category, gender='male', is_regional=True, cooldown_ids=cooldown_ids
+            )
+            normal_males_task = db.get_pokemon_for_breeding(
+                user_id, category, gender='male', is_regional=False, cooldown_ids=cooldown_ids
+            )
 
-        regional_females, regional_males, all_normal_males = await asyncio.gather(
-            regional_females_task, regional_males_task, normal_males_task
-        )
+            cat_reg_f, cat_reg_m, cat_norm_m = await asyncio.gather(
+                regional_females_task, regional_males_task, normal_males_task
+            )
+            all_regional_females.extend(cat_reg_f)
+            all_regional_males.extend(cat_reg_m)
+            all_normal_males.extend(cat_norm_m)
 
-        dittos = [m for m in all_normal_males if m.get('is_ditto', False)]
-        normal_males = [m for m in all_normal_males if not m.get('is_ditto', False)]
+        regional_females = self._deduplicate_pokemon(all_regional_females)
+        regional_males = self._deduplicate_pokemon(all_regional_males)
+        normal_males_all = self._deduplicate_pokemon(all_normal_males)
+
+        dittos = [m for m in normal_males_all if m.get('is_ditto', False)]
+        normal_males = [m for m in normal_males_all if not m.get('is_ditto', False)]
+
+        regional_females.sort(key=lambda x: x['iv_percent'], reverse=True)
+        regional_males.sort(key=lambda x: x['iv_percent'], reverse=True)
+        normal_males.sort(key=lambda x: x['iv_percent'], reverse=True)
+        dittos.sort(key=lambda x: x['iv_percent'], reverse=True)
 
         pairs = []
         used_male_ids = set()
@@ -312,34 +391,43 @@ class Breeding(commands.Cog):
 
         return pairs
 
-    async def handle_tripmax_breeding_optimized(self, user_id, category, utils, 
+    async def handle_tripmax_breeding_optimized(self, user_id, categories, utils, 
                                                selective, count, overrides, cooldown_ids):
         """Handle TripMax - OPTIMIZED"""
+        # TripMax uses fixed category, so categories should be [TRIPMAX_CATEGORY]
         return await self.handle_all_breeding_optimized(
-            user_id, category, utils, selective, count, overrides, cooldown_ids
+            user_id, categories, utils, selective, count, overrides, cooldown_ids
         )
 
-    async def handle_tripzero_breeding_optimized(self, user_id, category, utils, 
+    async def handle_tripzero_breeding_optimized(self, user_id, categories, utils, 
                                                 selective, count, overrides, cooldown_ids):
         """Handle TripZero - OPTIMIZED (fetch pre-sorted by IV ascending)"""
 
-        # For TripZero, we need ascending IV sort
-        # Fetch and sort in memory (small dataset after cooldown filter)
-        females_task = db.get_pokemon_for_breeding(
-            user_id, category, gender='female', cooldown_ids=cooldown_ids
-        )
-        males_task = db.get_pokemon_for_breeding(
-            user_id, category, gender='male', cooldown_ids=cooldown_ids
-        )
+        # TripZero uses fixed category, so categories should be [TRIPZERO_CATEGORY]
+        all_females = []
+        all_males = []
+        
+        for category in categories:
+            females_task = db.get_pokemon_for_breeding(
+                user_id, category, gender='female', cooldown_ids=cooldown_ids
+            )
+            males_task = db.get_pokemon_for_breeding(
+                user_id, category, gender='male', cooldown_ids=cooldown_ids
+            )
 
-        females, all_males = await asyncio.gather(females_task, males_task)
+            cat_females, cat_males = await asyncio.gather(females_task, males_task)
+            all_females.extend(cat_females)
+            all_males.extend(cat_males)
+
+        females = self._deduplicate_pokemon(all_females)
+        males_all = self._deduplicate_pokemon(all_males)
 
         # Sort by IV ascending (lowest first)
         females.sort(key=lambda x: x['iv_percent'])
-        all_males.sort(key=lambda x: x['iv_percent'])
+        males_all.sort(key=lambda x: x['iv_percent'])
 
-        dittos = [m for m in all_males if m.get('is_ditto', False)]
-        males = [m for m in all_males if not m.get('is_ditto', False)]
+        dittos = [m for m in males_all if m.get('is_ditto', False)]
+        males = [m for m in males_all if not m.get('is_ditto', False)]
 
         pairs = []
         used_male_ids = set()
@@ -375,7 +463,7 @@ class Breeding(commands.Cog):
     async def handle_mychoice_breeding_optimized(
         self,
         user_id,
-        category,  # This will be ignored for mychoice - we use mychoice_inventories instead
+        categories,  # CHANGED: Now using categories from target_inventories
         settings,
         utils,
         selective,
@@ -387,7 +475,6 @@ class Breeding(commands.Cog):
 
         mychoice_males = settings.get("mychoice_male", [])
         mychoice_females = settings.get("mychoice_female", [])
-        mychoice_inventories = settings.get("mychoice_inventories", [config.NORMAL_CATEGORY])  # NEW
 
         # Handle legacy single-value format (string instead of list)
         if isinstance(mychoice_males, str):
@@ -399,23 +486,18 @@ class Breeding(commands.Cog):
         if not mychoice_males or not mychoice_females:
             return []
 
-        # NEW: Fetch Pokemon from ALL mychoice inventories
+        # CHANGED: Fetch Pokemon from ALL specified categories (from target_inventories)
         all_pokemon = []
-        for inventory_category in mychoice_inventories:
+        for category in categories:
             category_pokemon = await db.get_pokemon_for_breeding(
                 user_id,
-                inventory_category,  # Fetch from each specified inventory
+                category,
                 cooldown_ids=cooldown_ids,
             )
             all_pokemon.extend(category_pokemon)
 
         # Remove duplicates (same pokemon_id might be in multiple inventories)
-        seen_ids = set()
-        unique_pokemon = []
-        for pokemon in all_pokemon:
-            if pokemon['pokemon_id'] not in seen_ids:
-                unique_pokemon.append(pokemon)
-                seen_ids.add(pokemon['pokemon_id'])
+        unique_pokemon = self._deduplicate_pokemon(all_pokemon)
 
         male_species_pokemon = []
         female_species_pokemon = []
@@ -484,7 +566,7 @@ class Breeding(commands.Cog):
                     utils,
                     selective,
                     overrides,
-                    is_mychoice=True  # ← ADD THIS LINE
+                    is_mychoice=True
                 ):
                     continue
 
@@ -496,14 +578,20 @@ class Breeding(commands.Cog):
         return pairs
 
 
-    async def handle_specific_targets_breeding_optimized(self, user_id, category, targets, 
+    async def handle_specific_targets_breeding_optimized(self, user_id, categories, targets, 
                                                         utils, selective, count, overrides, cooldown_ids):
         """Handle specific targets - OPTIMIZED"""
 
-        # Fetch all available Pokemon
-        all_pokemon = await db.get_pokemon_for_breeding(
-            user_id, category, cooldown_ids=cooldown_ids
-        )
+        # CHANGED: Fetch from multiple categories
+        all_pokemon = []
+        for category in categories:
+            category_pokemon = await db.get_pokemon_for_breeding(
+                user_id, category, cooldown_ids=cooldown_ids
+            )
+            all_pokemon.extend(category_pokemon)
+
+        # Remove duplicates
+        all_pokemon = self._deduplicate_pokemon(all_pokemon)
 
         # Filter matching targets
         filtered = []
@@ -521,6 +609,12 @@ class Breeding(commands.Cog):
 
         all_males = [p for p in all_pokemon if p['gender'] == 'male']
         dittos = [p for p in all_pokemon if p.get('is_ditto', False)]
+
+        # Sort by IV
+        filtered_females.sort(key=lambda x: x['iv_percent'], reverse=True)
+        filtered_males.sort(key=lambda x: x['iv_percent'], reverse=True)
+        all_males.sort(key=lambda x: x['iv_percent'], reverse=True)
+        dittos.sort(key=lambda x: x['iv_percent'], reverse=True)
 
         pairs = []
         used_male_ids = set()
@@ -556,6 +650,16 @@ class Breeding(commands.Cog):
         return pairs
 
     # ===== HELPER METHODS =====
+
+    def _deduplicate_pokemon(self, pokemon_list):
+        """Remove duplicate Pokemon by pokemon_id, keeping first occurrence"""
+        seen_ids = set()
+        unique = []
+        for pokemon in pokemon_list:
+            if pokemon['pokemon_id'] not in seen_ids:
+                unique.append(pokemon)
+                seen_ids.add(pokemon['pokemon_id'])
+        return unique
 
     def can_pair_pokemon(self, female, male, utils, selective, overrides=None, is_mychoice=False):
         """Check if two Pokemon can be paired"""
