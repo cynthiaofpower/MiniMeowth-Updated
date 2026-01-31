@@ -607,6 +607,14 @@ class Database:
 
         return True
 
+    async def add_cooldown_with_expiry(self, user_id: int, pokemon_id: int, expiry: datetime):
+        """Add a single Pokemon to cooldown with custom expiry time (for daycare)"""
+        await self.user_data.update_one(
+            {"user_id": user_id},
+            {"$set": {f"cooldowns.{pokemon_id}": expiry}},
+            upsert=True
+        )
+
     # ========================================
     # ID OVERRIDE OPERATIONS
     # ========================================
