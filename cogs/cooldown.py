@@ -13,7 +13,7 @@ class Cooldown(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        
+
         # Daycare egg cooldown duration (5 days)
         self.daycare_cooldown_days = 5
 
@@ -184,23 +184,13 @@ class Cooldown(commands.Cog):
             pokemon_ids = [female_id, male_id]
             found_pokemon = []
 
-            # Search across all inventory categories
-            all_categories = [
-                config.NORMAL_CATEGORY,
-                config.TRIPMAX_CATEGORY,
-                config.TRIPZERO_CATEGORY,
-                config.DUEL_CATEGORY
-            ]
-
-            for category in all_categories:
-                for pokemon_id in pokemon_ids:
-                    pokemon = await db.get_pokemon_by_id(user_id, pokemon_id, category)
-                    if pokemon and pokemon_id not in [p['pokemon_id'] for p in found_pokemon]:
-                        found_pokemon.append({
-                            'pokemon_id': pokemon_id,
-                            'name': pokemon.get('name', 'Unknown'),
-                            'category': category
-                        })
+            for pokemon_id in pokemon_ids:
+                pokemon = await db.get_pokemon_by_id(user_id, pokemon_id)
+                if pokemon and pokemon_id not in [p['pokemon_id'] for p in found_pokemon]:
+                    found_pokemon.append({
+                        'pokemon_id': pokemon_id,
+                        'name': pokemon.get('name', 'Unknown')
+                    })
 
             # If we didn't find both Pokemon, do nothing
             if len(found_pokemon) != 2:
@@ -208,11 +198,9 @@ class Cooldown(commands.Cog):
 
             # Update cooldown to 5 days for both Pokemon
             cooldown_expiry = datetime.now(timezone.utc) + timedelta(days=self.daycare_cooldown_days)
-            
-            updated_ids = []
+
             for pokemon in found_pokemon:
                 await db.add_cooldown(user_id, pokemon['pokemon_id'], cooldown_expiry)
-                updated_ids.append(pokemon['pokemon_id'])
 
             # Send confirmation reply
             female_pokemon = found_pokemon[0] if found_pokemon[0]['pokemon_id'] == female_id else found_pokemon[1]
