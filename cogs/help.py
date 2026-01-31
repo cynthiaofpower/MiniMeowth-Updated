@@ -5,75 +5,6 @@ import config
 from config import EMBED_COLOR
 
 
-class HelpView(discord.ui.View):
-    """Pagination view for help pages"""
-
-    def __init__(self, ctx, pages, timeout=180):
-        super().__init__(timeout=timeout)
-        self.ctx = ctx
-        self.pages = pages
-        self.current_page = 0
-        self.message = None
-        self.update_buttons()
-
-    def update_buttons(self):
-        """Enable/disable buttons based on current page"""
-        self.previous_button.disabled = (self.current_page == 0)
-        self.next_button.disabled = (self.current_page >= len(self.pages) - 1)
-
-    def create_embed(self):
-        """Create embed for current page"""
-        page = self.pages[self.current_page]
-        embed = discord.Embed(
-            title=page['title'],
-            description=page['description'],
-            color=EMBED_COLOR
-        )
-
-        for field in page['fields']:
-            embed.add_field(
-                name=field['name'],
-                value=field['value'],
-                inline=field.get('inline', False)
-            )
-
-        embed.set_footer(text=f"Page {self.current_page + 1}/{len(self.pages)} • Use {config.PREFIX[0]}help <category> for details")
-        return embed
-
-    @discord.ui.button(label="Previous", style=discord.ButtonStyle.primary, emoji="◀️")
-    async def previous_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.ctx.author.id:
-            await interaction.response.send_message("❌ This is not your help menu!", ephemeral=True)
-            return
-        if self.current_page > 0:
-            self.current_page -= 1
-            self.update_buttons()
-            await interaction.response.edit_message(embed=self.create_embed(), view=self)
-        else:
-            await interaction.response.defer()
-
-    @discord.ui.button(label="Next", style=discord.ButtonStyle.primary, emoji="▶️")
-    async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.ctx.author.id:
-            await interaction.response.send_message("❌ This is not your help menu!", ephemeral=True)
-            return
-        if self.current_page < len(self.pages) - 1:
-            self.current_page += 1
-            self.update_buttons()
-            await interaction.response.edit_message(embed=self.create_embed(), view=self)
-        else:
-            await interaction.response.defer()
-
-    async def on_timeout(self):
-        if self.message:
-            try:
-                for item in self.children:
-                    item.disabled = True
-                await self.message.edit(view=self)
-            except:
-                pass
-
-
 class Help(commands.Cog):
     """Help command system"""
 
@@ -95,7 +26,7 @@ class Help(commands.Cog):
                         'name': 'iwant',
                         'aliases': ['chainbreed', 'cb'],
                         'usage': 'iwant "pokemon name" move1, move2, move3',
-                        'description': 'Find breeding chain to get egg moves',
+                        'description': 'Find breeding chain to get specific egg moves on a Pokemon',
                         'filters': None,
                         'examples': ['iwant "ralts" shadow sneak, mystical fire']
                     },
@@ -124,28 +55,28 @@ class Help(commands.Cog):
                         'name': 'addtripmax',
                         'aliases': [],
                         'usage': 'addtripmax [message_ids]',
-                        'description': 'Add Pokemon to TripMax inventory',
+                        'description': 'Add Pokemon to TripMax inventory (high IV breeding)',
                         'filters': None
                     },
                     {
                         'name': 'addtripzero',
                         'aliases': [],
                         'usage': 'addtripzero [message_ids]',
-                        'description': 'Add Pokemon to TripZero inventory',
+                        'description': 'Add Pokemon to TripZero inventory (low IV breeding)',
                         'filters': None
                     },
                     {
                         'name': 'addduel',
                         'aliases': ['ad'],
                         'usage': 'addduel [message_ids]',
-                        'description': 'Add Pokemon to Duel inventory',
+                        'description': 'Add Pokemon to Duel inventory for egg move breeding',
                         'filters': None
                     },
                     {
                         'name': 'remove',
                         'aliases': ['rm'],
                         'usage': 'remove [ids] [--category]',
-                        'description': 'Remove Pokemon from inventory',
+                        'description': 'Remove Pokemon from inventory (specific category or all)',
                         'filters': '--normal, --tripmax, --tripzero, --duel',
                         'examples': ['remove 123 456 --normal', 'remove 123 --duel']
                     },
@@ -161,7 +92,7 @@ class Help(commands.Cog):
                         'name': 'clear',
                         'aliases': [],
                         'usage': 'clear <category>',
-                        'description': 'Clear entire inventory',
+                        'description': 'Clear entire inventory category',
                         'filters': 'inv, tripmax, tripzero, duel, all',
                         'examples': ['clear normal', 'clear all']
                     },
@@ -169,35 +100,35 @@ class Help(commands.Cog):
                         'name': 'inventory',
                         'aliases': ['inv', 'invnormal', 'invbulk'],
                         'usage': 'inventory [filters]',
-                        'description': 'View normal inventory',
+                        'description': 'View normal inventory with optional filters',
                         'filters': '--g <gender>, --gmax, --n <name>, --type <type>, --region <region>, --cd, --nocd'
                     },
                     {
                         'name': 'invtripmax',
                         'aliases': ['trip31', 'tripmax'],
                         'usage': 'invtripmax [filters]',
-                        'description': 'View TripMax inventory',
+                        'description': 'View TripMax inventory with optional filters',
                         'filters': '--g <gender>, --gmax, --n <name>, --type <type>, --region <region>, --cd, --nocd'
                     },
                     {
                         'name': 'invtripzero',
                         'aliases': ['tripzero', 'trip0'],
                         'usage': 'invtripzero [filters]',
-                        'description': 'View TripZero inventory',
+                        'description': 'View TripZero inventory with optional filters',
                         'filters': '--g <gender>, --gmax, --n <name>, --type <type>, --region <region>, --cd, --nocd'
                     },
                     {
                         'name': 'invduel',
                         'aliases': ['duelinv'],
                         'usage': 'invduel [filters]',
-                        'description': 'View Duel inventory',
+                        'description': 'View Duel inventory with optional filters',
                         'filters': '--g <gender>, --gmax, --n <name>, --type <type>, --region <region>, --cd, --nocd'
                     },
                     {
                         'name': 'stats',
                         'aliases': [],
                         'usage': 'stats',
-                        'description': 'View inventory statistics',
+                        'description': 'View inventory statistics across all categories',
                         'filters': None
                     }
                 ]
@@ -217,7 +148,7 @@ class Help(commands.Cog):
                         'name': 'removeshiny',
                         'aliases': ['rmshiny'],
                         'usage': 'removeshiny <ids>',
-                        'description': 'Remove shinies by ID',
+                        'description': 'Remove shinies by Pokemon ID',
                         'filters': None
                     },
                     {
@@ -231,14 +162,14 @@ class Help(commands.Cog):
                         'name': 'shinydex',
                         'aliases': ['sd', 'basicdex', 'bd'],
                         'usage': 'shinydex [filters]',
-                        'description': 'View basic shiny dex (one per dex number)',
+                        'description': 'View basic shiny dex (one per Pokédex number)',
                         'filters': '--caught, --uncaught, --orderd, --ordera, --region <region>, --type <type>, --n <name>, --exclude <name>, --page <num>, --list, --smartlist, --image, --ignoremale, --ignorefemale'
                     },
                     {
                         'name': 'shinydexfull',
                         'aliases': ['sdf', 'fulldex', 'fd', 'fullshinydex', 'fsd'],
                         'usage': 'shinydexfull [filters]',
-                        'description': 'View full shiny dex (all forms + genders)',
+                        'description': 'View full shiny dex (all forms and genders)',
                         'filters': '--caught, --uncaught, --orderd, --ordera, --region <region>, --type <type>, --n <name>, --exclude <name>, --page <num>, --list, --smartlist, --image, --nogender, --ignoremale, --ignorefemale'
                     },
                     {
@@ -252,7 +183,7 @@ class Help(commands.Cog):
                         'name': 'pokemon',
                         'aliases': ['p'],
                         'usage': 'pokemon [filters]',
-                        'description': 'View your shiny Pokemon list with details',
+                        'description': 'View your shiny Pokemon list with detailed information',
                         'filters': '--name <name>, --iv<value>, --type <type>, --region <region>, --page <num>'
                     },
                     {
@@ -300,7 +231,7 @@ class Help(commands.Cog):
                         'name': 'removeevent',
                         'aliases': ['rmevent'],
                         'usage': 'removeevent <ids>',
-                        'description': 'Remove event shinies by ID',
+                        'description': 'Remove event shinies by Pokemon ID',
                         'filters': None
                     },
                     {
@@ -314,7 +245,7 @@ class Help(commands.Cog):
                         'name': 'eventdex',
                         'aliases': ['ed'],
                         'usage': 'eventdex [filters]',
-                        'description': 'View event dex (all forms + genders)',
+                        'description': 'View event dex (all forms and genders)',
                         'filters': '--caught, --uncaught, --orderd, --ordera, --region <region>, --type <type>, --n <name>, --page <num>'
                     },
                     {
@@ -328,34 +259,34 @@ class Help(commands.Cog):
             },
             'cooldown': {
                 'title': '🔒 Cooldown Commands',
-                'description': 'Manage Pokemon cooldowns',
+                'description': 'Manage Pokemon cooldowns for breeding',
                 'commands': [
                     {
                         'name': 'cooldown add',
                         'aliases': ['cd add'],
                         'usage': 'cooldown add <ids>',
-                        'description': 'Add Pokemon to cooldown',
+                        'description': 'Add Pokemon to cooldown list',
                         'filters': None
                     },
                     {
                         'name': 'cooldown remove',
                         'aliases': ['cd remove'],
                         'usage': 'cooldown remove <ids>',
-                        'description': 'Remove Pokemon from cooldown',
+                        'description': 'Remove Pokemon from cooldown list',
                         'filters': None
                     },
                     {
                         'name': 'cooldown list',
                         'aliases': ['cd list'],
                         'usage': 'cooldown list [filters]',
-                        'description': 'View Pokemon on cooldown',
+                        'description': 'View Pokemon on cooldown with optional filters',
                         'filters': '--normal, --tripmax, --tripzero, --duel, --all, --n <name>, --type <type>, --region <region>, --g <gender>'
                     },
                     {
                         'name': 'cooldown clear',
                         'aliases': ['cd clear'],
                         'usage': 'cooldown clear',
-                        'description': 'Clear all cooldowns',
+                        'description': 'Clear all Pokemon from cooldown',
                         'filters': None
                     }
                 ]
@@ -368,66 +299,87 @@ class Help(commands.Cog):
                         'name': 'settings',
                         'aliases': [],
                         'usage': 'settings [type] [value]',
-                        'description': 'View or change settings',
-                        'filters': 'mode, target, setmale, setfemale, mychoice_inv, info',
+                        'description': 'View or change bot settings interactively',
+                        'filters': 'mode, target, setmale, setfemale, inventory, info',
                         'examples': [
+                            'settings',
                             'settings mode selective',
-                            'settings target pikachu, eevee',
-                            'settings setmale dreepy, drakloak',
                             'settings target tripmax',
-                            'settings target  tripzero',
-                            'settings target all',
-                            'settings mychoice_inv normal,duel',
-                            'settings info compact'
+                            'settings setmale dreepy, drakloak',
+                            'settings inventory normal, duel',
+                            'settings info detailed'
                         ]
                     },
                     {
-                        'name': 'settings target [value] ',
+                        'name': 'settings mode',
                         'aliases': [],
-                        'usage': 'settings target gigantamax, m!settings target regionals, m!settings target pikachu, eevee',
-                        'description': 'Set the targeted pokemons you want to create pair of. You can specify gigantamax as target to get pair for all gigantamax pokemons in your inventory.Bot tries to save male gigantamax and male regionals later to be paired with ditto.`n!settings target regionals` same thing for regionals.n!settings target `pokemon names separated by comma` to get pairs for those pokemons only, basically you are setting female and male will be automatically choosen by bot',
+                        'usage': 'settings mode <selective|notselective>',
+                        'description': 'Set breeding mode. Selective pairs old IDs (≤271800) with new IDs (≥271900)',
                         'filters': None
                     },
                     {
-                        'name': 'settings setmale/setfemale [pokemon names]',
+                        'name': 'settings target',
                         'aliases': [],
-                        'usage': 'settings setmale pikachu, eevee or m!settings setfemale ditto',
-                        'description': 'Set the male and female and then set target to mychoice to get pair for your males and females',
-                        'filters': None
+                        'usage': 'settings target <value>',
+                        'description': 'Set breeding target. Options: all, mychoice, tripmax, tripzero, gigantamax, regionals, or Pokemon names',
+                        'filters': None,
+                        'examples': [
+                            'settings target all',
+                            'settings target gigantamax',
+                            'settings target pikachu, eevee'
+                        ]
                     },
                     {
-                        'name': 'settings info [simple, detailed, compact, off]',
+                        'name': 'settings setmale',
                         'aliases': [],
-                        'usage': 'settings info detailed or m!settings info off',
-                        'description': 'customize how you want your created pairs to be shown',
-                        'filters': None
+                        'usage': 'settings setmale <pokemon names>',
+                        'description': 'Set specific males for MyChoice target. Then set target to mychoice to use',
+                        'filters': None,
+                        'examples': ['settings setmale pikachu, eevee', 'settings setmale none']
                     },
                     {
-                        'name': 'settings target mychoice',
+                        'name': 'settings setfemale',
                         'aliases': [],
-                        'usage': 'settings target mychoice',
-                        'description': 'Use target as mychoice after you set the males and females you specifically want to breed. You get to choose which inventory to pick males and females from.\n use `m!settings mychoice_inv normal,duel` to set one more more inventories. ',
-                        'filters': None
+                        'usage': 'settings setfemale <pokemon names>',
+                        'description': 'Set specific females for MyChoice target. Then set target to mychoice to use',
+                        'filters': None,
+                        'examples': ['settings setfemale ditto', 'settings setfemale none']
+                    },
+                    {
+                        'name': 'settings inventory',
+                        'aliases': ['settings inv'],
+                        'usage': 'settings inventory <inventories>',
+                        'description': 'Set which inventories to search for breeding',
+                        'filters': 'normal, tripmax, tripzero, duel, all',
+                        'examples': ['settings inventory normal, duel', 'settings inventory all']
+                    },
+                    {
+                        'name': 'settings info',
+                        'aliases': [],
+                        'usage': 'settings info <mode>',
+                        'description': 'Customize how breeding pairs are displayed',
+                        'filters': 'detailed, simple, off',
+                        'examples': ['settings info detailed', 'settings info off']
                     },
                     {
                         'name': 'reset-settings',
                         'aliases': ['resetsettings'],
                         'usage': 'reset-settings',
-                        'description': 'Reset all settings to defaults',
+                        'description': 'Reset all settings to default values',
                         'filters': None
                     },
                     {
                         'name': 'setid',
                         'aliases': [],
                         'usage': 'setid <pokemon_id> <old/new>',
-                        'description': 'Override ID categorization for selective mode',
+                        'description': 'Override ID categorization for selective breeding mode',
                         'filters': None
                     },
                     {
                         'name': 'setnew',
                         'aliases': [],
                         'usage': 'setnew <ids>',
-                        'description': 'Set multiple IDs as NEW',
+                        'description': 'Set multiple Pokemon IDs as NEW for selective mode',
                         'filters': None,
                         'examples': ['setnew 444 555 666', 'setnew 1-10']
                     },
@@ -435,7 +387,7 @@ class Help(commands.Cog):
                         'name': 'setold',
                         'aliases': [],
                         'usage': 'setold <ids>',
-                        'description': 'Set multiple IDs as OLD',
+                        'description': 'Set multiple Pokemon IDs as OLD for selective mode',
                         'filters': None,
                         'examples': ['setold 444 555 666', 'setold 1-10']
                     },
@@ -443,14 +395,14 @@ class Help(commands.Cog):
                         'name': 'removeid',
                         'aliases': ['removeids'],
                         'usage': 'removeid <ids>',
-                        'description': 'Remove ID overrides',
+                        'description': 'Remove ID overrides from selective mode',
                         'filters': None
                     },
                     {
                         'name': 'listids',
                         'aliases': ['listoverrides'],
                         'usage': 'listids',
-                        'description': 'List all ID overrides',
+                        'description': 'List all ID overrides for selective mode',
                         'filters': None
                     },
                     {
@@ -464,7 +416,7 @@ class Help(commands.Cog):
                         'name': 'checkid',
                         'aliases': [],
                         'usage': 'checkid <pokemon_id>',
-                        'description': 'Check ID categorization',
+                        'description': 'Check if a Pokemon ID is categorized as old or new',
                         'filters': None
                     }
                 ]
@@ -477,14 +429,14 @@ class Help(commands.Cog):
                         'name': 'dexsettings',
                         'aliases': ['dexset', 'ds'],
                         'usage': 'dexsettings',
-                        'description': 'View current dex image settings',
+                        'description': 'View current dex image customization settings',
                         'filters': None
                     },
                     {
                         'name': 'dexcustomize',
                         'aliases': ['dc', 'dexcust'],
                         'usage': 'dexcustomize <setting> <value>',
-                        'description': 'Customize dex image appearance',
+                        'description': 'Customize dex image appearance (colors, grid, borders, etc.)',
                         'filters': 'grid, background, glass, border, badgetext, badgebg, badgeborder, badge, countcolor, uncaughtcount, uncaught, opacity, silhouette',
                         'examples': [
                             'dexcustomize grid 5x4',
@@ -496,14 +448,14 @@ class Help(commands.Cog):
                         'name': 'dexsuggestions',
                         'aliases': ['dexcolors', 'dexthemes', 'themes', 'dexsugg'],
                         'usage': 'dexsuggestions [theme]',
-                        'description': 'View color scheme suggestions',
+                        'description': 'View color scheme suggestions for dex images',
                         'filters': None
                     },
                     {
                         'name': 'dexapplytheme',
                         'aliases': ['dextheme', 'dexapply', 'dat'],
                         'usage': 'dexapplytheme <theme>',
-                        'description': 'Apply a pre-made theme instantly',
+                        'description': 'Apply a pre-made theme to your dex instantly',
                         'filters': None,
                         'examples': ['dexapplytheme burgundy']
                     },
@@ -511,42 +463,42 @@ class Help(commands.Cog):
                         'name': 'dexreset',
                         'aliases': [],
                         'usage': 'dexreset',
-                        'description': 'Reset dex settings to defaults',
+                        'description': 'Reset dex customization settings to defaults',
                         'filters': None
                     },
                     {
                         'name': 'shinystatsimg',
                         'aliases': ['ssimg', 'pf', 'profile'],
                         'usage': 'shinystatsimg',
-                        'description': 'Generate visual stats card',
+                        'description': 'Generate visual stats card with your collection',
                         'filters': None
                     },
                     {
                         'name': 'customize',
                         'aliases': [],
                         'usage': 'customize',
-                        'description': 'Customize stats card background',
+                        'description': 'Customize stats card background image',
                         'filters': None
                     },
                     {
                         'name': 'settitle',
                         'aliases': ['title', 'ttl'],
                         'usage': 'settitle <title>',
-                        'description': 'Set custom title on stats card',
+                        'description': 'Set custom title displayed on your stats card',
                         'filters': None
                     },
                     {
                         'name': 'setfavorite',
                         'aliases': ['display', 'setshowcase'],
                         'usage': 'setfavorite <id> [nickname]',
-                        'description': 'Set showcase Pokemon',
+                        'description': 'Set showcase Pokemon displayed on your stats card',
                         'filters': None
                     },
                     {
                         'name': 'setnickname',
                         'aliases': ['nick'],
                         'usage': 'setnickname <id> <nickname>',
-                        'description': 'Set Pokemon nickname',
+                        'description': 'Set a nickname for a specific Pokemon',
                         'filters': None
                     }
                 ]
@@ -559,7 +511,7 @@ class Help(commands.Cog):
                         'name': 'pokedex',
                         'aliases': ['d', 'dex'],
                         'usage': 'pokedex <pokemon>',
-                        'description': 'Look up Pokemon information',
+                        'description': 'Look up detailed Pokemon information including stats, types, and abilities',
                         'filters': None,
                         'examples': ['pokedex bulbasaur', 'pokedex #1']
                     }
@@ -573,7 +525,7 @@ class Help(commands.Cog):
                         'name': 'track',
                         'aliases': [],
                         'usage': 'track <command with (id)>',
-                        'description': 'Track IDs from list and send commands',
+                        'description': 'Track Pokemon IDs from a list and send commands for each',
                         'filters': None,
                         'examples': ['track p!select (id)']
                     },
@@ -581,7 +533,7 @@ class Help(commands.Cog):
                         'name': 'rarecandylevel',
                         'aliases': [],
                         'usage': 'rarecandylevel <target_level>',
-                        'description': 'Auto-buy rare candies to level Pokemon',
+                        'description': 'Automatically buy rare candies to level selected Pokemon',
                         'filters': None,
                         'examples': ['rarecandylevel 45']
                     },
@@ -589,7 +541,7 @@ class Help(commands.Cog):
                         'name': 'stoptrack',
                         'aliases': [],
                         'usage': 'stoptrack',
-                        'description': 'Stop active track command',
+                        'description': 'Stop currently active track command',
                         'filters': None
                     },
                     {
@@ -611,21 +563,21 @@ class Help(commands.Cog):
                         'name': 'replace',
                         'aliases': [],
                         'usage': '/replace <old> <text> [new]',
-                        'description': 'Replace or remove phrases from text',
+                        'description': 'Replace or remove specific phrases from text',
                         'filters': None
                     },
                     {
                         'name': 'createlist',
                         'aliases': [],
                         'usage': 'createlist',
-                        'description': 'Create Pokemon list from message',
+                        'description': 'Create Pokemon list from Pokétwo message',
                         'filters': None
                     },
                     {
                         'name': 'removemons',
                         'aliases': ['exclude'],
                         'usage': 'removemons <pokemon names>',
-                        'description': 'Remove Pokemon from list',
+                        'description': 'Remove specific Pokemon from created list',
                         'filters': None,
                         'examples': ['removemons pikachu, charizard']
                     },
@@ -633,7 +585,7 @@ class Help(commands.Cog):
                         'name': 'check',
                         'aliases': [],
                         'usage': 'check <pokemon names>',
-                        'description': 'Check if Pokemon are in message',
+                        'description': 'Check if specific Pokemon are in the message',
                         'filters': None,
                         'examples': ['check pikachu, charizard']
                     },
@@ -648,7 +600,7 @@ class Help(commands.Cog):
                         'name': 'compareslash',
                         'aliases': [],
                         'usage': '/compareslash <list1> <list2>',
-                        'description': 'Compare two Pokemon lists (slash command)',
+                        'description': 'Compare two Pokemon lists using slash command',
                         'filters': None
                     },
                     {
@@ -662,7 +614,7 @@ class Help(commands.Cog):
                         'name': 'generate',
                         'aliases': ['gen', 'customimg'],
                         'usage': 'generate <title>, <pokemon> -flags',
-                        'description': 'Generate custom Pokemon image',
+                        'description': 'Generate custom Pokemon image with specific Pokemon and flags',
                         'filters': '-s (shiny), -n (normal), -d (dark), -m (male), -f (female), -xN (count)',
                         'examples': ['generate My Collection, Pikachu -s -x5, Eevee -s -x2']
                     },
@@ -670,7 +622,7 @@ class Help(commands.Cog):
                         'name': 'generatehelp',
                         'aliases': ['genhelp', 'customimghelp'],
                         'usage': 'generatehelp',
-                        'description': 'Learn how to create custom images',
+                        'description': 'Learn how to create custom Pokemon images',
                         'filters': None
                     }
                 ]
@@ -682,56 +634,20 @@ class Help(commands.Cog):
         pages = []
 
         # Page 1: Main categories
+        page1_fields = []
+        for i, (cat_key, cat_data) in enumerate(self.categories.items()):
+            icon = cat_data['title'].split()[0]  # Get emoji
+            name = ' '.join(cat_data['title'].split()[1:])  # Get name without emoji
+
+            page1_fields.append({
+                'title': cat_data['title'],
+                'description': f"{cat_data['description']}\n`{config.PREFIX[0]}help {cat_key}`"
+            })
+
         page1 = {
             'title': '📚 Meowth Bot - Command Categories',
-            'description': 'Use `m!help <category>` to see detailed commands for that category.',
-            'fields': [
-                {
-                    'name': '🔄 Breeding',
-                    'value': 'Commands for breeding pairs and egg move chains\n`m!help breeding`',
-                    'inline': True
-                },
-                {
-                    'name': '📦 Inventory',
-                    'value': 'Manage your Pokemon inventories\n`m!help inventory`',
-                    'inline': True
-                },
-                {
-                    'name': '✨ Shiny Dex',
-                    'value': 'Track and view your shiny collection\n`m!help shinydex`',
-                    'inline': True
-                },
-                {
-                    'name': '🎉 Event Dex',
-                    'value': 'Manage event Pokemon collection\n`m!help eventdex`',
-                    'inline': True
-                },
-                {
-                    'name': '🔒 Cooldown',
-                    'value': 'Manage Pokemon cooldowns\n`m!help cooldown`',
-                    'inline': True
-                },
-                {
-                    'name': '⚙️ Settings',
-                    'value': 'Configure breeding and display settings\n`m!help settings`',
-                    'inline': True
-                },
-                {
-                    'name': '🎨 Customization',
-                    'value': 'Customize dex images and stats cards\n`m!help customization`',
-                    'inline': True
-                },
-                {
-                    'name': '📖 Pokédex',
-                    'value': 'Look up Pokemon information\n`m!help pokedex`',
-                    'inline': True
-                },
-                {
-                    'name': '🔧 Utility',
-                    'value': 'Helpful utility tools\n`m!help utility`',
-                    'inline': True
-                }
-            ]
+            'description': f'Use `{config.PREFIX[0]}help <category>` to see detailed commands for that category.',
+            'fields': page1_fields
         }
         pages.append(page1)
 
@@ -741,41 +657,45 @@ class Help(commands.Cog):
             'description': 'Filters that can be used with various commands',
             'fields': [
                 {
-                    'name': 'Pokemon Filters',
-                    'value': '`--n <name>` - Search by name\n'
-                           '`--evo <name>` - Filter by evo with alt name support.)\n'
-                           '`--type <type>` - Filter by type (max 2)\n'
-                           '`--region <region>` - Filter by region\n'
-                           '`--g <gender>` - Filter by gender',
-                    'inline': False
+                    'title': 'Pokemon Filters',
+                    'description': (
+                        '`--n <name>` - Search by name\n'
+                        '`--evo <name>` - Filter by evolution line\n'
+                        '`--type <type>` - Filter by type (max 2)\n'
+                        '`--region <region>` - Filter by region\n'
+                        '`--g <gender>` - Filter by gender'
+                    )
                 },
                 {
-                    'name': 'Special Filters',
-                    'value': '`--gmax` - Gigantamax Pokemon only\n'
-                           '`--regional` - Regional forms only\n'
-                           '`--cd` - On cooldown only\n'
-                           '`--nocd` / `--b` - Not on cooldown',
-                    'inline': False
+                    'title': 'Special Filters',
+                    'description': (
+                        '`--gmax` - Gigantamax Pokemon only\n'
+                        '`--regional` - Regional forms only\n'
+                        '`--cd` - On cooldown only\n'
+                        '`--nocd` / `--b` - Not on cooldown'
+                    )
                 },
                 {
-                    'name': 'Dex Filters',
-                    'value': '`--caught` / `--c` - Caught only\n'
-                           '`--uncaught` / `--unc` - Uncaught only\n'
-                           '`--orderd` - Sort descending\n'
-                           '`--ordera` - Sort ascending\n'
-                           '`--page <num>` / `--p <num>` - Jump to page',
-                    'inline': False
+                    'title': 'Dex Filters',
+                    'description': (
+                        '`--caught` / `--c` - Caught only\n'
+                        '`--uncaught` / `--unc` - Uncaught only\n'
+                        '`--orderd` - Sort descending\n'
+                        '`--ordera` - Sort ascending\n'
+                        '`--page <num>` / `--p <num>` - Jump to page'
+                    )
                 },
                 {
-                    'name': 'Display Options',
-                    'value': '`--list` - Simple list format\n'
-                           '`--smartlist` / `--slist` - Smart list with categories\n'
-                           '`--image` / `--img` - Generate dex image\n'
-                           '`--nogender` / `--ng` - Ignore gender differences\n'
-                           '`--ignoremale` / `--im` - Exclude males\n'
-                           '`--ignorefemale` / `--if` - Exclude females\n'
-                           '`--exclude <name>` - Exclude specific Pokemon',
-                    'inline': False
+                    'title': 'Display Options',
+                    'description': (
+                        '`--list` - Simple list format\n'
+                        '`--smartlist` / `--slist` - Smart list with categories\n'
+                        '`--image` / `--img` - Generate dex image\n'
+                        '`--nogender` / `--ng` - Ignore gender differences\n'
+                        '`--ignoremale` / `--im` - Exclude males\n'
+                        '`--ignorefemale` / `--if` - Exclude females\n'
+                        '`--exclude <name>` - Exclude specific Pokemon'
+                    )
                 }
             ]
         }
@@ -784,25 +704,21 @@ class Help(commands.Cog):
         return pages
 
     def create_category_pages(self, category_name):
-        """Create detailed pages for a specific category"""
+        """Create detailed pages for a specific category with Components V2"""
         if category_name not in self.categories:
             return None
 
         category = self.categories[category_name]
         pages = []
 
-        # Create pages (5 commands per page)
-        commands_per_page = 5
+        # Create pages (3 commands per page for better readability)
+        commands_per_page = 3
         commands = category['commands']
 
         for i in range(0, len(commands), commands_per_page):
             page_commands = commands[i:i+commands_per_page]
 
-            page = {
-                'title': category['title'],
-                'description': category['description'],
-                'fields': []
-            }
+            page_fields = []
 
             for cmd in page_commands:
                 # Build command info
@@ -811,7 +727,7 @@ class Help(commands.Cog):
                 value_parts = [f"**Usage:** `{config.PREFIX[0]}{cmd['usage']}`"]
 
                 if cmd.get('description'):
-                    value_parts.append(f"**Description:** {cmd['description']}")
+                    value_parts.append(f"{cmd['description']}")
 
                 if cmd.get('filters'):
                     value_parts.append(f"**Filters:** {cmd['filters']}")
@@ -820,11 +736,16 @@ class Help(commands.Cog):
                     examples = '\n'.join([f"`{config.PREFIX[0]}{ex}`" for ex in cmd['examples']])
                     value_parts.append(f"**Examples:**\n{examples}")
 
-                page['fields'].append({
-                    'name': f"{config.PREFIX[0]}{cmd['name']}{aliases_str}",
-                    'value': '\n'.join(value_parts),
-                    'inline': False
+                page_fields.append({
+                    'title': f"{config.PREFIX[0]}{cmd['name']}{aliases_str}",
+                    'description': '\n\n'.join(value_parts)
                 })
+
+            page = {
+                'title': category['title'],
+                'description': category['description'],
+                'fields': page_fields
+            }
 
             pages.append(page)
 
@@ -836,11 +757,9 @@ class Help(commands.Cog):
         """Show help information for commands"""
 
         if not category:
-            # Show overview
+            # Show overview with Components V2
             pages = self.create_overview_pages()
-            view = HelpView(ctx, pages)
-            message = await ctx.send(embed=view.create_embed(), view=view, reference=ctx.message if not ctx.interaction else None, mention_author=False)
-            view.message = message
+            await self.display_help_pages(ctx, pages)
             return
 
         category_lower = category.lower()
@@ -848,67 +767,165 @@ class Help(commands.Cog):
         # Check if it's a valid category
         if category_lower in self.categories:
             pages = self.create_category_pages(category_lower)
-            view = HelpView(ctx, pages)
-            message = await ctx.send(embed=view.create_embed(), view=view, reference=ctx.message if not ctx.interaction else None, mention_author=False)
-            view.message = message
+            await self.display_help_pages(ctx, pages)
             return
 
         # Check if it's a specific command
         for cat_name, cat_data in self.categories.items():
             for cmd in cat_data['commands']:
                 if category_lower == cmd['name'] or category_lower in cmd.get('aliases', []):
-                    # Show specific command help
-                    embed = discord.Embed(
-                        title=f"Help: {config.PREFIX[0]}{cmd['name']}",
-                        color=EMBED_COLOR
-                    )
-
-                    if cmd.get('aliases'):
-                        embed.add_field(
-                            name="Aliases",
-                            value=', '.join([f"`{config.PREFIX[0]}{a}`" for a in cmd['aliases']]),
-                            inline=False
-                        )
-
-                    embed.add_field(
-                        name="Usage",
-                        value=f"`{config.PREFIX[0]}{cmd['usage']}`",
-                        inline=False
-                    )
-
-                    if cmd.get('description'):
-                        embed.add_field(
-                            name="Description",
-                            value=cmd['description'],
-                            inline=False
-                        )
-
-                    if cmd.get('filters'):
-                        embed.add_field(
-                            name="Filters",
-                            value=cmd['filters'],
-                            inline=False
-                        )
-
-                    if cmd.get('examples'):
-                        examples = '\n'.join([f"`{config.PREFIX[0]}{ex}`" for ex in cmd['examples']])
-                        embed.add_field(
-                            name="Examples",
-                            value=examples,
-                            inline=False
-                        )
-
-                    embed.set_footer(text=f"Category: {cat_data['title']}")
-                    await ctx.send(embed=embed, reference=ctx.message if not ctx.interaction else None, mention_author=False)
+                    # Show specific command help with Components V2
+                    await self.display_command_help(ctx, cmd, cat_data)
                     return
 
         # Command/category not found
-        await ctx.send(
-            f"❌ Category or command `{category}` not found!\n"
-            f"Use `{config.PREFIX[0]}help` to see all categories.",
-            reference=ctx.message if not ctx.interaction else None,
-            mention_author=False
-        )
+        class ErrorView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(
+                discord.ui.TextDisplay(
+                    content=f"❌ **Category or command `{category}` not found!**\n\n"
+                            f"Use `{config.PREFIX[0]}help` to see all categories."
+                ),
+            )
+
+        await ctx.send(view=ErrorView(), reference=ctx.message if not ctx.interaction else None, mention_author=False)
+
+    async def display_help_pages(self, ctx, pages):
+        """Display help pages with Components V2 pagination"""
+        current_page = [0]
+        total_pages = len(pages)
+        author_id = ctx.author.id
+
+        def get_page_components(page_num: int):
+            """Generate components for a specific page"""
+            page = pages[page_num]
+
+            components = [
+                discord.ui.TextDisplay(content=f"**{page['title']}**"),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(content=page['description']),
+            ]
+
+            for field in page['fields']:
+                components.extend([
+                    discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                    discord.ui.TextDisplay(content=f"**{field['title']}**\n{field['description']}"),
+                ])
+
+            components.extend([
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(
+                    content=f"_Page {page_num + 1}/{total_pages} • Use `{config.PREFIX[0]}help <category>` for details_"
+                ),
+            ])
+
+            if total_pages > 1:
+                components.extend([
+                    discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                    discord.ui.ActionRow(
+                        PreviousButton(disabled=(total_pages <= 1)),
+                        NextButton(disabled=(total_pages <= 1))
+                    ),
+                ])
+
+            return components
+
+        class PreviousButton(discord.ui.Button):
+            def __init__(self, disabled=False):
+                super().__init__(
+                    style=discord.ButtonStyle.primary,
+                    label="Previous",
+                    emoji="◀️",
+                    disabled=disabled
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != author_id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ This is not your help menu!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                # Wrap around
+                if current_page[0] == 0:
+                    current_page[0] = total_pages - 1
+                else:
+                    current_page[0] -= 1
+
+                class UpdatedView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(*get_page_components(current_page[0]))
+
+                await interaction.response.edit_message(view=UpdatedView())
+
+        class NextButton(discord.ui.Button):
+            def __init__(self, disabled=False):
+                super().__init__(
+                    style=discord.ButtonStyle.primary,
+                    label="Next",
+                    emoji="▶️",
+                    disabled=disabled
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != author_id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ This is not your help menu!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                # Wrap around
+                if current_page[0] >= total_pages - 1:
+                    current_page[0] = 0
+                else:
+                    current_page[0] += 1
+
+                class UpdatedView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(*get_page_components(current_page[0]))
+
+                await interaction.response.edit_message(view=UpdatedView())
+
+        class HelpView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(*get_page_components(0))
+
+        await ctx.send(view=HelpView(), reference=ctx.message if not ctx.interaction else None, mention_author=False)
+
+    async def display_command_help(self, ctx, cmd, cat_data):
+        """Display specific command help with Components V2"""
+        components = [
+            discord.ui.TextDisplay(content=f"**Help: {config.PREFIX[0]}{cmd['name']}**"),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+        ]
+
+        if cmd.get('aliases'):
+            aliases_str = ', '.join([f"`{config.PREFIX[0]}{a}`" for a in cmd['aliases']])
+            components.append(discord.ui.TextDisplay(content=f"**Aliases:** {aliases_str}"))
+            components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
+
+        components.append(discord.ui.TextDisplay(content=f"**Usage:**\n`{config.PREFIX[0]}{cmd['usage']}`"))
+        components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
+
+        if cmd.get('description'):
+            components.append(discord.ui.TextDisplay(content=f"**Description:**\n{cmd['description']}"))
+            components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
+
+        if cmd.get('filters'):
+            components.append(discord.ui.TextDisplay(content=f"**Filters:**\n{cmd['filters']}"))
+            components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
+
+        if cmd.get('examples'):
+            examples = '\n'.join([f"`{config.PREFIX[0]}{ex}`" for ex in cmd['examples']])
+            components.append(discord.ui.TextDisplay(content=f"**Examples:**\n{examples}"))
+            components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
+
+        components.append(discord.ui.TextDisplay(content=f"_Category: {cat_data['title']}_"))
+
+        class CommandView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(*components)
+
+        await ctx.send(view=CommandView(), reference=ctx.message if not ctx.interaction else None, mention_author=False)
 
 
 async def setup(bot):
