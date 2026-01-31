@@ -1,8 +1,9 @@
 import discord
 from discord.ext import commands
 from discord import app_commands
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import asyncio
+import re
 import config
 from database import db
 
@@ -12,6 +13,9 @@ class Cooldown(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
+        
+        # Daycare egg cooldown duration (5 days)
+        self.daycare_cooldown_days = 5
 
     def parse_cooldown_filters(self, filters_str: str):
         """
@@ -134,6 +138,100 @@ class Cooldown(commands.Cog):
                         return False
 
         return True
+
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        """
+        Listen for Pokétwo daycare egg production messages and automatically update cooldowns
+        """
+        # Only process Pokétwo messages
+        if message.author.id != config.POKETWO_BOT_ID:
+            return
+
+        # Check if it's an egg production message
+        if "in the daycare have produced a" not in message.content:
+            return
+
+        try:
+            # Extract Pokemon IDs from message
+            # Format: "Your **Level 22 Tepig (47.85%) No. 56699** and **Level 76 Bewear (66.67%) No. 56127**"
+            female_id_match = re.search(r'No\.\s*(\d+)\*\*\s*and', message.content)
+            male_id_match = re.search(r'and\s+\*\*.*?No\.\s*(\d+)\*\*\s*in\s+the\s+daycare', message.content)
+
+            if not female_id_match or not male_id_match:
+                return
+
+            female_id = int(female_id_match.group(1))
+            male_id = int(male_id_match.group(1))
+
+            # Get the user who was replied to
+            user_id = None
+            if message.reference:
+                if message.reference.resolved:
+                    user_id = message.reference.resolved.author.id
+                else:
+                    try:
+                        referenced_message = await message.channel.fetch_message(message.reference.message_id)
+                        user_id = referenced_message.author.id
+                    except Exception as e:
+                        print(f"Error fetching referenced message for cooldown: {e}")
+                        return
+
+            if not user_id:
+                return
+
+            # Check if both Pokemon IDs exist in user's inventory
+            pokemon_ids = [female_id, male_id]
+            found_pokemon = []
+
+            # Search across all inventory categories
+            all_categories = [
+                config.NORMAL_CATEGORY,
+                config.TRIPMAX_CATEGORY,
+                config.TRIPZERO_CATEGORY,
+                config.DUEL_CATEGORY
+            ]
+
+            for category in all_categories:
+                for pokemon_id in pokemon_ids:
+                    pokemon = await db.get_pokemon_by_id(user_id, pokemon_id, category)
+                    if pokemon and pokemon_id not in [p['pokemon_id'] for p in found_pokemon]:
+                        found_pokemon.append({
+                            'pokemon_id': pokemon_id,
+                            'name': pokemon.get('name', 'Unknown'),
+                            'category': category
+                        })
+
+            # If we didn't find both Pokemon, do nothing
+            if len(found_pokemon) != 2:
+                return
+
+            # Update cooldown to 5 days for both Pokemon
+            cooldown_expiry = datetime.now(timezone.utc) + timedelta(days=self.daycare_cooldown_days)
+            
+            updated_ids = []
+            for pokemon in found_pokemon:
+                await db.add_cooldown(user_id, pokemon['pokemon_id'], cooldown_expiry)
+                updated_ids.append(pokemon['pokemon_id'])
+
+            # Send confirmation reply
+            female_pokemon = found_pokemon[0] if found_pokemon[0]['pokemon_id'] == female_id else found_pokemon[1]
+            male_pokemon = found_pokemon[1] if found_pokemon[1]['pokemon_id'] == male_id else found_pokemon[0]
+
+            confirmation_message = (
+                f"✅ **Daycare Cooldown Updated**\n\n"
+                f"{config.REPLY} **Female:** `{female_pokemon['pokemon_id']}` ({female_pokemon['name']})\n"
+                f"{config.REPLY} **Male:** `{male_pokemon['pokemon_id']}` ({male_pokemon['name']})\n\n"
+                f"_Cooldown set to **{self.daycare_cooldown_days} days** from now._\n"
+                f"_This ensures proper cooldown tracking for breeding pairs!_"
+            )
+
+            await message.reply(confirmation_message, mention_author=False)
+
+        except Exception as e:
+            print(f"Error handling daycare egg cooldown: {e}")
+            import traceback
+            traceback.print_exc()
 
     @commands.hybrid_command(name='cooldown', aliases=['cd'])
     @app_commands.describe(
