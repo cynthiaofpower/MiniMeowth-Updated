@@ -277,7 +277,7 @@ class Settings(commands.Cog):
                 await db.update_settings(interaction.user.id, {'target': [new_target]})
 
                 target_names = {
-                    'all': 'All Pokemon',
+                    'all': 'Any Pokemon',
                     'mychoice': 'MyChoice',
                     'tripmax': 'TripMax',
                     'tripzero': 'TripZero',
