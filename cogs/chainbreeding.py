@@ -904,30 +904,32 @@ class ChainBreeding(commands.Cog):
             search_moves = [moves_clean.strip()]
 
         if not search_moves:
-            class ErrorView(discord.ui.LayoutView):
-                container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content="❌ Please specify at least one move!"),
-                )
-            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
+            embed = discord.Embed(
+                description="❌ Please specify at least one move!",
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
             return
 
         # Build comprehensive results with egg group filtering
         results = self.find_decremental_learners(search_moves, egg_group_filters)
 
-        # Create view for summary
-        view = await self.create_canlearn_view(search_moves, results, egg_group_filters)
-
         # Create detailed txt file
         txt_content = self.create_canlearn_txt(search_moves, results, egg_group_filters)
 
-        # Create file using BytesIO instead of temp file
+        # Create file using BytesIO
         import io
         txt_file = io.BytesIO(txt_content.encode('utf-8'))
+        txt_file.seek(0)
+        discord_file = discord.File(txt_file, filename="canlearn_full_results.txt")
+
+        # Create embed for summary
+        embed = self.create_canlearn_embed(search_moves, results, egg_group_filters)
         
-        # Send view and file
+        # Send embed and file
         await ctx.send(
-            view=view,
-            file=discord.File(txt_file, filename="canlearn_full_results.txt"), 
+            embed=embed,
+            file=discord_file,
             reference=ctx.message, 
             mention_author=False
         )
@@ -1043,23 +1045,24 @@ class ChainBreeding(commands.Cog):
 
         return results
 
-    async def create_canlearn_view(self, search_moves: List[str], results: Dict, egg_group_filters: List[str] = None) -> discord.ui.LayoutView:
-        """Create summary view for canlearn results"""
+    def create_canlearn_embed(self, search_moves: List[str], results: Dict, egg_group_filters: List[str] = None) -> discord.Embed:
+        """Create summary embed for canlearn results"""
         num_moves = len(search_moves)
 
         if egg_group_filters is None:
             egg_group_filters = []
 
-        components = [
-            discord.ui.TextDisplay(content=f"**🎓 Pokemon That Can Learn These Moves**"),
-            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-            discord.ui.TextDisplay(
-                content=f"**Searching for:** {', '.join(search_moves)}\n"
-                        f"**Total moves:** {num_moves}" +
-                        (f"\n**Egg Group Filters:** {', '.join(egg_group_filters)}" if egg_group_filters else "")
-            ),
-            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-        ]
+        # Create embed
+        embed = discord.Embed(
+            title="🎓 Pokemon That Can Learn These Moves",
+            color=discord.Color.blue()
+        )
+
+        # Add search info
+        search_info = f"**Searching for:** {', '.join(search_moves)}\n**Total moves:** {num_moves}"
+        if egg_group_filters:
+            search_info += f"\n**Egg Group Filters:** {', '.join(egg_group_filters)}"
+        embed.description = search_info
 
         # Helper function to format Pokemon entry
         def format_entry(pokemon, spawn_cost, learned_moves, egg_groups):
@@ -1071,58 +1074,48 @@ class ChainBreeding(commands.Cog):
         if egg_group_filters:
             if results['all_with_all_groups']:
                 top_all = results['all_with_all_groups'][:5]
-                text = ""
-                for entry in top_all:
-                    text += format_entry(*entry) + "\n"
+                text = "\n".join([format_entry(*entry) for entry in top_all])
                 if len(results['all_with_all_groups']) > 5:
-                    text += f"*...and {len(results['all_with_all_groups']) - 5} more*"
-
-                components.extend([
-                    discord.ui.TextDisplay(
-                        content=f"**✅ ALL {num_moves} Moves + ALL Egg Groups ({len(results['all_with_all_groups'])} found)**\n{text}"
-                    ),
-                    discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                ])
+                    text += f"\n*...and {len(results['all_with_all_groups']) - 5} more*"
+                
+                embed.add_field(
+                    name=f"✅ ALL {num_moves} Moves + ALL Egg Groups ({len(results['all_with_all_groups'])} found)",
+                    value=text,
+                    inline=False
+                )
 
             # Show results with ANY required egg group
             if results['all_with_any_group']:
                 top_all = results['all_with_any_group'][:3]
-                text = ""
-                for entry in top_all:
-                    text += format_entry(*entry) + "\n"
+                text = "\n".join([format_entry(*entry) for entry in top_all])
                 if len(results['all_with_any_group']) > 3:
-                    text += f"*...and {len(results['all_with_any_group']) - 3} more*"
-
-                components.extend([
-                    discord.ui.TextDisplay(
-                        content=f"**⚠️ ALL {num_moves} Moves + ANY Egg Group ({len(results['all_with_any_group'])} found)**\n{text}"
-                    ),
-                    discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                ])
+                    text += f"\n*...and {len(results['all_with_any_group']) - 3} more*"
+                
+                embed.add_field(
+                    name=f"⚠️ ALL {num_moves} Moves + ANY Egg Group ({len(results['all_with_any_group'])} found)",
+                    value=text,
+                    inline=False
+                )
 
         # Show ALL moves learners (no egg group filter or no matches with filters)
         if results['all'] and (not egg_group_filters or (not results['all_with_all_groups'] and not results['all_with_any_group'])):
             top_all = results['all'][:5]
-            text = ""
-            for entry in top_all:
-                text += format_entry(*entry) + "\n"
+            text = "\n".join([format_entry(*entry) for entry in top_all])
             if len(results['all']) > 5:
-                text += f"*...and {len(results['all']) - 5} more*"
+                text += f"\n*...and {len(results['all']) - 5} more*"
 
             title_suffix = " (No Egg Group Filter)" if egg_group_filters else ""
-            components.extend([
-                discord.ui.TextDisplay(
-                    content=f"**✅ Learn ALL {num_moves} Moves{title_suffix} ({len(results['all'])} found)**\n{text}"
-                ),
-                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-            ])
+            embed.add_field(
+                name=f"✅ Learn ALL {num_moves} Moves{title_suffix} ({len(results['all'])} found)",
+                value=text,
+                inline=False
+            )
         elif not results['all']:
-            components.extend([
-                discord.ui.TextDisplay(
-                    content=f"**❌ No Pokemon Learns All {num_moves} Moves**\nShowing results for fewer moves below..."
-                ),
-                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-            ])
+            embed.add_field(
+                name=f"❌ No Pokemon Learns All {num_moves} Moves",
+                value="Showing results for fewer moves below...",
+                inline=False
+            )
 
         # Show ANY 3 learners with egg group filtering
         if num_moves >= 4:
@@ -1136,12 +1129,11 @@ class ChainBreeding(commands.Cog):
                 if len(results['any_3_with_all_groups']) > 3:
                     text += f"*...and {len(results['any_3_with_all_groups']) - 3} more*"
 
-                components.extend([
-                    discord.ui.TextDisplay(
-                        content=f"**📊 ANY 3 Moves + ALL Egg Groups ({len(results['any_3_with_all_groups'])} found)**\n{text}"
-                    ),
-                    discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                ])
+                embed.add_field(
+                    name=f"📊 ANY 3 Moves + ALL Egg Groups ({len(results['any_3_with_all_groups'])} found)",
+                    value=text,
+                    inline=False
+                )
             elif results['any_3']:
                 top_3 = results['any_3'][:3]
                 text = ""
@@ -1152,12 +1144,11 @@ class ChainBreeding(commands.Cog):
                 if len(results['any_3']) > 3:
                     text += f"*...and {len(results['any_3']) - 3} more*"
 
-                components.extend([
-                    discord.ui.TextDisplay(
-                        content=f"**⚠️ Learn ANY 3 Moves ({len(results['any_3'])} found)**\n{text}"
-                    ),
-                    discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                ])
+                embed.add_field(
+                    name=f"⚠️ Learn ANY 3 Moves ({len(results['any_3'])} found)",
+                    value=text,
+                    inline=False
+                )
 
         # Show ANY 2 learners with egg group filtering
         if num_moves >= 3:
@@ -1171,12 +1162,11 @@ class ChainBreeding(commands.Cog):
                 if len(results['any_2_with_all_groups']) > 3:
                     text += f"*...and {len(results['any_2_with_all_groups']) - 3} more*"
 
-                components.extend([
-                    discord.ui.TextDisplay(
-                        content=f"**📊 ANY 2 Moves + ALL Egg Groups ({len(results['any_2_with_all_groups'])} found)**\n{text}"
-                    ),
-                    discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                ])
+                embed.add_field(
+                    name=f"📊 ANY 2 Moves + ALL Egg Groups ({len(results['any_2_with_all_groups'])} found)",
+                    value=text,
+                    inline=False
+                )
             elif results['any_2']:
                 top_2 = results['any_2'][:3]
                 text = ""
@@ -1187,31 +1177,19 @@ class ChainBreeding(commands.Cog):
                 if len(results['any_2']) > 3:
                     text += f"*...and {len(results['any_2']) - 3} more*"
 
-                components.extend([
-                    discord.ui.TextDisplay(
-                        content=f"**📊 Learn ANY 2 Moves ({len(results['any_2'])} found)**\n{text}"
-                    ),
-                    discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                ])
+                embed.add_field(
+                    name=f"📊 Learn ANY 2 Moves ({len(results['any_2'])} found)",
+                    value=text,
+                    inline=False
+                )
 
-        # Show individual move learners note
-        components.extend([
-            discord.ui.TextDisplay(
-                content=f"**📝 Individual Move Learners**\nSee attached file for complete list with levels and egg groups"
-            ),
-            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-        ])
-
+        # Add footer
         footer_text = "Full detailed results in attached TXT file"
         if egg_group_filters:
             footer_text += f" | Filtering by: {', '.join(egg_group_filters)}"
+        embed.set_footer(text=footer_text)
 
-        components.append(discord.ui.TextDisplay(content=f"_{footer_text}_"))
-
-        class CanLearnView(discord.ui.LayoutView):
-            container1 = discord.ui.Container(*components)
-
-        return CanLearnView()
+        return embed
 
     def create_canlearn_txt(self, search_moves: List[str], results: Dict, egg_group_filters: List[str] = None) -> str:
         """Create detailed txt file with all results"""
