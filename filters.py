@@ -32,14 +32,14 @@ FILTERS = {
         "Baby Pokémons",
         "aliases": ["baby", "babies",  "babypokemons"],
         "pokemon": [
-"Pichu","Spiky-eared Pichu","Cleffa","Igglybuff","Togepi","Tyrogue","Smoochum","Elekid","Magby","Azurill","Wynaut","Budew","Chingling","Bonsly","Mime Jr.","Happiny","Munchlax","Riolu","Mantyke","Toxel" 
+"Pichu","Spiky-eared Pichu","Cleffa","Igglybuff","Togepi","Tyrogue","Smoochum","Elekid","Magby","Azurill","Wynaut","Budew","Chingling","Bonsly","Mime Jr.","Happiny","Munchlax","Riolu","Mantyke","Toxel"  ]
     },
     "fossil": {
         "name":
         "Fossil Pokémons",
         "aliases": ["fossils", "fossilpokemon",  "fossilpokemons"],
         "pokemon": [
-"Aerodactyl","Carracosta","Rampardos","Bastiodon","Tyrantrum","Dracozolt","Arctozolt","Dracovish","Arctovish","Kabutops","Cranidos","Shieldon","Tirtouga","Archeops","Omanyte","Omastar","Cradily","Anorith","Armaldo","Aurorus","Kabuto","Lileep","Archen","Tyrunt","Amaura" 
+"Aerodactyl","Carracosta","Rampardos","Bastiodon","Tyrantrum","Dracozolt","Arctozolt","Dracovish","Arctovish","Kabutops","Cranidos","Shieldon","Tirtouga","Archeops","Omanyte","Omastar","Cradily","Anorith","Armaldo","Aurorus","Kabuto","Lileep","Archen","Tyrunt","Amaura"  ]
     },
     "newmegas": {
         "name":
