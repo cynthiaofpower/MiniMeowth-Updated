@@ -480,7 +480,7 @@ FILTERS = {
         " Meowth's Collection Pokemons",
         "aliases": ["mcol", "mmco"],
         "pokemon": [
-            "Dedenne","Aerodactyl","Furfrou","Umbreon","Lapras","Sylveon","Leafeon","Espeon","Glaceon","Flareon","Jolteon","Sneasler","Vaporeon","Emolga","Pachirisu","Delphox","Morpeko","Dragonite","Heracross","Charizard","Togedemaru","Hisuian Sneasel","Decidueye","Basculegion","Partner Pikachu","Partner Eevee","Eevee","Dipplin","Carbink","Komala","Mimikyu","Alcremie","Falinks","Eiscue","Wynaut","Absol","Rotom","Zoroark","Greninja","Ditto","Pikachu","Snorlax","Hydrapple","Gouging Fire","Raging Bolt","Iron Boulder","Iron Crown","Sinistcha","Bloodmoon Ursaluna","Hangry Morpeko","Milcery","Unown" 
+            "Dedenne","Meowth","Alolan Meowth"," Galarian Meowth","Aerodactyl","Furfrou","Umbreon","Lapras","Sylveon","Leafeon","Espeon","Glaceon","Flareon","Jolteon","Sneasler","Vaporeon","Emolga","Pachirisu","Delphox","Morpeko","Dragonite","Heracross","Charizard","Togedemaru","Hisuian Sneasel","Decidueye","Basculegion","Partner Pikachu","Partner Eevee","Eevee","Dipplin","Carbink","Komala","Mimikyu","Alcremie","Falinks","Eiscue","Wynaut","Absol","Rotom","Zoroark","Greninja","Ditto","Pikachu","Snorlax","Hydrapple","Gouging Fire","Raging Bolt","Iron Boulder","Iron Crown","Sinistcha","Bloodmoon Ursaluna","Hangry Morpeko","Milcery","Unown" 
         ]
     },
     "evoflabebe": {
