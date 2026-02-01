@@ -43,12 +43,29 @@ FILTERS = {
     },
     "newmegas": {
         "name":
-        "Pokemons That Got New Mega Form",
+        "Pokémons That Got New Mega Form",
         "aliases":
         ["newmega", "new-megas", "mega2", "mega-za", "za-mega", "mega-2", "nm"],
         "pokemon": [
             "Raichu","Clefable","Victreebel","Starmie","Dragonite","Meganium","Feraligatr","Skarmory","Chimecho","Absol","Staraptor","Garchomp","Lucario","Froslass","Heatran","Darkrai","Emboar","Excadrill","Scolipede","Scrafty","Eelektross","Chandelure","Golurk","Chesnaught","Delphox","Greninja","Pyroar","Meowstic","Malamar","Barbaracle","Dragalge","Hawlucha","Complete Zygarde","Crabominable","Golisopod","Drampa","Magearna","Zeraora","Falinks","Scovillain","Glimmora","Tatsugiri","Droopy Tatsugiri","Stretchy Tatsugiri","Baxcalibur" 
         ]
+    },
+    "gigantamaxable": {
+        "name":
+        "Pokémons that can Gmax",
+        "aliases":
+        ["gmaxable", "gmable", "pregm", "cangmax"],
+        "pokemon": [
+"Corviknight","Butterfree","Charizard","Blastoise","Rillaboom","Cinderace","Venusaur","Garbodor","Melmetal","Inteleon","Orbeetle","Pikachu","Machamp","Kingler","Snorlax","Drednaw","Meowth","Gengar","Lapras","Eevee","Urshifu","Rapid Strike Urshifu","Low Key Toxtricity","Amped Toxtricity","Centiskorch","Sandaconda","Grimmsnarl","Copperajah","Coalossal","Hatterene","Duraludon","Appletun","Alcremie","Eternatus","Flapple","Vanilla Cream Clover Sweet Alcremie","Vanilla Cream Flower Sweet Alcremie","Vanilla Cream Ribbon Sweet Alcremie","Vanilla Cream Berry Sweet Alcremie","Vanilla Cream Love Sweet Alcremie","Vanilla Cream Star Sweet Alcremie","Gigantamax Alcremie" 
+        ]
+    },
+    "gigantamax": {
+        "name":
+        "Gigantamax Pokémons",
+        "aliases":
+        ["gmax", "gm", "gigantic", "isgmax"],
+        "pokemon": [
+"Gigantamax Corviknight","Gigantamax Butterfree","Gigantamax Charizard","Gigantamax Blastoise","Gigantamax Rillaboom","Gigantamax Cinderace","Gigantamax Venusaur","Gigantamax Garbodor","Gigantamax Melmetal","Gigantamax Inteleon","Gigantamax Orbeetle","Gigantamax Pikachu","Gigantamax Machamp","Gigantamax Kingler","Gigantamax Snorlax","Gigantamax Drednaw","Gigantamax Meowth","Gigantamax Gengar","Gigantamax Lapras","Gigantamax Eevee","Gigantamax Single Strike Urshifu","Gigantamax Rapid Strike Urshifu","Gigantamax Low Key Toxtricity","Gigantamax Amped Toxtricity","Gigantamax Centiskorch","Gigantamax Sandaconda","Gigantamax Grimmsnarl","Gigantamax Copperajah","Gigantamax Coalossal","Gigantamax Hatterene","Gigantamax Duraludon","Gigantamax Appletun","Gigantamax Alcremie","Eternamax Eternatus","Gigantamax Flapple"         ]
     },
     "megas-not-in-p2-yet": {
         "name":
