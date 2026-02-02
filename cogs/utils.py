@@ -562,8 +562,11 @@ class Utils(commands.Cog):
             else:
                 return "Low/Medium"
 
+    # ===== UPDATED PARSE FUNCTION FOR UTILS.PY =====
+    # Replace the parse_embed_content method in your Utils class with this enhanced version
+
     def parse_embed_content(self, embed_description: str):
-        """Parse Poketwo embed description to extract Pokemon data (optimized with pre-computed fields)"""
+        """Parse Poketwo embed description to extract Pokemon data (enhanced with nickname, level, favorite, moves, IVs)"""
         if not embed_description:
             return []
 
@@ -605,6 +608,23 @@ class Utils(commands.Cog):
                 else:
                     continue
 
+                # ===== NEW: Extract favorite status (❤️ emoji) =====
+                is_favorite = '❤️' in line or '❤' in line
+
+                # ===== NEW: Extract nickname (text in quotes after gender icon) =====
+                nickname = None
+                # Pattern: after gender icon, look for "nickname" in quotes
+                nickname_match = re.search(r'<:(?:male|female|unknown):\d+>\s*"([^"]+)"', line)
+                if nickname_match:
+                    nickname = nickname_match.group(1).strip()
+
+                # ===== NEW: Extract level =====
+                # Pattern: Lvl. XX or Level XX
+                level = None
+                level_match = re.search(r'(?:Lvl\.|Level)\s*(\d+)', line, re.IGNORECASE)
+                if level_match:
+                    level = int(level_match.group(1))
+
                 # Extract IV percentage using precompiled regex
                 iv_match = self.iv_pattern.search(line)
                 iv_percent = float(iv_match.group(1)) if iv_match else 0.0
@@ -630,7 +650,11 @@ class Utils(commands.Cog):
                     'base_species': base_species,
                     'is_gmax': is_gmax,
                     'is_regional': is_regional,
-                    'is_ditto': is_ditto
+                    'is_ditto': is_ditto,
+                    # NEW FIELDS
+                    'level': level,
+                    'nickname': nickname,
+                    'is_favorite': is_favorite
                 })
 
             except (ValueError, AttributeError):
@@ -638,6 +662,304 @@ class Utils(commands.Cog):
                 continue
 
         return pokemon_data
+
+
+    # ===== NEW HELPER FUNCTION FOR PARSING IV FLAGS =====
+    def parse_iv_value(self, iv_str: str) -> dict:
+        """
+        Parse IV value string into min/max range
+        Examples:
+          "31" -> {min: 31, max: 31}
+          ">20" -> {min: 21, max: 31}
+          "<10" -> {min: 0, max: 9}
+          ">=25" -> {min: 25, max: 31}
+          "<=15" -> {min: 0, max: 15}
+        """
+        iv_str = iv_str.strip()
+
+        # Exact value
+        if iv_str.isdigit():
+            val = int(iv_str)
+            return {'min': val, 'max': val}
+
+        # Greater than or equal
+        if iv_str.startswith('>='):
+            return {'min': int(iv_str[2:]), 'max': 31}
+
+        # Greater than
+        if iv_str.startswith('>'):
+            val = int(iv_str[1:])
+            return {'min': val + 1, 'max': 31}
+
+        # Less than or equal
+        if iv_str.startswith('<='):
+            return {'min': 0, 'max': int(iv_str[2:])}
+
+        # Less than
+        if iv_str.startswith('<'):
+            val = int(iv_str[1:])
+            return {'min': 0, 'max': val - 1}
+
+        # Default: unknown range
+        return {'min': 0, 'max': 31}
+
+
+    # ===== REPLACE YOUR parse_add_flags METHOD WITH THIS UPDATED VERSION =====
+    # This goes in your utils.py file
+
+    def parse_add_flags(self, args_str: str) -> dict:
+        """
+        Parse command flags for moves, IVs, level, favorites, and nickname
+        AUTOMATICALLY POPULATES IMPLIED DUPLICATES:
+        - hex 31 → also stores penta 31, quad 31, trip 31
+        - penta 31 → also stores quad 31, trip 31
+        - quad 31 → also stores trip 31
+
+        Returns: {
+            'moves': ['move1', 'move2', ...],
+            'no_moves': ['move1', 'move2'],
+            'hpiv': {'min': X, 'max': Y},
+            'atkiv': {'min': X, 'max': Y},
+            ...
+            'trip': [31, 30],  # List of trip values
+            'quad': [31],      # Quadruple value
+            'penta': [31],     # Pentuple value
+            'hex': [31],       # Hextuple value
+            'level': {'min': X, 'max': Y} or {'exact': X},
+            'is_favorite': True/False,
+            'nickname': 'text',
+            'no_nickname': 'text'
+        }
+        """
+        if not args_str:
+            return {}
+
+        args = args_str.split()
+        result = {
+            'moves': [],
+            'no_moves': [],
+            'trip': [],   # Can have up to 2 values
+            'quad': [],   # Can have 1 value
+            'penta': [],  # Can have 1 value
+            'hex': []     # Can have 1 value
+        }
+
+        i = 0
+        while i < len(args):
+            arg = args[i].lower()
+
+            # ===== MOVE FLAG =====
+            if arg == '--move':
+                if i + 1 < len(args):
+                    move_parts = []
+                    i += 1
+                    while i < len(args) and not args[i].startswith('--'):
+                        move_parts.append(args[i])
+                        i += 1
+                    if move_parts:
+                        result['moves'].append(' '.join(move_parts))
+                    continue
+                else:
+                    i += 1
+
+            # ===== NO MOVE FLAG =====
+            if arg == '--nomove':
+                if i + 1 < len(args):
+                    move_parts = []
+                    i += 1
+                    while i < len(args) and not args[i].startswith('--'):
+                        move_parts.append(args[i])
+                        i += 1
+                    if move_parts:
+                        result['no_moves'].append(' '.join(move_parts))
+                    continue
+                else:
+                    i += 1
+
+            # ===== LEVEL FILTER =====
+            if arg in ['--level', '--lvl', '--l']:
+                if i + 1 < len(args):
+                    level_str = args[i + 1]
+
+                    # Parse level value
+                    if level_str.isdigit():
+                        # Exact level
+                        result['level'] = {'exact': int(level_str)}
+                    elif level_str.startswith('>='):
+                        result['level'] = {'min': int(level_str[2:]), 'max': 100}
+                    elif level_str.startswith('>'):
+                        result['level'] = {'min': int(level_str[1:]) + 1, 'max': 100}
+                    elif level_str.startswith('<='):
+                        result['level'] = {'min': 1, 'max': int(level_str[2:])}
+                    elif level_str.startswith('<'):
+                        result['level'] = {'min': 1, 'max': int(level_str[1:]) - 1}
+
+                    i += 2
+                    continue
+                else:
+                    i += 1
+
+            # ===== FAVORITE FILTERS =====
+            if arg in ['--fav', '--favorite']:
+                result['is_favorite'] = True
+                i += 1
+                continue
+
+            if arg in ['--unfav', '--nofavorite']:
+                result['is_favorite'] = False
+                i += 1
+                continue
+
+            # ===== NICKNAME FILTERS =====
+            if arg in ['--nickname', '--nick']:
+                if i + 1 < len(args):
+                    nick_parts = []
+                    i += 1
+                    while i < len(args) and not args[i].startswith('--'):
+                        nick_parts.append(args[i])
+                        i += 1
+                    if nick_parts:
+                        result['nickname'] = ' '.join(nick_parts)
+                    continue
+                else:
+                    i += 1
+
+            if arg == '--nonick':
+                if i + 1 < len(args):
+                    nick_parts = []
+                    i += 1
+                    while i < len(args) and not args[i].startswith('--'):
+                        nick_parts.append(args[i])
+                        i += 1
+                    if nick_parts:
+                        result['no_nickname'] = ' '.join(nick_parts)
+                    continue
+                else:
+                    i += 1
+
+            # ===== IV FLAGS =====
+            iv_flags = ['--hpiv', '--atkiv', '--defiv', '--spatkiv', '--spdefiv', '--spdiv']
+            if arg in iv_flags:
+                if i + 1 < len(args):
+                    iv_name = arg[2:]  # Remove '--'
+                    iv_value_str = args[i + 1]
+                    result[iv_name] = self.parse_iv_value(iv_value_str)
+                    i += 2
+                    continue
+                else:
+                    i += 1
+
+            # ===== DUPLICATE IV FILTERS =====
+            # Triple (trip) - can have up to 2 values
+            if arg in ['--triple', '--three', '--trip']:
+                if i + 1 < len(args) and args[i + 1].isdigit():
+                    value = int(args[i + 1])
+                    if len(result['trip']) < 2:  # Max 2 trip values
+                        result['trip'].append(value)
+                    i += 2
+                    continue
+                else:
+                    i += 1
+
+            # Quadruple (quad) - can have 1 value
+            if arg in ['--quadruple', '--four', '--quadra', '--quad', '--tetra']:
+                if i + 1 < len(args) and args[i + 1].isdigit():
+                    value = int(args[i + 1])
+                    if len(result['quad']) < 1:
+                        result['quad'].append(value)
+                    i += 2
+                    continue
+                else:
+                    i += 1
+
+            # Pentuple (penta) - can have 1 value
+            if arg in ['--pentuple', '--quintuple', '--penta', '--pent', '--five']:
+                if i + 1 < len(args) and args[i + 1].isdigit():
+                    value = int(args[i + 1])
+                    if len(result['penta']) < 1:
+                        result['penta'].append(value)
+                    i += 2
+                    continue
+                else:
+                    i += 1
+
+            # Hextuple (hex) - can have 1 value
+            if arg in ['--hextuple', '--sextuple', '--hexa', '--hex', '--six']:
+                if i + 1 < len(args) and args[i + 1].isdigit():
+                    value = int(args[i + 1])
+                    if len(result['hex']) < 1:
+                        result['hex'].append(value)
+                    i += 2
+                    continue
+                else:
+                    i += 1
+
+            i += 1
+
+        # ===== AUTOMATICALLY POPULATE IMPLIED DUPLICATES =====
+        # Higher duplicates automatically include lower ones
+
+        # If hex 31 exists, it also means penta 31, quad 31, trip 31
+        if result['hex']:
+            value = result['hex'][0]
+            if value not in result['penta']:
+                result['penta'] = [value]
+            if value not in result['quad']:
+                result['quad'] = [value]
+            if value not in result['trip']:
+                result['trip'].insert(0, value)  # Add at start
+
+        # If penta 31 exists, it also means quad 31, trip 31
+        if result['penta']:
+            value = result['penta'][0]
+            if value not in result['quad']:
+                result['quad'] = [value]
+            if value not in result['trip']:
+                result['trip'].insert(0, value)  # Add at start
+
+        # If quad 31 exists, it also means trip 31
+        if result['quad']:
+            value = result['quad'][0]
+            if value not in result['trip']:
+                result['trip'].insert(0, value)  # Add at start
+
+        # ===== CLEAN UP EMPTY LISTS/FIELDS =====
+        if not result.get('moves'):
+            result.pop('moves', None)
+        if not result.get('no_moves'):
+            result.pop('no_moves', None)
+        if not result.get('trip'):
+            result.pop('trip', None)
+        if not result.get('quad'):
+            result.pop('quad', None)
+        if not result.get('penta'):
+            result.pop('penta', None)
+        if not result.get('hex'):
+            result.pop('hex', None)
+
+        return result
+
+    # ===== HELPER FUNCTION TO MERGE IV RANGES =====
+    def merge_iv_range(existing: dict, new: dict) -> dict:
+        """
+        Merge/narrow down IV range when updating
+        existing: {'min': 21, 'max': 31}
+        new: {'min': 29, 'max': 29}
+        result: {'min': 29, 'max': 29} (narrowed to exact value)
+
+        Always takes the intersection of ranges to narrow down
+        """
+        if not existing:
+            return new
+
+        merged_min = max(existing.get('min', 0), new.get('min', 0))
+        merged_max = min(existing.get('max', 31), new.get('max', 31))
+
+        # If ranges don't overlap, prefer the newer (more specific) value
+        if merged_min > merged_max:
+            return new
+
+        return {'min': merged_min, 'max': merged_max}
 
     async def fetch_embed_by_id(self, ctx, message_id: int):
         """Fetch a message and return its first embed"""
