@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Bot Configuration
-PREFIX = ["l!", "M!", "n!", "N!"] 
+PREFIX = ["m!", "M!", "n!", "N!"] 
 EMBED_COLOR = 0x9c8e8b  # RGB: 156, 142, 139
 
 # MongoDB Configuration
