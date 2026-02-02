@@ -199,7 +199,21 @@ class Database:
             "base_species": 1,
             "is_gmax": 1,
             "is_regional": 1,
-            "is_ditto": 1
+            "is_ditto": 1,
+            "moves": 1,           # For move filters
+            "hpiv": 1,            # For IV filters
+            "atkiv": 1,
+            "defiv": 1,
+            "spatkiv": 1,
+            "spdefiv": 1,
+            "spdiv": 1,
+            "trip": 1,            # For duplicate IV filters
+            "quad": 1,
+            "penta": 1,
+            "hex": 1,
+            "level": 1,           # ← ADD THIS (for level filter)
+            "is_favorite": 1,     # ← ADD THIS (for favorite filter)
+            "nickname": 1         # ← ADD THIS (for nickname filter)
         }
 
         # Sort by IV descending (use index)
@@ -222,8 +236,84 @@ class Database:
         results = await cursor.to_list(length=None)
         return {p['pokemon_id']: p for p in results}
 
-    async def add_pokemon(self, user_id: int, pokemon_data: dict, category: str = "normal"):
-        """Add a single Pokemon to inventory with category"""
+    # ========================================
+    # BREED FILTER OPERATIONS
+    # ========================================
+
+    async def get_breed_filters(self, user_id: int):
+        """
+        Get breeding filters for a user
+        Returns: {
+            'male': {'enabled': bool, 'criteria': {}},
+            'female': {'enabled': bool, 'criteria': {}}
+        }
+        """
+        doc = await self.user_data.find_one(
+            {"user_id": user_id},
+            {"breed_filters": 1}
+        )
+
+        if not doc or 'breed_filters' not in doc:
+            return {
+                'male': {'enabled': False, 'criteria': {}},
+                'female': {'enabled': False, 'criteria': {}}
+            }
+
+        return doc.get('breed_filters', {
+            'male': {'enabled': False, 'criteria': {}},
+            'female': {'enabled': False, 'criteria': {}}
+        })
+
+    async def set_breed_filter(self, user_id: int, gender: str, criteria: dict, enabled: bool = True):
+        """
+        Set breeding filter for male or female
+        gender: 'male' or 'female'
+        criteria: dict of filter criteria
+        enabled: whether filter is active
+        """
+        await self.user_data.update_one(
+            {"user_id": user_id},
+            {
+                "$set": {
+                    f"breed_filters.{gender}.criteria": criteria,
+                    f"breed_filters.{gender}.enabled": enabled
+                }
+            },
+            upsert=True
+        )
+
+    async def set_breed_filter_enabled(self, user_id: int, gender: str, enabled: bool):
+        """Toggle filter enabled/disabled without changing criteria"""
+        await self.user_data.update_one(
+            {"user_id": user_id},
+            {"$set": {f"breed_filters.{gender}.enabled": enabled}},
+            upsert=True
+        )
+
+    async def remove_breed_filter(self, user_id: int, gender: str):
+        """Completely remove a breeding filter"""
+        await self.user_data.update_one(
+            {"user_id": user_id},
+            {"$unset": {f"breed_filters.{gender}": ""}}
+        )
+    
+    # ===== UPDATED DATABASE METHODS =====
+    # Add these methods to your Database class and update existing ones
+
+    async def add_pokemon(self, user_id: int, pokemon_data: dict, category: str = "normal", extra_data: dict = None):
+        """
+        Add or update a single Pokemon to inventory with category and extra data
+        extra_data: {
+            'moves': ['move1', 'move2'],
+            'hpiv': {'min': 21, 'max': 31},
+            'atkiv': {'min': 31, 'max': 31},
+            ...
+            'trip': [31, 30],  # Triple IVs
+            'quad': [31],      # Quadruple IVs
+            'penta': [31],     # Pentuple IVs
+            'hex': [31]        # Hextuple IVs
+        }
+        """
         try:
             # Ensure required fields
             pokemon_data.setdefault('dex_number', 0)
@@ -233,6 +323,11 @@ class Database:
             pokemon_data.setdefault('is_regional', False)
             pokemon_data.setdefault('base_species', '')
 
+            # NEW: Ensure new fields with defaults
+            pokemon_data.setdefault('level', None)
+            pokemon_data.setdefault('nickname', None)
+            pokemon_data.setdefault('is_favorite', False)
+
             # Check if exists
             existing = await self.pokemon.find_one({
                 "user_id": user_id,
@@ -240,27 +335,122 @@ class Database:
             })
 
             if existing:
+                # Update existing Pokemon
+                update_dict = {}
+
                 # Add category if not present
                 if category not in existing.get('categories', []):
+                    update_dict['$addToSet'] = {'categories': category}
+
+                # Update basic fields (prefer newer data if available)
+                set_fields = {}
+                if pokemon_data.get('level') is not None:
+                    set_fields['level'] = pokemon_data['level']
+                if pokemon_data.get('nickname') is not None:
+                    set_fields['nickname'] = pokemon_data['nickname']
+                if pokemon_data.get('is_favorite') is not None:
+                    set_fields['is_favorite'] = pokemon_data['is_favorite']
+
+                # Handle moves: add new moves to existing set
+                if extra_data and 'moves' in extra_data:
+                    if '$addToSet' not in update_dict:
+                        update_dict['$addToSet'] = {}
+                    update_dict['$addToSet']['moves'] = {'$each': extra_data['moves']}
+
+                # Handle IVs: narrow down ranges
+                if extra_data:
+                    for iv_name in ['hpiv', 'atkiv', 'defiv', 'spatkiv', 'spdefiv', 'spdiv']:
+                        if iv_name in extra_data:
+                            existing_iv = existing.get(iv_name)
+                            new_iv = extra_data[iv_name]
+
+                            # Merge/narrow the range
+                            if existing_iv:
+                                merged_min = max(existing_iv.get('min', 0), new_iv.get('min', 0))
+                                merged_max = min(existing_iv.get('max', 31), new_iv.get('max', 31))
+
+                                # If ranges overlap, use intersection
+                                if merged_min <= merged_max:
+                                    set_fields[iv_name] = {'min': merged_min, 'max': merged_max}
+                                else:
+                                    # No overlap, prefer new value (more specific)
+                                    set_fields[iv_name] = new_iv
+                            else:
+                                set_fields[iv_name] = new_iv
+
+                    # ===== NEW: Handle duplicate IVs =====
+                    # For duplicate IVs, merge existing and new values (keep unique)
+                    for dup_type in ['trip', 'quad', 'penta', 'hex']:
+                        if dup_type in extra_data and extra_data[dup_type]:
+                            existing_dup = existing.get(dup_type, [])
+                            new_dup = extra_data[dup_type]
+
+                            # Merge and keep unique values
+                            merged_dup = list(set(existing_dup + new_dup))
+
+                            # Apply limits
+                            if dup_type == 'trip':
+                                merged_dup = merged_dup[:2]  # Max 2 values
+                            else:
+                                merged_dup = merged_dup[:1]  # Max 1 value
+
+                            set_fields[dup_type] = merged_dup
+
+                if set_fields:
+                    if '$set' not in update_dict:
+                        update_dict['$set'] = {}
+                    update_dict['$set'].update(set_fields)
+
+                # Perform update if there's anything to update
+                if update_dict:
                     await self.pokemon.update_one(
                         {"user_id": user_id, "pokemon_id": pokemon_data['pokemon_id']},
-                        {"$addToSet": {"categories": category}}
+                        update_dict
                     )
-                return False
+
+                return False  # Not newly added
             else:
                 # New Pokemon
                 pokemon_data['user_id'] = user_id
                 pokemon_data['categories'] = [category]
+
+                # Add extra data if provided
+                if extra_data:
+                    if 'moves' in extra_data:
+                        pokemon_data['moves'] = extra_data['moves']
+
+                    for iv_name in ['hpiv', 'atkiv', 'defiv', 'spatkiv', 'spdefiv', 'spdiv']:
+                        if iv_name in extra_data:
+                            pokemon_data[iv_name] = extra_data[iv_name]
+
+                    # ===== NEW: Store duplicate IVs =====
+                    for dup_type in ['trip', 'quad', 'penta', 'hex']:
+                        if dup_type in extra_data and extra_data[dup_type]:
+                            pokemon_data[dup_type] = extra_data[dup_type]
+
                 await self.pokemon.insert_one(pokemon_data)
-                return True
+                return True  # Newly added
+
         except Exception as e:
             print(f"Error adding Pokemon: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
-    async def add_pokemon_bulk(self, user_id: int, pokemon_list: list, category: str = "normal"):
+
+    async def add_pokemon_bulk(self, user_id: int, pokemon_list: list, category: str = "normal", extra_data: dict = None):
         """
         OPTIMIZED: Add multiple Pokemon using true bulk operations
-        Uses bulk_write for maximum performance
+        extra_data applies to ALL Pokemon in the list:
+        {
+            'moves': ['move1', 'move2'],
+            'hpiv': {'min': 21, 'max': 31},
+            ...
+            'trip': [31, 30],  # Triple IVs
+            'quad': [31],      # Quadruple IVs
+            'penta': [31],     # Pentuple IVs
+            'hex': [31]        # Hextuple IVs
+        }
         """
         if not pokemon_list:
             return 0
@@ -270,12 +460,14 @@ class Database:
         pokemon_ids = [p['pokemon_id'] for p in pokemon_list]
 
         # Single query to find all existing Pokemon
-        existing_ids = set()
-        async for doc in self.pokemon.find(
+        existing_docs = await self.pokemon.find(
             {"user_id": user_id, "pokemon_id": {"$in": pokemon_ids}},
-            {"pokemon_id": 1}  # Only fetch pokemon_id field
-        ):
-            existing_ids.add(doc['pokemon_id'])
+            {"pokemon_id": 1, "categories": 1, "moves": 1, 
+             "hpiv": 1, "atkiv": 1, "defiv": 1, "spatkiv": 1, "spdefiv": 1, "spdiv": 1,
+             "trip": 1, "quad": 1, "penta": 1, "hex": 1}  # Include duplicate IV fields
+        ).to_list(length=None)
+
+        existing_map = {doc['pokemon_id']: doc for doc in existing_docs}
 
         # Build bulk operations
         operations = []
@@ -291,19 +483,106 @@ class Database:
             pokemon.setdefault('is_gmax', False)
             pokemon.setdefault('is_regional', False)
             pokemon.setdefault('base_species', '')
+            pokemon.setdefault('level', None)
+            pokemon.setdefault('nickname', None)
+            pokemon.setdefault('is_favorite', False)
 
-            if pid not in existing_ids:
+            if pid not in existing_map:
                 # New Pokemon - insert
                 pokemon['user_id'] = user_id
                 pokemon['categories'] = [category]
+
+                # Add extra data
+                if extra_data:
+                    if 'moves' in extra_data:
+                        pokemon['moves'] = extra_data['moves']
+
+                    for iv_name in ['hpiv', 'atkiv', 'defiv', 'spatkiv', 'spdefiv', 'spdiv']:
+                        if iv_name in extra_data:
+                            pokemon[iv_name] = extra_data[iv_name]
+
+                    # ===== NEW: Store duplicate IVs =====
+                    for dup_type in ['trip', 'quad', 'penta', 'hex']:
+                        if dup_type in extra_data and extra_data[dup_type]:
+                            pokemon[dup_type] = extra_data[dup_type]
+
                 operations.append(InsertOne(pokemon))
                 new_count += 1
             else:
-                # Existing - add category
-                operations.append(UpdateOne(
-                    {"user_id": user_id, "pokemon_id": pid},
-                    {"$addToSet": {"categories": category}}
-                ))
+                # Existing Pokemon - update
+                existing = existing_map[pid]
+
+                update_doc = {}
+                set_fields = {}
+                addtoset_fields = {}
+
+                # Add category if not present
+                if category not in existing.get('categories', []):
+                    addtoset_fields['categories'] = category
+
+                # Update level, nickname, favorite if provided
+                if pokemon.get('level') is not None:
+                    set_fields['level'] = pokemon['level']
+                if pokemon.get('nickname') is not None:
+                    set_fields['nickname'] = pokemon['nickname']
+                if pokemon.get('is_favorite') is not None:
+                    set_fields['is_favorite'] = pokemon['is_favorite']
+
+                # Add moves
+                if extra_data and 'moves' in extra_data:
+                    # Merge with existing moves
+                    existing_moves = set(existing.get('moves', []))
+                    new_moves = [m for m in extra_data['moves'] if m not in existing_moves]
+                    if new_moves:
+                        if 'moves' not in addtoset_fields:
+                            addtoset_fields['moves'] = {'$each': new_moves}
+
+                # Update IVs (narrow ranges)
+                if extra_data:
+                    for iv_name in ['hpiv', 'atkiv', 'defiv', 'spatkiv', 'spdefiv', 'spdiv']:
+                        if iv_name in extra_data:
+                            existing_iv = existing.get(iv_name)
+                            new_iv = extra_data[iv_name]
+
+                            if existing_iv:
+                                merged_min = max(existing_iv.get('min', 0), new_iv.get('min', 0))
+                                merged_max = min(existing_iv.get('max', 31), new_iv.get('max', 31))
+
+                                if merged_min <= merged_max:
+                                    set_fields[iv_name] = {'min': merged_min, 'max': merged_max}
+                                else:
+                                    set_fields[iv_name] = new_iv
+                            else:
+                                set_fields[iv_name] = new_iv
+
+                    # ===== NEW: Handle duplicate IVs (merge unique values) =====
+                    for dup_type in ['trip', 'quad', 'penta', 'hex']:
+                        if dup_type in extra_data and extra_data[dup_type]:
+                            existing_dup = existing.get(dup_type, [])
+                            new_dup = extra_data[dup_type]
+
+                            # Merge and keep unique values
+                            merged_dup = list(set(existing_dup + new_dup))
+
+                            # Apply limits
+                            if dup_type == 'trip':
+                                merged_dup = merged_dup[:2]  # Max 2 values
+                            else:
+                                merged_dup = merged_dup[:1]  # Max 1 value
+
+                            set_fields[dup_type] = merged_dup
+
+                # Build update operation
+                if set_fields:
+                    update_doc['$set'] = set_fields
+                if addtoset_fields:
+                    update_doc['$addToSet'] = addtoset_fields
+
+                if update_doc:
+                    operations.append(UpdateOne(
+                        {"user_id": user_id, "pokemon_id": pid},
+                        update_doc
+                    ))
 
         if operations:
             try:
@@ -314,8 +593,77 @@ class Database:
                     pass
                 else:
                     print(f"Bulk operation error: {e}")
+                    import traceback
+                    traceback.print_exc()
 
         return new_count
+    # new
+    async def get_pokemon_by_dup_iv_filter(self, user_id: int, dup_iv_filters: dict, category: str = None):
+        """
+        Query Pokemon by duplicate IV values
+        dup_iv_filters: {'trip': [31, 30], 'quad': [31], ...}
+        """
+        query = {"user_id": user_id}
+
+        if category:
+            query["categories"] = category
+
+        # Build duplicate IV queries
+        for dup_type, required_values in dup_iv_filters.items():
+            # Pokemon must have ALL required values in their duplicate IV array
+            query[dup_type] = {"$all": required_values}
+
+        cursor = self.pokemon.find(query)
+        return await cursor.to_list(length=None)
+
+    # ===== NEW: Query methods for IV filtering =====
+
+    async def get_pokemon_by_iv_filter(self, user_id: int, iv_filters: dict, category: str = None):
+        """
+        Query Pokemon by IV ranges with strict matching
+        - Exact values (31) only match Pokemon stored with exactly {min: 31, max: 31}
+        - Ranges (>28) match Pokemon whose stored range is within requested range
+        """
+        query = {"user_id": user_id}
+
+        if category:
+            query["categories"] = category
+
+        # Build IV range queries
+        for iv_name, requested_range in iv_filters.items():
+            if requested_range['min'] == requested_range['max']:
+                # EXACT VALUE: Both min and max must match exactly
+                query[f"{iv_name}.min"] = requested_range['min']
+                query[f"{iv_name}.max"] = requested_range['max']
+            else:
+                # RANGE: Pokemon's stored range must be within requested range
+                query[f"{iv_name}.min"] = {"$gte": requested_range['min']}
+                query[f"{iv_name}.max"] = {"$lte": requested_range['max']}
+
+        cursor = self.pokemon.find(query)
+        return await cursor.to_list(length=None)
+
+
+    async def get_pokemon_by_moves(self, user_id: int, moves: list, category: str = None, match_all: bool = False):
+        """
+        Query Pokemon by moves
+        moves: ['play rough', 'fake out']
+        match_all: True = must have ALL moves, False = must have ANY move
+        """
+        query = {"user_id": user_id}
+
+        if category:
+            query["categories"] = category
+
+        if match_all:
+            # Must have all moves
+            query["moves"] = {"$all": moves}
+        else:
+            # Must have at least one move
+            query["moves"] = {"$in": moves}
+
+        cursor = self.pokemon.find(query)
+        return await cursor.to_list(length=None)
 
     async def remove_pokemon(self, user_id: int, pokemon_ids: list, category: str = None):
         """Remove Pokemon by IDs. If category specified, only remove from that category"""
