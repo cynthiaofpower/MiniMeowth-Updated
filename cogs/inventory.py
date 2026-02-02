@@ -14,8 +14,10 @@ class Inventory(commands.Cog):
 
     def parse_inventory_filters(self, filters_str: str):
         """
-        Parse inventory filter string
-        Returns: (gender_filter, gmax_filter, regional_filter, cooldown_filter, name_filters, type_filters, region_filter)
+        Parse inventory filter string with NEW filters for IVs, moves, levels, favorites, duplicate IVs
+        Returns: (gender_filter, gmax_filter, regional_filter, cooldown_filter, name_filters, 
+                  type_filters, region_filter, iv_filters, move_filters, level_filter, favorite_filter,
+                  dup_iv_filters)
         """
         args = filters_str.split() if filters_str else []
         gender_filter = None
@@ -25,6 +27,13 @@ class Inventory(commands.Cog):
         name_filters = []
         type_filters = []
         region_filter = None
+
+        # NEW FILTERS
+        iv_filters = {}  # {iv_name: {'min': X, 'max': Y}}
+        move_filters = []  # List of move names to search for
+        level_filter = None  # {'min': X, 'max': Y} or {'exact': X}
+        favorite_filter = None  # True = favorites only, False = non-favorites only
+        dup_iv_filters = {}  # {'trip': [31, 30], 'quad': [31], ...}
 
         valid_regions = ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova', 'kalos', 
                          'alola', 'galar', 'hisui', 'paldea', 'unknown', 'missing', 'kitakami']
@@ -99,13 +108,154 @@ class Inventory(commands.Cog):
                 if region_val in valid_regions:
                     region_filter = region_val.title()
                 i += 1
+
+            # ===== NEW: IV FILTERS =====
+            elif arg in ['--hpiv', '--atkiv', '--defiv', '--spatkiv', '--spdefiv', '--spdiv']:
+                if i + 1 < len(args):
+                    iv_name = arg[2:]  # Remove '--'
+                    iv_value_str = args[i + 1]
+
+                    # Parse IV value
+                    iv_filters[iv_name] = self.parse_iv_value(iv_value_str)
+                    i += 2
+                else:
+                    i += 1
+
+            # duplicate iv
+            elif arg in ['--triple', '--three', '--trip']:
+                if i + 1 < len(args) and args[i + 1].isdigit():
+                    value = int(args[i + 1])
+                    if 'trip' not in dup_iv_filters:
+                        dup_iv_filters['trip'] = []
+                    if len(dup_iv_filters['trip']) < 2:
+                        dup_iv_filters['trip'].append(value)
+                    i += 2
+                else:
+                    i += 1
+
+            elif arg in ['--quadruple', '--four', '--quadra', '--quad', '--tetra']:
+                if i + 1 < len(args) and args[i + 1].isdigit():
+                    value = int(args[i + 1])
+                    if 'quad' not in dup_iv_filters:
+                        dup_iv_filters['quad'] = []
+                    if len(dup_iv_filters['quad']) < 1:
+                        dup_iv_filters['quad'].append(value)
+                    i += 2
+                else:
+                    i += 1
+
+            elif arg in ['--pentuple', '--quintuple', '--penta', '--pent', '--five']:
+                if i + 1 < len(args) and args[i + 1].isdigit():
+                    value = int(args[i + 1])
+                    if 'penta' not in dup_iv_filters:
+                        dup_iv_filters['penta'] = []
+                    if len(dup_iv_filters['penta']) < 1:
+                        dup_iv_filters['penta'].append(value)
+                    i += 2
+                else:
+                    i += 1
+
+            elif arg in ['--hextuple', '--sextuple', '--hexa', '--hex', '--six']:
+                if i + 1 < len(args) and args[i + 1].isdigit():
+                    value = int(args[i + 1])
+                    if 'hex' not in dup_iv_filters:
+                        dup_iv_filters['hex'] = []
+                    if len(dup_iv_filters['hex']) < 1:
+                        dup_iv_filters['hex'].append(value)
+                    i += 2
+                else:
+                    i += 1
+
+            # ===== NEW: MOVE FILTER =====
+            elif arg in ['--move', '--m']:
+                if i + 1 < len(args):
+                    move_parts = []
+                    i += 1
+                    while i < len(args) and not args[i].startswith('--'):
+                        move_parts.append(args[i])
+                        i += 1
+                    if move_parts:
+                        move_filters.append(' '.join(move_parts))
+                else:
+                    i += 1
+
+            # ===== NEW: LEVEL FILTER =====
+            elif arg in ['--level', '--lvl', '--l']:
+                if i + 1 < len(args):
+                    level_str = args[i + 1]
+
+                    # Parse level value
+                    if level_str.isdigit():
+                        # Exact level
+                        level_filter = {'exact': int(level_str)}
+                    elif level_str.startswith('>'):
+                        # Greater than
+                        if level_str.startswith('>='):
+                            level_filter = {'min': int(level_str[2:]), 'max': 100}
+                        else:
+                            level_filter = {'min': int(level_str[1:]) + 1, 'max': 100}
+                    elif level_str.startswith('<'):
+                        # Less than
+                        if level_str.startswith('<='):
+                            level_filter = {'min': 1, 'max': int(level_str[2:])}
+                        else:
+                            level_filter = {'min': 1, 'max': int(level_str[1:]) - 1}
+
+                    i += 2
+                else:
+                    i += 1
+
+            # ===== NEW: FAVORITE FILTER =====
+            elif arg in ['--fav', '--favorite']:
+                favorite_filter = True
+                i += 1
+            elif arg in ['--unfav', '--nofavorite']:
+                favorite_filter = False
+                i += 1
+
             else:
                 i += 1
 
-        return gender_filter, gmax_filter, regional_filter, cooldown_filter, name_filters, type_filters, region_filter
+        # Return with new filter
+        return (gender_filter, gmax_filter, regional_filter, cooldown_filter, name_filters, 
+                type_filters, region_filter, iv_filters, move_filters, level_filter, favorite_filter,
+                dup_iv_filters)
 
-    def matches_filters(self, pokemon: dict, utils, name_filters: list, type_filters: list, region_filter: str):
-        """Check if a Pokemon matches name, type, and region filters"""
+    def parse_iv_value(self, iv_str: str) -> dict:
+        """
+        Parse IV value string into min/max range
+        Examples:
+          "31" -> {min: 31, max: 31}
+          ">20" -> {min: 21, max: 31}
+          "<10" -> {min: 0, max: 9}
+        """
+        iv_str = iv_str.strip()
+
+        # Exact value
+        if iv_str.isdigit():
+            val = int(iv_str)
+            return {'min': val, 'max': val}
+
+        # Greater than
+        if iv_str.startswith('>'):
+            if iv_str.startswith('>='):
+                return {'min': int(iv_str[2:]), 'max': 31}
+            return {'min': int(iv_str[1:]) + 1, 'max': 31}
+
+        # Less than
+        if iv_str.startswith('<'):
+            if iv_str.startswith('<='):
+                return {'min': 0, 'max': int(iv_str[2:])}
+            return {'min': 0, 'max': int(iv_str[1:]) - 1}
+
+        # Default: unknown range
+        return {'min': 0, 'max': 31}
+
+    def matches_filters(self, pokemon: dict, utils, name_filters: list, type_filters: list, 
+                       region_filter: str, iv_filters: dict, move_filters: list, 
+                       level_filter: dict, favorite_filter: bool, dup_iv_filters: dict):
+        """Check if a Pokemon matches ALL filters including duplicate IV filters"""
+
         # Name filter
         if name_filters:
             if not any(name.lower() in pokemon['name'].lower() for name in name_filters):
@@ -130,6 +280,70 @@ class Inventory(commands.Cog):
                 for type_filter in type_filters:
                     if type_filter not in pokemon_types:
                         return False
+
+        # ===== NEW: DUPLICATE IV FILTER =====
+        if dup_iv_filters:
+            for dup_type, required_values in dup_iv_filters.items():
+                pokemon_dup_values = pokemon.get(dup_type, [])
+
+                # Check if Pokemon has ALL required duplicate IV values
+                for req_val in required_values:
+                    if req_val not in pokemon_dup_values:
+                        return False
+
+        # ===== NEW: IV FILTER (FIXED) =====
+        if iv_filters:
+            for iv_name, requested_range in iv_filters.items():
+                pokemon_iv = pokemon.get(iv_name)
+
+                if not pokemon_iv:
+                    # Pokemon doesn't have this IV stored
+                    return False
+
+                # Check if requested is exact value or range
+                if requested_range['min'] == requested_range['max']:
+                    # EXACT VALUE: Pokemon must have EXACTLY this value stored
+                    # e.g., --spdiv 31 only matches Pokemon stored with exactly {min: 31, max: 31}
+                    if pokemon_iv['min'] != requested_range['min'] or pokemon_iv['max'] != requested_range['max']:
+                        return False
+                else:
+                    # RANGE: Pokemon's stored range must be WITHIN or EQUAL to requested range
+                    # e.g., --spdiv >28 (29-31) matches Pokemon stored as >29 (30-31) or >28 (29-31)
+                    # but NOT Pokemon stored as >27 (28-31)
+                    if pokemon_iv['min'] < requested_range['min'] or pokemon_iv['max'] > requested_range['max']:
+                        return False
+
+        # ===== NEW: MOVE FILTER =====
+        if move_filters:
+            pokemon_moves = pokemon.get('moves', [])
+            if not pokemon_moves:
+                return False
+
+            # Check if Pokemon has at least one of the requested moves
+            pokemon_moves_lower = [m.lower() for m in pokemon_moves]
+            if not any(move.lower() in pokemon_moves_lower for move in move_filters):
+                return False
+
+        # ===== NEW: LEVEL FILTER =====
+        if level_filter:
+            pokemon_level = pokemon.get('level')
+
+            if pokemon_level is None:
+                # Pokemon doesn't have level stored
+                return False
+
+            if 'exact' in level_filter:
+                if pokemon_level != level_filter['exact']:
+                    return False
+            else:
+                if pokemon_level < level_filter['min'] or pokemon_level > level_filter['max']:
+                    return False
+
+        # ===== NEW: FAVORITE FILTER =====
+        if favorite_filter is not None:
+            pokemon_is_fav = pokemon.get('is_favorite', False)
+            if pokemon_is_fav != favorite_filter:
+                return False
 
         return True
 
@@ -173,6 +387,72 @@ class Inventory(commands.Cog):
         total_tracked = 0
         total_added = 0
 
+        # ===== NEW: Parse extra flags from message_ids_str =====
+        extra_data = None
+        actual_message_ids_str = message_ids_str
+
+        if message_ids_str:
+            # Separate message IDs from flags
+            parts = message_ids_str.split()
+            message_id_parts = []
+            flag_parts = []
+
+            for part in parts:
+                if part.startswith('--'):
+                    # This is a flag, collect rest as flags
+                    flag_parts.extend(parts[parts.index(part):])
+                    break
+                else:
+                    message_id_parts.append(part)
+
+            actual_message_ids_str = ' '.join(message_id_parts) if message_id_parts else None
+
+            if flag_parts:
+                # Parse the flags
+                extra_data = utils.parse_add_flags(' '.join(flag_parts))
+
+                # Show what was parsed
+                if extra_data.get('moves') or any(k.endswith('iv') for k in extra_data.keys()) or \
+                   extra_data.get('trip') or extra_data.get('quad') or extra_data.get('penta') or extra_data.get('hex'):
+                    info_lines = []
+
+                    if extra_data.get('moves'):
+                        info_lines.append(f"**Moves:** {', '.join(extra_data['moves'])}")
+
+                    iv_info = []
+                    for iv_name in ['hpiv', 'atkiv', 'defiv', 'spatkiv', 'spdefiv', 'spdiv']:
+                        if iv_name in extra_data:
+                            iv_range = extra_data[iv_name]
+                            if iv_range['min'] == iv_range['max']:
+                                iv_info.append(f"{iv_name.upper()}: {iv_range['min']}")
+                            else:
+                                iv_info.append(f"{iv_name.upper()}: {iv_range['min']}-{iv_range['max']}")
+
+                    if iv_info:
+                        info_lines.append(f"**IVs:** {', '.join(iv_info)}")
+
+                    # ===== NEW: Show duplicate IV info =====
+                    dup_info = []
+                    if extra_data.get('trip'):
+                        dup_info.append(f"Trip: {', '.join(map(str, extra_data['trip']))}")
+                    if extra_data.get('quad'):
+                        dup_info.append(f"Quad: {extra_data['quad'][0]}")
+                    if extra_data.get('penta'):
+                        dup_info.append(f"Penta: {extra_data['penta'][0]}")
+                    if extra_data.get('hex'):
+                        dup_info.append(f"Hex: {extra_data['hex'][0]}")
+
+                    if dup_info:
+                        info_lines.append(f"**Duplicate IVs:** {', '.join(dup_info)}")
+
+                    class InfoView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(
+                                content=f"📝 **Extra Data Parsed:**\n\n" + "\n".join(info_lines)
+                            ),
+                        )
+                    await ctx.send(view=InfoView(), reference=ctx.message, mention_author=False)
+
         async def process_embed(embed):
             """Process embed and return list of valid Pokemon (excluding eggs)"""
             if not embed or not embed.description:
@@ -203,7 +483,7 @@ class Inventory(commands.Cog):
         category_display = category_names.get(category, category)
 
         # Process initial embed(s)
-        if ctx.message.reference and not message_ids_str:
+        if ctx.message.reference and not actual_message_ids_str:
             try:
                 replied_msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
                 if not replied_msg.embeds:
@@ -223,8 +503,8 @@ class Inventory(commands.Cog):
                     )
                 await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
                 return
-        elif message_ids_str:
-            message_ids = message_ids_str.split()
+        elif actual_message_ids_str:
+            message_ids = actual_message_ids_str.split()
             for msg_id in message_ids:
                 try:
                     embed = await utils.fetch_embed_by_id(ctx, int(msg_id))
@@ -241,9 +521,9 @@ class Inventory(commands.Cog):
             await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
-        # Add initial Pokemon
+        # ===== UPDATED: Add initial Pokemon with extra_data =====
         total_tracked = len(all_pokemon)
-        new_count = await db.add_pokemon_bulk(user_id, all_pokemon, category)
+        new_count = await db.add_pokemon_bulk(user_id, all_pokemon, category, extra_data)
         total_added = new_count
         current_inventory = await db.count_pokemon(user_id, category=category)
 
@@ -282,7 +562,8 @@ class Inventory(commands.Cog):
                         page_tracked = len(page_pokemon)
                         total_tracked += page_tracked
 
-                        page_added = await db.add_pokemon_bulk(user_id, page_pokemon, category)
+                        # ===== UPDATED: Add with extra_data =====
+                        page_added = await db.add_pokemon_bulk(user_id, page_pokemon, category, extra_data)
                         total_added += page_added
 
                         current_inventory = await db.count_pokemon(user_id, category=category)
@@ -416,7 +697,8 @@ class Inventory(commands.Cog):
                     container1 = discord.ui.Container(
                         discord.ui.TextDisplay(
                             content=f"✅ **Removed {count} Pokemon**\n\n"
-                                    f"{config.REPLY} Removed from: **ALL** inventories"
+                                    f"{config.REPLY} Removed from: **ALL** inventories\n\n"
+                                    f"⚠️ _All data deleted (level, nickname, moves, IVs, etc.)_"
                         ),
                     )
                 await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
@@ -443,7 +725,7 @@ class Inventory(commands.Cog):
                 container1 = discord.ui.Container(
                     discord.ui.TextDisplay(
                         content=f"❌ Please provide name filters using `--n`\n\n"
-                                f"**Example:** `{config.PREFIX[0]}releaseall --n gigantamax pikachu`\n To clear whole inventory(s)use `m!clear` command!"
+                                f"**Example:** `{config.PREFIX[0]}releaseall --n gigantamax pikachu`\n To clear whole inventory(s) use `m!clear` command!"
                     ),
                 )
             await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
@@ -536,7 +818,7 @@ class Inventory(commands.Cog):
             category_display = category_names.get(category_filter, category_filter)
             category_info = f"**Category:** `{category_display}` only\n💡 _Pokemon may remain in other inventories_"
         else:
-            category_info = f"**Category:** `ALL inventories`\n⚠️ _Pokemon will be deleted completely_"
+            category_info = f"**Category:** `ALL inventories`\n⚠️ _Pokemon will be deleted completely (all data lost)_"
 
         sample_size = min(10, len(matching_pokemon))
         sample_lines = []
@@ -582,8 +864,7 @@ class Inventory(commands.Cog):
                     await interaction.response.send_message(view=ErrorView(), ephemeral=True)
                     return
 
-                await interaction.response.defer()
-
+                # Do work BEFORE responding
                 pokemon_ids = [p['pokemon_id'] for p in matching_pokemon]
                 count = await db.remove_pokemon(author_id, pokemon_ids, category_filter)
 
@@ -600,14 +881,15 @@ class Inventory(commands.Cog):
                         f"💡 _Pokemon may still exist in other inventories_"
                     )
                 else:
-                    description = f"Successfully released **{count}** Pokemon from **ALL** inventories"
+                    description = f"Successfully released **{count}** Pokemon from **ALL** inventories\n\n⚠️ _All data deleted permanently_"
 
                 class SuccessView(discord.ui.LayoutView):
                     container1 = discord.ui.Container(
                         discord.ui.TextDisplay(content=f"✅ **Pokemon Released**\n\n{description}"),
                     )
 
-                await interaction.followup.send(view=SuccessView())
+                # Edit the original message - NO defer!
+                await interaction.response.edit_message(view=SuccessView())
 
         class CancelButton(discord.ui.Button):
             def __init__(self):
@@ -626,14 +908,13 @@ class Inventory(commands.Cog):
                     await interaction.response.send_message(view=ErrorView(), ephemeral=True)
                     return
 
-                await interaction.response.defer()
-
                 class CancelView(discord.ui.LayoutView):
                     container1 = discord.ui.Container(
                         discord.ui.TextDisplay(content="❌ **Release Cancelled**\n\nNo Pokemon were released"),
                     )
 
-                await interaction.followup.send(view=CancelView())
+                # Edit the original message - NO defer!
+                await interaction.response.edit_message(view=CancelView())
 
         class ConfirmView(discord.ui.LayoutView):
             container1 = discord.ui.Container(
@@ -717,8 +998,7 @@ class Inventory(commands.Cog):
                     await interaction.response.send_message(view=ErrorView(), ephemeral=True)
                     return
 
-                await interaction.response.defer()
-
+                # Do work BEFORE responding
                 count = await db.clear_inventory(author_id, db_category)
 
                 class SuccessView(discord.ui.LayoutView):
@@ -729,7 +1009,9 @@ class Inventory(commands.Cog):
                         ),
                     )
 
-                await interaction.followup.send(view=SuccessView())
+                # Edit the original message - NO defer!
+                await interaction.response.edit_message(view=SuccessView())
+
 
         class CancelButton(discord.ui.Button):
             def __init__(self):
@@ -748,14 +1030,13 @@ class Inventory(commands.Cog):
                     await interaction.response.send_message(view=ErrorView(), ephemeral=True)
                     return
 
-                await interaction.response.defer()
-
                 class CancelView(discord.ui.LayoutView):
                     container1 = discord.ui.Container(
                         discord.ui.TextDisplay(content="❌ Clear cancelled"),
                     )
 
-                await interaction.followup.send(view=CancelView())
+                # Edit the original message - NO defer!
+                await interaction.response.edit_message(view=CancelView())
 
         class ConfirmView(discord.ui.LayoutView):
             container1 = discord.ui.Container(
@@ -776,22 +1057,22 @@ class Inventory(commands.Cog):
     # ===== VIEW COMMANDS =====
 
     @commands.hybrid_command(name='inventory', aliases=['invnormal','invbulk','inv'])
-    @app_commands.describe(filters="Filters: --g, --gmax, --n, --type, --region, --cd, --nocd")
+    @app_commands.describe(filters="Filters: --g, --gmax, --n, --type, --region, --cd, --nocd, --move, --lvl, --fav, IVs")
     async def view_inventory(self, ctx, *, filters: str = None):
         await self._view_category_inventory(ctx, config.NORMAL_CATEGORY, "Normal", filters)
 
     @commands.hybrid_command(name='invtripmax', aliases=['trip31', 'tripmax'])
-    @app_commands.describe(filters="Filters: --g, --gmax, --n, --type, --region, --cd, --nocd")
+    @app_commands.describe(filters="Filters: --g, --gmax, --n, --type, --region, --cd, --nocd, --move, --lvl, --fav, IVs")
     async def view_tripmax_inventory(self, ctx, *, filters: str = None):
         await self._view_category_inventory(ctx, config.TRIPMAX_CATEGORY, "TripMax", filters)
 
     @commands.hybrid_command(name='invtripzero', aliases=['tripzero', 'trip0'])
-    @app_commands.describe(filters="Filters: --g, --gmax, --n, --type, --region, --cd, --nocd")
+    @app_commands.describe(filters="Filters: --g, --gmax, --n, --type, --region, --cd, --nocd, --move, --lvl, --fav, IVs")
     async def view_tripzero_inventory(self, ctx, *, filters: str = None):
         await self._view_category_inventory(ctx, config.TRIPZERO_CATEGORY, "TripZero", filters)
 
     @commands.hybrid_command(name='invduel', aliases=['duelinv'])
-    @app_commands.describe(filters="Filters: --g, --gmax, --n, --type, --region, --cd, --nocd")
+    @app_commands.describe(filters="Filters: --g, --gmax, --n, --type, --region, --cd, --nocd, --move, --lvl, --fav, IVs")
     async def view_duel_inventory(self, ctx, *, filters: str = None):
         """View Duel inventory for egg move breeding"""
         await self._view_category_inventory(ctx, config.DUEL_CATEGORY, "Duel", filters)
@@ -807,8 +1088,10 @@ class Inventory(commands.Cog):
             await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
             return
 
-        # Parse filters using new method
-        gender_filter, gmax_filter, regional_filter, cooldown_filter, name_filters, type_filters, region_filter = self.parse_inventory_filters(filters_str)
+        # Parse filters using UPDATED method with new filters
+        (gender_filter, gmax_filter, regional_filter, cooldown_filter, name_filters, 
+         type_filters, region_filter, iv_filters, move_filters, level_filter, 
+         favorite_filter, dup_iv_filters) = self.parse_inventory_filters(filters_str)
 
         # Build database filters
         db_filters = {}
@@ -824,11 +1107,13 @@ class Inventory(commands.Cog):
             db.get_cooldowns(user_id)
         )
 
-        # Apply name, type, and region filters
-        if name_filters or type_filters or region_filter:
+        # Apply ALL filters including new ones
+        if (name_filters or type_filters or region_filter or iv_filters or 
+            move_filters or level_filter or favorite_filter is not None or dup_iv_filters):
             pokemon_list = [
                 p for p in pokemon_list 
-                if self.matches_filters(p, utils, name_filters, type_filters, region_filter)
+                if self.matches_filters(p, utils, name_filters, type_filters, region_filter,
+                       iv_filters, move_filters, level_filter, favorite_filter, dup_iv_filters)
             ]
 
         # Apply cooldown filter
@@ -856,10 +1141,10 @@ class Inventory(commands.Cog):
         """Display inventory with pagination using Components V2"""
         per_page = 20
         total_pages = (len(pokemon_list) + per_page - 1) // per_page
-        current_page = [0]  # Use list to allow modification in nested functions
+        current_page = [0]
 
         def get_page_content(page_num: int):
-            """Generate content for a specific page"""
+            """Generate content for a specific page with LEVEL and NICKNAME display"""
             title = f"Your {category_name} Pokémon Inventory"
 
             # Get Pokemon for this page
@@ -870,10 +1155,30 @@ class Inventory(commands.Cog):
             lines = []
             for p in page_pokemon:
                 cd = "🔒 " if p['pokemon_id'] in cooldowns else ""
+                fav = "❤️ " if p.get('is_favorite', False) else ""
+
                 g = (config.GENDER_MALE if p['gender'] == 'male' else 
                      config.GENDER_FEMALE if p['gender'] == 'female' else 
                      config.GENDER_UNKNOWN)
-                lines.append(f"`{p['pokemon_id']}` {cd}**{p['name']}** {g} • {p['iv_percent']}% IV")
+
+                # Build the display line
+                name_display = p['name']
+
+                # Add nickname if it exists
+                nickname = p.get('nickname')
+                if nickname:
+                    name_display = f'{name_display} "{nickname}"'
+
+                # Add level if it exists
+                level = p.get('level')
+                if level is not None:
+                    level_display = f"Lvl. {level} • "
+                else:
+                    level_display = ""
+
+                # Format: `ID` 🔒 ❤️ **Name "Nickname"** GENDER • Lvl. XX • IV%
+                line = f"`{p['pokemon_id']}` {cd}{fav}**{name_display}** {g} • {level_display}{p['iv_percent']}% IV"
+                lines.append(line)
 
             content = "\n".join(lines)
             footer = f"Page {page_num + 1}/{total_pages} • Total: {len(pokemon_list)} Pokémon"
@@ -935,7 +1240,6 @@ class Inventory(commands.Cog):
 
                 inv_cog = bot_ref.get_cog('Inventory')
                 if inv_cog:
-                    # Create a minimal context-like object for the reload
                     class CtxLike:
                         def __init__(self, author_id_val, channel):
                             self.author = type('obj', (object,), {'id': author_id_val})
@@ -975,7 +1279,6 @@ class Inventory(commands.Cog):
                     current_page[0] -= 1
                     title, content, footer = get_page_content(current_page[0])
 
-                    # Rebuild view with updated buttons
                     class UpdatedView(discord.ui.LayoutView):
                         container1 = discord.ui.Container(
                             discord.ui.TextDisplay(content=f"**{title}**"),
@@ -1018,7 +1321,6 @@ class Inventory(commands.Cog):
                     current_page[0] += 1
                     title, content, footer = get_page_content(current_page[0])
 
-                    # Rebuild view with updated buttons
                     class UpdatedView(discord.ui.LayoutView):
                         container1 = discord.ui.Container(
                             discord.ui.TextDisplay(content=f"**{title}**"),
@@ -1074,7 +1376,9 @@ class Inventory(commands.Cog):
             return
 
         # Parse filters
-        gender_filter, gmax_filter, regional_filter, cooldown_filter, name_filters, type_filters, region_filter = self.parse_inventory_filters(filters_str)
+        (gender_filter, gmax_filter, regional_filter, cooldown_filter, name_filters, 
+         type_filters, region_filter, iv_filters, move_filters, level_filter, 
+         favorite_filter, dup_iv_filters) = self.parse_inventory_filters(filters_str)
 
         # Build database filters
         db_filters = {}
@@ -1090,11 +1394,13 @@ class Inventory(commands.Cog):
             db.get_cooldowns(user_id)
         )
 
-        # Apply name, type, and region filters
-        if name_filters or type_filters or region_filter:
+        # Apply ALL filters including new ones
+        if (name_filters or type_filters or region_filter or iv_filters or 
+            move_filters or level_filter or favorite_filter is not None or dup_iv_filters):
             pokemon_list = [
                 p for p in pokemon_list 
-                if self.matches_filters(p, utils, name_filters, type_filters, region_filter)
+                if self.matches_filters(p, utils, name_filters, type_filters, region_filter,
+                       iv_filters, move_filters, level_filter, favorite_filter, dup_iv_filters)
             ]
 
         # Apply cooldown filter
@@ -1114,8 +1420,6 @@ class Inventory(commands.Cog):
 
         pokemon_list.sort(key=lambda x: x['iv_percent'], reverse=True)
 
-        # Create proper view with separators matching main inventory display
-        # We'll recreate the full interactive experience
         await self._display_switched_inventory(
             interaction, ctx, category, category_name, 
             pokemon_list, cooldowns, filters_str
@@ -1130,7 +1434,6 @@ class Inventory(commands.Cog):
         current_page = [0]
 
         def get_page_content(page_num: int):
-            """Generate content for a specific page"""
             title = f"Your {category_name} Pokémon Inventory"
 
             start_idx = page_num * per_page
@@ -1140,10 +1443,24 @@ class Inventory(commands.Cog):
             lines = []
             for p in page_pokemon:
                 cd = "🔒 " if p['pokemon_id'] in cooldowns else ""
+                fav = "❤️ " if p.get('is_favorite', False) else ""
                 g = (config.GENDER_MALE if p['gender'] == 'male' else 
                      config.GENDER_FEMALE if p['gender'] == 'female' else 
                      config.GENDER_UNKNOWN)
-                lines.append(f"`{p['pokemon_id']}` {cd}**{p['name']}** {g} • {p['iv_percent']}% IV")
+
+                name_display = p['name']
+                nickname = p.get('nickname')
+                if nickname:
+                    name_display = f'{name_display} "{nickname}"'
+
+                level = p.get('level')
+                if level is not None:
+                    level_display = f"Lvl. {level} • "
+                else:
+                    level_display = ""
+
+                line = f"`{p['pokemon_id']}` {cd}{fav}**{name_display}** {g} • {level_display}{p['iv_percent']}% IV"
+                lines.append(line)
 
             content = "\n".join(lines)
             footer = f"Page {page_num + 1}/{total_pages} • Total: {len(pokemon_list)} Pokémon"
@@ -1153,59 +1470,26 @@ class Inventory(commands.Cog):
         author_id = ctx.author.id
         bot_ref = self.bot
 
-        # Create category switch select
         class CategorySelect(discord.ui.Select):
             def __init__(self):
                 options = [
-                    discord.SelectOption(
-                        label="Normal Inventory",
-                        value="normal",
-                        emoji="📦",
-                        default=(category == config.NORMAL_CATEGORY)
-                    ),
-                    discord.SelectOption(
-                        label="TripMax Inventory",
-                        value="tripmax",
-                        emoji="⬆️",
-                        default=(category == config.TRIPMAX_CATEGORY)
-                    ),
-                    discord.SelectOption(
-                        label="TripZero Inventory",
-                        value="tripzero",
-                        emoji="⬇️",
-                        default=(category == config.TRIPZERO_CATEGORY)
-                    ),
-                    discord.SelectOption(
-                        label="Duel Inventory",
-                        value="duel",
-                        emoji="⚔️",
-                        default=(category == config.DUEL_CATEGORY)
-                    )
+                    discord.SelectOption(label="Normal Inventory", value="normal", emoji="📦", default=(category == config.NORMAL_CATEGORY)),
+                    discord.SelectOption(label="TripMax Inventory", value="tripmax", emoji="⬆️", default=(category == config.TRIPMAX_CATEGORY)),
+                    discord.SelectOption(label="TripZero Inventory", value="tripzero", emoji="⬇️", default=(category == config.TRIPZERO_CATEGORY)),
+                    discord.SelectOption(label="Duel Inventory", value="duel", emoji="⚔️", default=(category == config.DUEL_CATEGORY))
                 ]
-                super().__init__(
-                    placeholder="Switch Inventory",
-                    options=options
-                )
+                super().__init__(placeholder="Switch Inventory", options=options)
 
             async def callback(self, interaction: discord.Interaction):
                 if interaction.user.id != author_id:
                     class ErrorView(discord.ui.LayoutView):
-                        container1 = discord.ui.Container(
-                            discord.ui.TextDisplay(content="❌ This is not your inventory!"),
-                        )
+                        container1 = discord.ui.Container(discord.ui.TextDisplay(content="❌ This is not your inventory!"))
                     await interaction.response.send_message(view=ErrorView(), ephemeral=True)
                     return
-
                 await interaction.response.defer()
-
-                category_map = {
-                    'normal': (config.NORMAL_CATEGORY, 'Normal'),
-                    'tripmax': (config.TRIPMAX_CATEGORY, 'TripMax'),
-                    'tripzero': (config.TRIPZERO_CATEGORY, 'TripZero'),
-                    'duel': (config.DUEL_CATEGORY, 'Duel')
-                }
+                category_map = {'normal': (config.NORMAL_CATEGORY, 'Normal'), 'tripmax': (config.TRIPMAX_CATEGORY, 'TripMax'),
+                               'tripzero': (config.TRIPZERO_CATEGORY, 'TripZero'), 'duel': (config.DUEL_CATEGORY, 'Duel')}
                 new_cat, new_name = category_map[self.values[0]]
-
                 inv_cog = bot_ref.get_cog('Inventory')
                 if inv_cog:
                     class CtxLike:
@@ -1213,117 +1497,57 @@ class Inventory(commands.Cog):
                             self.author = type('obj', (object,), {'id': author_id_val})
                             self.channel = channel
                             self.bot = bot_ref
-
                     ctx_like = CtxLike(author_id, interaction.channel)
+                    await inv_cog._reload_inventory_for_interaction(interaction, ctx_like, new_cat, new_name, filters_str)
 
-                    await inv_cog._reload_inventory_for_interaction(
-                        interaction, ctx_like, new_cat, new_name, filters_str
-                    )
-
-        # Create pagination buttons
         class PreviousButton(discord.ui.Button):
             def __init__(self, disabled=False):
-                super().__init__(
-                    style=discord.ButtonStyle.primary,
-                    label="Previous",
-                    emoji="◀️",
-                    disabled=disabled
-                )
-
+                super().__init__(style=discord.ButtonStyle.primary, label="Previous", emoji="◀️", disabled=disabled)
             async def callback(self, interaction: discord.Interaction):
                 if interaction.user.id != author_id:
                     class ErrorView(discord.ui.LayoutView):
-                        container1 = discord.ui.Container(
-                            discord.ui.TextDisplay(content="❌ This is not your inventory!"),
-                        )
+                        container1 = discord.ui.Container(discord.ui.TextDisplay(content="❌ This is not your inventory!"))
                     await interaction.response.send_message(view=ErrorView(), ephemeral=True)
                     return
-
                 if current_page[0] > 0:
                     current_page[0] -= 1
                     title, content, footer = get_page_content(current_page[0])
-
                     class UpdatedView(discord.ui.LayoutView):
-                        container1 = discord.ui.Container(
-                            discord.ui.TextDisplay(content=f"**{title}**"),
-                            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                            discord.ui.TextDisplay(content=content),
-                            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                            discord.ui.TextDisplay(content=f"_{footer}_"),
-                            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                            discord.ui.ActionRow(CategorySelect()),
-                            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                            discord.ui.ActionRow(
-                                PreviousButton(disabled=(current_page[0] == 0)),
-                                NextButton(disabled=(current_page[0] >= total_pages - 1))
-                            ),
-                        )
-
+                        container1 = discord.ui.Container(discord.ui.TextDisplay(content=f"**{title}**"), discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                            discord.ui.TextDisplay(content=content), discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small), discord.ui.TextDisplay(content=f"_{footer}_"),
+                            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small), discord.ui.ActionRow(CategorySelect()),
+                            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small), discord.ui.ActionRow(PreviousButton(disabled=(current_page[0] == 0)), NextButton(disabled=(current_page[0] >= total_pages - 1))))
                     await interaction.response.edit_message(view=UpdatedView())
                 else:
                     await interaction.response.defer()
 
         class NextButton(discord.ui.Button):
             def __init__(self, disabled=False):
-                super().__init__(
-                    style=discord.ButtonStyle.primary,
-                    label="Next",
-                    emoji="▶️",
-                    disabled=disabled
-                )
-
+                super().__init__(style=discord.ButtonStyle.primary, label="Next", emoji="▶️", disabled=disabled)
             async def callback(self, interaction: discord.Interaction):
                 if interaction.user.id != author_id:
                     class ErrorView(discord.ui.LayoutView):
-                        container1 = discord.ui.Container(
-                            discord.ui.TextDisplay(content="❌ This is not your inventory!"),
-                        )
+                        container1 = discord.ui.Container(discord.ui.TextDisplay(content="❌ This is not your inventory!"))
                     await interaction.response.send_message(view=ErrorView(), ephemeral=True)
                     return
-
                 if current_page[0] < total_pages - 1:
                     current_page[0] += 1
                     title, content, footer = get_page_content(current_page[0])
-
                     class UpdatedView(discord.ui.LayoutView):
-                        container1 = discord.ui.Container(
-                            discord.ui.TextDisplay(content=f"**{title}**"),
-                            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                            discord.ui.TextDisplay(content=content),
-                            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                            discord.ui.TextDisplay(content=f"_{footer}_"),
-                            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                            discord.ui.ActionRow(CategorySelect()),
-                            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                            discord.ui.ActionRow(
-                                PreviousButton(disabled=(current_page[0] == 0)),
-                                NextButton(disabled=(current_page[0] >= total_pages - 1))
-                            ),
-                        )
-
+                        container1 = discord.ui.Container(discord.ui.TextDisplay(content=f"**{title}**"), discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                            discord.ui.TextDisplay(content=content), discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small), discord.ui.TextDisplay(content=f"_{footer}_"),
+                            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small), discord.ui.ActionRow(CategorySelect()),
+                            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small), discord.ui.ActionRow(PreviousButton(disabled=(current_page[0] == 0)), NextButton(disabled=(current_page[0] >= total_pages - 1))))
                     await interaction.response.edit_message(view=UpdatedView())
                 else:
                     await interaction.response.defer()
 
-        # Create initial view with proper separators
         title, content, footer = get_page_content(0)
-
         class InventoryView(discord.ui.LayoutView):
-            container1 = discord.ui.Container(
-                discord.ui.TextDisplay(content=f"**{title}**"),
-                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                discord.ui.TextDisplay(content=content),
-                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                discord.ui.TextDisplay(content=f"_{footer}_"),
-                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                discord.ui.ActionRow(CategorySelect()),
-                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                discord.ui.ActionRow(
-                    PreviousButton(disabled=True),
-                    NextButton(disabled=(total_pages <= 1))
-                ),
-            )
-
+            container1 = discord.ui.Container(discord.ui.TextDisplay(content=f"**{title}**"), discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(content=content), discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small), discord.ui.TextDisplay(content=f"_{footer}_"),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small), discord.ui.ActionRow(CategorySelect()),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small), discord.ui.ActionRow(PreviousButton(disabled=True), NextButton(disabled=(total_pages <= 1))))
         await interaction.followup.send(view=InventoryView())
 
     # ===== STATS COMMAND =====
