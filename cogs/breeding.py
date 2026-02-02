@@ -137,9 +137,9 @@ class Breeding(commands.Cog):
     def determine_categories_from_target(self, targets, settings):
         """
         Determine which inventory categories to use and breeding mode
-        
+
         Returns: (list of categories, breeding_mode)
-        
+
         CHANGED: Now returns multiple categories from target_inventories setting
         except for TripMax/TripZero which use fixed inventories
         """
@@ -148,14 +148,14 @@ class Breeding(commands.Cog):
             return ([config.TRIPMAX_CATEGORY], 'tripmax')
         elif 'tripzero' in targets:
             return ([config.TRIPZERO_CATEGORY], 'tripzero')
-        
+
         # All other targets use target_inventories setting
         target_inventories = settings.get('target_inventories', [config.NORMAL_CATEGORY])
-        
+
         # Handle legacy mychoice_inventories (backward compatibility)
         if not target_inventories:
             target_inventories = settings.get('mychoice_inventories', [config.NORMAL_CATEGORY])
-        
+
         # Determine breeding mode
         if 'mychoice' in targets:
             return (target_inventories, 'mychoice')
@@ -178,7 +178,7 @@ class Breeding(commands.Cog):
         # CHANGED: Fetch from multiple categories
         all_females = []
         all_males = []
-        
+
         for category in categories:
             females_task = db.get_pokemon_for_breeding(
                 user_id, category, gender='female', cooldown_ids=cooldown_ids
@@ -186,7 +186,7 @@ class Breeding(commands.Cog):
             males_task = db.get_pokemon_for_breeding(
                 user_id, category, gender='male', cooldown_ids=cooldown_ids
             )
-            
+
             category_females, category_males = await asyncio.gather(females_task, males_task)
             all_females.extend(category_females)
             all_males.extend(category_males)
@@ -198,7 +198,7 @@ class Breeding(commands.Cog):
             if f['pokemon_id'] not in seen_female_ids:
                 females.append(f)
                 seen_female_ids.add(f['pokemon_id'])
-        
+
         seen_male_ids = set()
         males_and_dittos = []
         for m in all_males:
@@ -256,7 +256,7 @@ class Breeding(commands.Cog):
         all_gmax_females = []
         all_gmax_males = []
         all_normal_males = []
-        
+
         for category in categories:
             gmax_females_task = db.get_pokemon_for_breeding(
                 user_id, category, gender='female', is_gmax=True, cooldown_ids=cooldown_ids
@@ -329,7 +329,7 @@ class Breeding(commands.Cog):
         all_regional_females = []
         all_regional_males = []
         all_normal_males = []
-        
+
         for category in categories:
             regional_females_task = db.get_pokemon_for_breeding(
                 user_id, category, gender='female', is_regional=True, cooldown_ids=cooldown_ids
@@ -406,7 +406,7 @@ class Breeding(commands.Cog):
         # TripZero uses fixed category, so categories should be [TRIPZERO_CATEGORY]
         all_females = []
         all_males = []
-        
+
         for category in categories:
             females_task = db.get_pokemon_for_breeding(
                 user_id, category, gender='female', cooldown_ids=cooldown_ids
@@ -460,123 +460,477 @@ class Breeding(commands.Cog):
 
         return pairs
 
+    """
+    DEBUGGED VERSION OF handle_mychoice_breeding_optimized
+    ========================================================
+
+    This version has extensive print statements to help debug issues.
+    Replace your existing method with this one.
+    """
+
     async def handle_mychoice_breeding_optimized(
-        self,
-        user_id,
-        categories,  # CHANGED: Now using categories from target_inventories
-        settings,
-        utils,
-        selective,
-        count,
-        overrides,
-        cooldown_ids,
+        self, user_id, categories, settings, utils, selective, count, overrides, cooldown_ids,
     ):
-        """Handle MyChoice - OPTIMIZED - supports multiple males, females, AND multiple inventories"""
+        """Handle MyChoice with BREED FILTERS support - ENHANCED with species+filter combination and asymmetric filtering"""
+
+        print("\n" + "="*80)
+        print("DEBUG: Starting handle_mychoice_breeding_optimized")
+        print("="*80)
 
         mychoice_males = settings.get("mychoice_male", [])
         mychoice_females = settings.get("mychoice_female", [])
 
-        # Handle legacy single-value format (string instead of list)
+        print(f"DEBUG: Raw mychoice_males from settings: {mychoice_males}")
+        print(f"DEBUG: Raw mychoice_females from settings: {mychoice_females}")
+
+        # Handle legacy single-value format
         if isinstance(mychoice_males, str):
             mychoice_males = [mychoice_males] if mychoice_males else []
-
         if isinstance(mychoice_females, str):
             mychoice_females = [mychoice_females] if mychoice_females else []
 
-        if not mychoice_males or not mychoice_females:
+        print(f"DEBUG: Processed mychoice_males: {mychoice_males}")
+        print(f"DEBUG: Processed mychoice_females: {mychoice_females}")
+
+        # Get breed filters
+        print("\nDEBUG: Fetching breed filters from database...")
+        breed_filters = await db.get_breed_filters(user_id)
+        print(f"DEBUG: Raw breed_filters from DB: {breed_filters}")
+
+        male_filter = breed_filters.get('male', {})
+        female_filter = breed_filters.get('female', {})
+
+        print(f"DEBUG: male_filter dict: {male_filter}")
+        print(f"DEBUG: female_filter dict: {female_filter}")
+
+        male_filter_enabled = male_filter.get('enabled', False) and bool(male_filter.get('criteria'))
+        female_filter_enabled = female_filter.get('enabled', False) and bool(female_filter.get('criteria'))
+
+        print(f"DEBUG: male_filter_enabled: {male_filter_enabled}")
+        print(f"DEBUG: female_filter_enabled: {female_filter_enabled}")
+
+        male_criteria = male_filter.get('criteria', {}) if male_filter_enabled else {}
+        female_criteria = female_filter.get('criteria', {}) if female_filter_enabled else {}
+
+        print(f"DEBUG: male_criteria to use: {male_criteria}")
+        print(f"DEBUG: female_criteria to use: {female_criteria}")
+
+        has_male_species = bool(mychoice_males)
+        has_female_species = bool(mychoice_females)
+        has_male_filter = bool(male_criteria)
+        has_female_filter = bool(female_criteria)
+
+        print(f"\nDEBUG: Criteria check:")
+        print(f"  - has_male_species: {has_male_species}")
+        print(f"  - has_female_species: {has_female_species}")
+        print(f"  - has_male_filter: {has_male_filter}")
+        print(f"  - has_female_filter: {has_female_filter}")
+
+        # Must have SOMETHING set for at least ONE gender
+        if not (has_male_species or has_male_filter or has_female_species or has_female_filter):
+            print("DEBUG: ERROR - No criteria set for either gender")
             return []
 
-        # CHANGED: Fetch Pokemon from ALL specified categories (from target_inventories)
+        print(f"\nDEBUG: Fetching pokemon from categories: {categories}")
+
+        # Fetch ALL pokemon from target inventories
         all_pokemon = []
         for category in categories:
-            category_pokemon = await db.get_pokemon_for_breeding(
-                user_id,
-                category,
-                cooldown_ids=cooldown_ids,
-            )
+            print(f"DEBUG: Fetching from category: {category}")
+            category_pokemon = await db.get_pokemon_for_breeding(user_id, category, cooldown_ids=cooldown_ids)
+            print(f"DEBUG: Found {len(category_pokemon)} pokemon in {category}")
             all_pokemon.extend(category_pokemon)
 
-        # Remove duplicates (same pokemon_id might be in multiple inventories)
+        print(f"DEBUG: Total pokemon fetched (before dedup): {len(all_pokemon)}")
+
+        # Remove duplicates
         unique_pokemon = self._deduplicate_pokemon(all_pokemon)
+        print(f"DEBUG: Unique pokemon after dedup: {len(unique_pokemon)}")
 
-        male_species_pokemon = []
-        female_species_pokemon = []
+        # Sample first few pokemon for debugging
+        if unique_pokemon:
+            print(f"\nDEBUG: Sample pokemon (first 3):")
+            for i, p in enumerate(unique_pokemon[:3]):
+                print(f"  {i+1}. ID:{p['pokemon_id']} Name:{p['name']} Gender:{p['gender']} "
+                      f"IV:{p['iv_percent']}% Moves:{p.get('moves', [])} "
+                      f"SpdIV:{p.get('spdiv')}")
 
-        # Check if any males or females are Ditto
+        # ===== APPLY FILTERS AND SPECIES MATCHING (ENHANCED WITH ASYMMETRIC SUPPORT) =====
+        male_candidates = []
+        female_candidates = []
+
         any_male_ditto = any("ditto" in m.lower() for m in mychoice_males)
         any_female_ditto = any("ditto" in f.lower() for f in mychoice_females)
 
-        for pokemon in unique_pokemon:
-            # Match male species
-            for male_species in mychoice_males:
-                is_male_ditto = "ditto" in male_species.lower()
+        print(f"\nDEBUG: Processing {len(unique_pokemon)} pokemon...")
+        print(f"DEBUG: any_male_ditto: {any_male_ditto}, any_female_ditto: {any_female_ditto}")
 
-                if is_male_ditto and pokemon.get("is_ditto", False):
-                    male_species_pokemon.append(pokemon)
-                    break
-                elif (
-                    not is_male_ditto
-                    and pokemon["gender"] == "male"
-                    and self.matches_target(pokemon, male_species, utils)
-                ):
-                    male_species_pokemon.append(pokemon)
-                    break
+        male_rejected_species = 0
+        male_rejected_filter = 0
+        female_rejected_species = 0
+        female_rejected_filter = 0
 
-            # Match female species
-            for female_species in mychoice_females:
-                is_female_ditto = "ditto" in female_species.lower()
+        # ===== MALE FILTERING =====
+        if has_male_species or has_male_filter:
+            print("DEBUG: Applying male criteria...")
 
-                if is_female_ditto and pokemon.get("is_ditto", False):
-                    female_species_pokemon.append(pokemon)
-                    break
-                elif (
-                    not is_female_ditto
-                    and pokemon["gender"] == "female"
-                    and self.matches_target(pokemon, female_species, utils)
-                ):
-                    female_species_pokemon.append(pokemon)
-                    break
+            for i, pokemon in enumerate(unique_pokemon):
+                male_match = False
 
-        if not male_species_pokemon or not female_species_pokemon:
+                # === CASE 1: BOTH species AND filter set (AND logic) ===
+                if has_male_species and has_male_filter:
+                    # Must match BOTH species AND filter
+                    species_match = False
+
+                    for male_species in mychoice_males:
+                        is_male_ditto = "ditto" in male_species.lower()
+
+                        if is_male_ditto and pokemon.get("is_ditto", False):
+                            species_match = True
+                            break
+                        elif (
+                            not is_male_ditto
+                            and pokemon["gender"] == "male"
+                            and self.matches_target(pokemon, male_species, utils)
+                        ):
+                            species_match = True
+                            break
+
+                    # If species matched, now check filter
+                    if species_match:
+                        filter_result = self._pokemon_matches_filter(pokemon, male_criteria, utils)
+                        if filter_result:
+                            male_match = True
+                            if i < 5:
+                                print(f"  DEBUG: Pokemon {i+1} - Male SPECIES+FILTER MATCH")
+                        else:
+                            male_rejected_filter += 1
+                            if i < 5:
+                                print(f"  DEBUG: Pokemon {i+1} - Male FILTER REJECTED (species matched)")
+                    else:
+                        male_rejected_species += 1
+                        if i < 5:
+                            print(f"  DEBUG: Pokemon {i+1} - Male SPECIES REJECTED")
+
+                # === CASE 2: Only species set ===
+                elif has_male_species:
+                    for male_species in mychoice_males:
+                        is_male_ditto = "ditto" in male_species.lower()
+
+                        if is_male_ditto and pokemon.get("is_ditto", False):
+                            male_match = True
+                            if i < 5:
+                                print(f"  DEBUG: Pokemon {i+1} - Male SPECIES MATCH (Ditto)")
+                            break
+                        elif (
+                            not is_male_ditto
+                            and pokemon["gender"] == "male"
+                            and self.matches_target(pokemon, male_species, utils)
+                        ):
+                            male_match = True
+                            if i < 5:
+                                print(f"  DEBUG: Pokemon {i+1} - Male SPECIES MATCH ({male_species})")
+                            break
+
+                    if not male_match and i < 5:
+                        male_rejected_species += 1
+                        print(f"  DEBUG: Pokemon {i+1} - Male SPECIES REJECTED")
+
+                # === CASE 3: Only filter set ===
+                elif has_male_filter:
+                    # Check if valid gender first
+                    if pokemon["gender"] == "male" or pokemon.get("is_ditto", False):
+                        filter_result = self._pokemon_matches_filter(pokemon, male_criteria, utils)
+                        if filter_result:
+                            male_match = True
+                            if i < 5:
+                                print(f"  DEBUG: Pokemon {i+1} - Male FILTER MATCH (no species requirement)")
+                        else:
+                            male_rejected_filter += 1
+                            if i < 5:
+                                print(f"  DEBUG: Pokemon {i+1} - Male FILTER REJECTED")
+
+                if male_match:
+                    male_candidates.append(pokemon)
+        else:
+            # No male criteria - use ALL males/dittos
+            print("DEBUG: No male criteria - using ALL males/dittos")
+            male_candidates = [p for p in unique_pokemon if p['gender'] == 'male' or p.get('is_ditto', False)]
+
+        # ===== FEMALE FILTERING =====
+        if has_female_species or has_female_filter:
+            print("DEBUG: Applying female criteria...")
+
+            for i, pokemon in enumerate(unique_pokemon):
+                female_match = False
+
+                # === CASE 1: BOTH species AND filter set (AND logic) ===
+                if has_female_species and has_female_filter:
+                    # Must match BOTH species AND filter
+                    species_match = False
+
+                    for female_species in mychoice_females:
+                        is_female_ditto = "ditto" in female_species.lower()
+
+                        if is_female_ditto and pokemon.get("is_ditto", False):
+                            species_match = True
+                            break
+                        elif (
+                            not is_female_ditto
+                            and pokemon["gender"] == "female"
+                            and self.matches_target(pokemon, female_species, utils)
+                        ):
+                            species_match = True
+                            break
+
+                    # If species matched, now check filter
+                    if species_match:
+                        filter_result = self._pokemon_matches_filter(pokemon, female_criteria, utils)
+                        if filter_result:
+                            female_match = True
+                            if i < 5:
+                                print(f"  DEBUG: Pokemon {i+1} - Female SPECIES+FILTER MATCH")
+                        else:
+                            female_rejected_filter += 1
+                            if i < 5:
+                                print(f"  DEBUG: Pokemon {i+1} - Female FILTER REJECTED (species matched)")
+                    else:
+                        female_rejected_species += 1
+                        if i < 5:
+                            print(f"  DEBUG: Pokemon {i+1} - Female SPECIES REJECTED")
+
+                # === CASE 2: Only species set ===
+                elif has_female_species:
+                    for female_species in mychoice_females:
+                        is_female_ditto = "ditto" in female_species.lower()
+
+                        if is_female_ditto and pokemon.get("is_ditto", False):
+                            female_match = True
+                            if i < 5:
+                                print(f"  DEBUG: Pokemon {i+1} - Female SPECIES MATCH (Ditto)")
+                            break
+                        elif (
+                            not is_female_ditto
+                            and pokemon["gender"] == "female"
+                            and self.matches_target(pokemon, female_species, utils)
+                        ):
+                            female_match = True
+                            if i < 5:
+                                print(f"  DEBUG: Pokemon {i+1} - Female SPECIES MATCH ({female_species})")
+                            break
+
+                    if not female_match and i < 5:
+                        female_rejected_species += 1
+                        print(f"  DEBUG: Pokemon {i+1} - Female SPECIES REJECTED")
+
+                # === CASE 3: Only filter set ===
+                elif has_female_filter:
+                    # Check if valid gender first
+                    if pokemon["gender"] == "female" or pokemon.get("is_ditto", False):
+                        filter_result = self._pokemon_matches_filter(pokemon, female_criteria, utils)
+                        if filter_result:
+                            female_match = True
+                            if i < 5:
+                                print(f"  DEBUG: Pokemon {i+1} - Female FILTER MATCH (no species requirement)")
+                        else:
+                            female_rejected_filter += 1
+                            if i < 5:
+                                print(f"  DEBUG: Pokemon {i+1} - Female FILTER REJECTED")
+
+                if female_match:
+                    female_candidates.append(pokemon)
+        else:
+            # No female criteria - use ALL females/dittos
+            print("DEBUG: No female criteria - using ALL females/dittos")
+            female_candidates = [p for p in unique_pokemon if p['gender'] == 'female' or p.get('is_ditto', False)]
+
+        print(f"\nDEBUG: Filtering summary:")
+        print(f"  - Male candidates: {len(male_candidates)}")
+        print(f"  - Male rejected by species: {male_rejected_species}")
+        print(f"  - Male rejected by filter: {male_rejected_filter}")
+        print(f"  - Female candidates: {len(female_candidates)}")
+        print(f"  - Female rejected by species: {female_rejected_species}")
+        print(f"  - Female rejected by filter: {female_rejected_filter}")
+
+        if not male_candidates or not female_candidates:
+            print("DEBUG: ERROR - Not enough candidates to make pairs!")
+            print("="*80 + "\n")
             return []
 
         # Sort by IV (highest first)
-        male_species_pokemon.sort(key=lambda x: x["iv_percent"], reverse=True)
-        female_species_pokemon.sort(key=lambda x: x["iv_percent"], reverse=True)
+        male_candidates.sort(key=lambda x: x["iv_percent"], reverse=True)
+        female_candidates.sort(key=lambda x: x["iv_percent"], reverse=True)
 
+        print(f"\nDEBUG: Top 3 male candidates:")
+        for i, m in enumerate(male_candidates[:3]):
+            print(f"  {i+1}. ID:{m['pokemon_id']} {m['name']} IV:{m['iv_percent']}%")
+
+        print(f"\nDEBUG: Top 3 female candidates:")
+        for i, f in enumerate(female_candidates[:3]):
+            print(f"  {i+1}. ID:{f['pokemon_id']} {f['name']} IV:{f['iv_percent']}%")
+
+        # ===== PAIR THEM UP =====
         pairs = []
         used_male_ids = set()
         used_female_ids = set()
 
-        # Pair highest-IV females with highest-IV males
-        for female in female_species_pokemon:
+        print(f"\nDEBUG: Starting pairing process (need {count} pairs)...")
+
+        for i, female in enumerate(female_candidates):
             if len(pairs) >= count:
                 break
 
             if female["pokemon_id"] in used_female_ids:
                 continue
 
-            for male in male_species_pokemon:
+            print(f"\nDEBUG: Trying to pair female #{i+1}: {female['name']} (ID:{female['pokemon_id']})")
+
+            for j, male in enumerate(male_candidates):
                 if male["pokemon_id"] in used_male_ids:
                     continue
 
-                if not self.can_pair_pokemon(
-                    female,
-                    male,
-                    utils,
-                    selective,
-                    overrides,
-                    is_mychoice=True
-                ):
+                can_pair = self.can_pair_pokemon(
+                    female, male, utils, selective, overrides, is_mychoice=True
+                )
+
+                if j < 3:  # Log first 3 attempts
+                    print(f"  - Trying male #{j+1}: {male['name']} (ID:{male['pokemon_id']}) - can_pair={can_pair}")
+
+                if not can_pair:
                     continue
 
+                print(f"  ✅ PAIRED: {female['name']} × {male['name']}")
                 pairs.append({"female": female, "male": male})
                 used_female_ids.add(female["pokemon_id"])
                 used_male_ids.add(male["pokemon_id"])
                 break
 
+        print(f"\nDEBUG: Final result: Generated {len(pairs)} pairs")
+        print("="*80 + "\n")
+
         return pairs
 
+
+    def _pokemon_matches_filter(self, pokemon: dict, criteria: dict, utils) -> bool:
+        """Check if a Pokemon matches the given filter criteria - COMPLETE VERSION"""
+
+        # ===== MOVES FILTER =====
+        if 'moves' in criteria and criteria['moves']:
+            pokemon_moves = pokemon.get('moves', [])
+            if not pokemon_moves:
+                print(f"      DEBUG FILTER: No moves stored on pokemon")
+                return False
+
+            # Pokemon must have ALL required moves
+            for required_move in criteria['moves']:
+                pokemon_moves_lower = [m.lower() for m in pokemon_moves]
+                if required_move.lower() not in pokemon_moves_lower:
+                    print(f"      DEBUG FILTER: Missing required move '{required_move}'")
+                    print(f"      DEBUG FILTER: Pokemon has: {pokemon_moves}")
+                    return False
+
+            print(f"      DEBUG FILTER: All required moves found")
+
+        # ===== NO MOVES FILTER =====
+        if 'no_moves' in criteria and criteria['no_moves']:
+            pokemon_moves = pokemon.get('moves', [])
+            if pokemon_moves:
+                pokemon_moves_lower = [m.lower() for m in pokemon_moves]
+                for excluded_move in criteria['no_moves']:
+                    if excluded_move.lower() in pokemon_moves_lower:
+                        print(f"      DEBUG FILTER: Pokemon has excluded move '{excluded_move}'")
+                        return False
+            print(f"      DEBUG FILTER: No excluded moves found")
+
+        # ===== LEVEL FILTER =====
+        if 'level' in criteria:
+            pokemon_level = pokemon.get('level')
+
+            if pokemon_level is None:
+                print(f"      DEBUG FILTER: No level data stored on pokemon")
+                return False
+
+            if 'exact' in criteria['level']:
+                if pokemon_level != criteria['level']['exact']:
+                    print(f"      DEBUG FILTER: Level mismatch - need exactly {criteria['level']['exact']}, got {pokemon_level}")
+                    return False
+                print(f"      DEBUG FILTER: Level exact match: {pokemon_level}")
+            else:
+                if pokemon_level < criteria['level']['min'] or pokemon_level > criteria['level']['max']:
+                    print(f"      DEBUG FILTER: Level out of range - need {criteria['level']['min']}-{criteria['level']['max']}, got {pokemon_level}")
+                    return False
+                print(f"      DEBUG FILTER: Level in range: {pokemon_level}")
+
+        # ===== FAVORITE FILTER =====
+        if 'is_favorite' in criteria:
+            pokemon_is_fav = pokemon.get('is_favorite', False)
+            if pokemon_is_fav != criteria['is_favorite']:
+                print(f"      DEBUG FILTER: Favorite mismatch - need {criteria['is_favorite']}, got {pokemon_is_fav}")
+                return False
+            print(f"      DEBUG FILTER: Favorite status matches")
+
+        # ===== NICKNAME FILTER =====
+        if 'nickname' in criteria:
+            pokemon_nick = pokemon.get('nickname', '')
+            if not pokemon_nick:
+                print(f"      DEBUG FILTER: No nickname on pokemon (required: '{criteria['nickname']}')")
+                return False
+            if criteria['nickname'].lower() not in pokemon_nick.lower():
+                print(f"      DEBUG FILTER: Nickname '{pokemon_nick}' doesn't contain '{criteria['nickname']}'")
+                return False
+            print(f"      DEBUG FILTER: Nickname contains '{criteria['nickname']}'")
+
+        # ===== NO NICKNAME FILTER =====
+        if 'no_nickname' in criteria:
+            pokemon_nick = pokemon.get('nickname', '')
+            if pokemon_nick and criteria['no_nickname'].lower() in pokemon_nick.lower():
+                print(f"      DEBUG FILTER: Nickname '{pokemon_nick}' contains excluded text '{criteria['no_nickname']}'")
+                return False
+            print(f"      DEBUG FILTER: Nickname OK (doesn't contain excluded text)")
+
+        # ===== INDIVIDUAL IV FILTERS =====
+        iv_fields = ['hpiv', 'atkiv', 'defiv', 'spatkiv', 'spdefiv', 'spdiv']
+        for iv_field in iv_fields:
+            if iv_field in criteria:
+                required_range = criteria[iv_field]
+                pokemon_range = pokemon.get(iv_field)
+
+                if not pokemon_range:
+                    print(f"      DEBUG FILTER: No {iv_field} data stored on pokemon")
+                    return False
+
+                # Exact value check
+                if required_range['min'] == required_range['max']:
+                    if pokemon_range['min'] != required_range['min'] or pokemon_range['max'] != required_range['max']:
+                        print(f"      DEBUG FILTER: {iv_field} mismatch - need exactly {required_range['min']}, got {pokemon_range}")
+                        return False
+                    print(f"      DEBUG FILTER: {iv_field} exact match: {required_range['min']}")
+                else:
+                    # Range check
+                    if pokemon_range['min'] < required_range['min'] or pokemon_range['max'] > required_range['max']:
+                        print(f"      DEBUG FILTER: {iv_field} range mismatch - need {required_range}, got {pokemon_range}")
+                        return False
+                    print(f"      DEBUG FILTER: {iv_field} range OK: {pokemon_range} within {required_range}")
+
+        # ===== DUPLICATE IV FILTERS =====
+        for dup_type in ['trip', 'quad', 'penta', 'hex']:
+            if dup_type in criteria and criteria[dup_type]:
+                pokemon_dup = pokemon.get(dup_type, [])
+                required_values = criteria[dup_type]
+
+                print(f"      DEBUG FILTER: Checking {dup_type} - need {required_values}, have {pokemon_dup}")
+
+                # Pokemon must have ALL required duplicate values
+                for required_val in required_values:
+                    if required_val not in pokemon_dup:
+                        print(f"      DEBUG FILTER: Missing {dup_type} value {required_val}")
+                        return False
+
+                print(f"      DEBUG FILTER: All {dup_type} values found")
+
+        # All filters passed
+        print(f"      DEBUG FILTER: ✅ All filters passed!")
+        return True
 
     async def handle_specific_targets_breeding_optimized(self, user_id, categories, targets, 
                                                         utils, selective, count, overrides, cooldown_ids):
