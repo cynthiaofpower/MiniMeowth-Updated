@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Bot Configuration
-PREFIX = ["m!", "M!", "n!", "N!"] 
+PREFIX = ["l!", "M!", "n!", "N!"] 
 EMBED_COLOR = 0x9c8e8b  # RGB: 156, 142, 139
 
 # MongoDB Configuration
@@ -37,11 +37,14 @@ NEW_ID_MIN = 271900
 # Pairing Constants
 MAX_BREED_PAIRS = 2  # Maximum pairs per breed command
 
-# Gender display 
+# Gender display and other usefull emojis
 GENDER_MALE = "<:male_sign:1449750028536250420>"
 GENDER_FEMALE = "<:female_sign:1449750041035145407>"
 GENDER_UNKNOWN = "<:grey_question:1449750016481562787>"
+
 REPLY = "<:reply:1466004727581118494>"
+DISABLE = "<:grey_dot:1467791387054444596>"
+ENABLE = "<:green_dot:1450840704153686139>"
 
 # Tick/Cross display
 TICK = "<:white_check_mark:1449749985057964094>"
