@@ -1449,19 +1449,155 @@ class Settings(commands.Cog):
             female_display = "`Not set`"
             female_criteria = "_No filters configured_"
 
+        # Create clear buttons
+        class ClearMaleButton(discord.ui.Button):
+            def __init__(self, is_disabled):
+                super().__init__(
+                    style=discord.ButtonStyle.danger,
+                    label="Clear Male",
+                    emoji="🗑️",
+                    disabled=is_disabled
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != ctx.author.id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ This is not your command view!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                await interaction.response.defer()
+                await db.update_settings(interaction.user.id, {'command_male': ''})
+
+                class SuccessView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content=f"✅ **Male command cleared**\n\n_Run `{config.PREFIX[0]}viewcommands` to see updated settings_"),
+                    )
+                await interaction.followup.send(view=SuccessView())
+
+        class ClearFemaleButton(discord.ui.Button):
+            def __init__(self, is_disabled):
+                super().__init__(
+                    style=discord.ButtonStyle.danger,
+                    label="Clear Female",
+                    emoji="🗑️",
+                    disabled=is_disabled
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != ctx.author.id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ This is not your command view!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                await interaction.response.defer()
+                await db.update_settings(interaction.user.id, {'command_female': ''})
+
+                class SuccessView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content=f"✅ **Female command cleared**\n\n_Run `{config.PREFIX[0]}viewcommands` to see updated settings_"),
+                    )
+                await interaction.followup.send(view=SuccessView())
+
+        class ClearBothButton(discord.ui.Button):
+            def __init__(self, is_disabled):
+                super().__init__(
+                    style=discord.ButtonStyle.danger,
+                    label="Clear Both",
+                    emoji="🗑️",
+                    disabled=is_disabled
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != ctx.author.id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ This is not your command view!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                await interaction.response.defer()
+                await db.update_settings(interaction.user.id, {
+                    'command_male': '',
+                    'command_female': ''
+                })
+
+                class SuccessView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content=f"✅ **Both commands cleared**\n\n_Run `{config.PREFIX[0]}viewcommands` to see updated settings_"),
+                    )
+                await interaction.followup.send(view=SuccessView())
+
+        class RefreshButton(discord.ui.Button):
+            def __init__(self):
+                super().__init__(
+                    style=discord.ButtonStyle.primary,
+                    label="Refresh",
+                    emoji="🔄"
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != ctx.author.id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ This is not your command view!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                await interaction.response.defer()
+
+                # Create a fake context to reuse viewcommands
+                class FakeContext:
+                    def __init__(self, interaction):
+                        self.author = interaction.user
+                        self.message = interaction.message
+
+                    async def send(self, *args, **kwargs):
+                        kwargs.pop('reference', None)
+                        kwargs.pop('mention_author', None)
+                        return await interaction.followup.send(*args, **kwargs)
+
+                fake_ctx = FakeContext(interaction)
+                settings_cog = interaction.client.get_cog('Settings')
+                if settings_cog:
+                    await settings_cog.viewcommands(fake_ctx)
+
+        # Determine if buttons should be disabled
+        has_male = bool(command_male)
+        has_female = bool(command_female)
+        has_any = has_male or has_female
+
         class CommandView(discord.ui.LayoutView):
             container1 = discord.ui.Container(
+                discord.ui.TextDisplay(content=f"**⚙️ Command Breeding Settings**\n\n**Status:** {status_text}"),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
                 discord.ui.TextDisplay(
-                    content=f"**⚙️ Command Breeding Settings**\n\n"
-                            f"**Status:** {status_text}\n\n"
-                            f"**{config.GENDER_MALE} Male Filter Command:**\n{male_display}\n"
-                            f"**Criteria:** {male_criteria}\n\n"
-                            f"**{config.GENDER_FEMALE} Female Filter Command:**\n{female_display}\n"
-                            f"**Criteria:** {female_criteria}\n\n"
-                            f"**How to Update:**\n"
+                    content=f"**{config.GENDER_MALE} Male Filter Command:**\n{male_display}\n**Criteria:**\n{male_criteria}"
+                ),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(
+                    content=f"**{config.GENDER_FEMALE} Female Filter Command:**\n{female_display}\n**Criteria:**\n{female_criteria}"
+                ),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(
+                    content=f"**How to Update:**\n"
                             f"{config.REPLY} `{config.PREFIX[0]}setcommandmale <filters>`\n"
                             f"{config.REPLY} `{config.PREFIX[0]}setcommandfemale <filters>`\n"
                             f"{config.REPLY} `{config.PREFIX[0]}target command_breeding` to activate"
+                ),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.ActionRow(
+                    ClearMaleButton(not has_male),
+                    ClearFemaleButton(not has_female),
+                    ClearBothButton(not has_any),
+                    RefreshButton()
                 ),
                 accent_colour=config.EMBED_COLOR
             )
