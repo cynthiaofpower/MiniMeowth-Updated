@@ -10,7 +10,7 @@ class Settings(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.hybrid_command(name='settings')
+    @commands.hybrid_command(name='settings', aliases=['gear', 'sg', 'sgs'])
     async def settings_command(self, ctx):
         """
         Display interactive settings menu
