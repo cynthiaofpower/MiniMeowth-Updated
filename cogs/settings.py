@@ -716,6 +716,7 @@ class Settings(commands.Cog):
                     MoreInfoButton(),
                     ResetButton()
                 ),
+                accent_colour=config.EMBED_COLOR
             )
 
         await ctx.send(view=SettingsView(), reference=ctx.message, mention_author=False)
