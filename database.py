@@ -296,7 +296,7 @@ class Database:
             {"user_id": user_id},
             {"$unset": {f"breed_filters.{gender}": ""}}
         )
-    
+
     # ===== UPDATED DATABASE METHODS =====
     # Add these methods to your Database class and update existing ones
 
