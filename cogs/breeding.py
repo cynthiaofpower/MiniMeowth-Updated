@@ -7,7 +7,34 @@ from database import db
 from datetime import datetime, timezone
 
 class Breeding(commands.Cog):
-    """Breeding pair generation and management - OPTIMIZED"""
+    """
+    Advanced breeding pair generation with dual priority system and phase-based pairing.
+
+    Breeding Rules:
+    - Female × Male (same dex number OR common egg group)
+    - Female × Ditto
+    - Male × Ditto
+    - Unknown × Ditto
+    - CANNOT breed Ditto × Ditto
+
+    Two Priority Systems:
+    1. Same-Dex-First (default): Prioritize same dex number first, then egg group
+       - Uses Phase 1 (same dex) → Phase 2 (egg group) → Phases 3-6
+    2. Egg-Group-First: Only egg group matching (same dex = same egg group anyway)
+       - Uses ONLY Phase 2 (egg group) → Phases 3-6 (Phase 1 skipped as redundant)
+
+    Phase System (Same-Dex-First):
+    - Phase 1: Females with male counterparts (same dex, NOT gmax/regional)
+    - Phase 2: Females with egg group males (NOT gmax/regional)
+    - Phase 3: Female-only species
+    - Phase 4: Females with Ditto
+    - Phase 5: Males/unknowns with Ditto
+    - Phase 6: Remaining females with gmax/regional males (if enabled)
+
+    Compatibility Calculation:
+    - Selective mode (old/new trainers): High/Medium (never Low)
+    - Not Selective mode: High/Medium/Low based on pairing type
+    """
 
     def __init__(self, bot):
         self.bot = bot
@@ -16,7 +43,7 @@ class Breeding(commands.Cog):
     @app_commands.describe(count="Number of pairs to generate (max 2)")
     async def breed_command(self, ctx, count: int = 1):
         """
-        Generate optimal breeding pairs - OPTIMIZED VERSION
+        Generate optimal breeding pairs using advanced phase-based pairing
         Usage: ?breed [count] or /breed [count]
         Max 2 pairs at a time
         """
@@ -39,7 +66,7 @@ class Breeding(commands.Cog):
 
         user_id = ctx.author.id
 
-        # ===== OPTIMIZATION: SINGLE QUERY FOR ALL USER DATA =====
+        # Get all user data in single query
         user_data = await db.get_user_data(user_id)
 
         settings = user_data['settings']
@@ -48,21 +75,28 @@ class Breeding(commands.Cog):
         selective = mode == 'selective'
         show_info = settings.get('show_info', 'detailed')
 
+        # Get priority system setting (default: same-dex-first)
+        priority_system = settings.get('priority_system', 'same_dex_first')
+
+        # Get IV sort order setting (default: descending for high IV)
+        iv_sort_order = settings.get('iv_sort_order', 'descending')
+
+        # Get gmax/regional pairing settings
+        allow_gmax_male_with_female = settings.get('allow_gmax_male_with_female', False)
+        allow_regional_male_with_female = settings.get('allow_regional_male_with_female', False)
+
         id_overrides = {int(k): v for k, v in user_data.get('id_overrides', {}).items()}
         cooldown_ids = set()
 
         # Convert cooldowns to active set
         now = datetime.now(timezone.utc)
         for pid_str, expiry in user_data.get('cooldowns', {}).items():
-            # Handle both datetime objects and timestamp floats
             if isinstance(expiry, datetime):
-                # Make expiry timezone-aware if it's naive
                 if expiry.tzinfo is None:
                     expiry = expiry.replace(tzinfo=timezone.utc)
                 if expiry > now:
                     cooldown_ids.add(int(pid_str))
             elif isinstance(expiry, (int, float)):
-                # If expiry is a timestamp, convert to datetime
                 expiry_dt = datetime.fromtimestamp(expiry, tz=timezone.utc)
                 if expiry_dt > now:
                     cooldown_ids.add(int(pid_str))
@@ -70,43 +104,48 @@ class Breeding(commands.Cog):
         # Determine category and breeding mode
         categories, breeding_mode = self.determine_categories_from_target(targets, settings)
 
-        # ===== OPTIMIZATION: FETCH ONLY NEEDED POKEMON =====
-        # Instead of fetching ALL pokemon then filtering, we filter in the database query
-
+        # Route to appropriate handler
         if breeding_mode == 'mychoice':
-            pairs = await self.handle_mychoice_breeding_optimized(
+            pairs = await self.handle_mychoice_breeding(
                 user_id, categories, settings, utils, selective, count, 
-                id_overrides, cooldown_ids
+                id_overrides, cooldown_ids, iv_sort_order
             )
         elif breeding_mode == 'tripmax':
-            pairs = await self.handle_tripmax_breeding_optimized(
+            pairs = await self.handle_tripmax_breeding(
                 user_id, categories, utils, selective, count, 
-                id_overrides, cooldown_ids
+                id_overrides, cooldown_ids, priority_system,
+                allow_gmax_male_with_female, allow_regional_male_with_female
             )
         elif breeding_mode == 'tripzero':
-            pairs = await self.handle_tripzero_breeding_optimized(
+            pairs = await self.handle_tripzero_breeding(
                 user_id, categories, utils, selective, count, 
-                id_overrides, cooldown_ids
+                id_overrides, cooldown_ids, priority_system,
+                allow_gmax_male_with_female, allow_regional_male_with_female
             )
         elif breeding_mode == 'gmax':
-            pairs = await self.handle_gmax_breeding_optimized(
-                user_id, categories, targets, utils, selective, count, 
-                id_overrides, cooldown_ids
+            pairs = await self.handle_gmax_breeding(
+                user_id, categories, utils, selective, count, 
+                id_overrides, cooldown_ids, iv_sort_order, priority_system,
+                allow_gmax_male_with_female, allow_regional_male_with_female
             )
         elif breeding_mode == 'regionals':
-            pairs = await self.handle_regionals_breeding_optimized(
-                user_id, categories, targets, utils, selective, count, 
-                id_overrides, cooldown_ids
+            pairs = await self.handle_regionals_breeding(
+                user_id, categories, utils, selective, count, 
+                id_overrides, cooldown_ids, iv_sort_order, priority_system,
+                allow_gmax_male_with_female, allow_regional_male_with_female
             )
         elif breeding_mode == 'all':
-            pairs = await self.handle_all_breeding_optimized(
+            pairs = await self.handle_all_breeding(
                 user_id, categories, utils, selective, count, 
-                id_overrides, cooldown_ids
+                id_overrides, cooldown_ids, iv_sort_order, priority_system,
+                allow_gmax_male_with_female, allow_regional_male_with_female
             )
         else:
-            pairs = await self.handle_specific_targets_breeding_optimized(
+            # Specific targets
+            pairs = await self.handle_specific_targets_breeding(
                 user_id, categories, targets, utils, selective, count, 
-                id_overrides, cooldown_ids
+                id_overrides, cooldown_ids, iv_sort_order, priority_system,
+                allow_gmax_male_with_female, allow_regional_male_with_female
             )
 
         if not pairs:
@@ -128,7 +167,7 @@ class Breeding(commands.Cog):
         for pair in pairs:
             cooldown_ids_to_add.extend([pair['female']['pokemon_id'], pair['male']['pokemon_id']])
 
-        # ===== OPTIMIZATION: PARALLEL EXECUTION =====
+        # Execute cooldown addition and result sending in parallel
         await asyncio.gather(
             db.add_cooldowns_bulk(user_id, cooldown_ids_to_add),
             self.send_breed_result(ctx, pairs, selective, utils, show_info, id_overrides, cooldown_ids_to_add)
@@ -139,9 +178,6 @@ class Breeding(commands.Cog):
         Determine which inventory categories to use and breeding mode
 
         Returns: (list of categories, breeding_mode)
-
-        CHANGED: Now returns multiple categories from target_inventories setting
-        except for TripMax/TripZero which use fixed inventories
         """
         # TripMax and TripZero use FIXED inventories
         if 'tripmax' in targets:
@@ -168,320 +204,625 @@ class Breeding(commands.Cog):
         else:
             return (target_inventories, 'specific')
 
-    # ===== OPTIMIZED BREEDING HANDLERS =====
-    # CHANGED: All handlers now accept 'categories' (list) instead of 'category' (single)
+    # ========================================
+    # BREEDING HANDLERS
+    # ========================================
+    async def handle_all_breeding(
+        self,
+        user_id,
+        categories,
+        utils,
+        selective,
+        count,
+        overrides,
+        cooldown_ids,
+        iv_sort_order,
+        priority_system,
+        allow_gmax_male,
+        allow_regional_male,
+    ):
+        """
+        Handle 'all' target - Breed any compatible Pokemon
 
-    async def handle_all_breeding_optimized(self, user_id, categories, utils, selective, 
-                                           count, overrides, cooldown_ids):
-        """Handle 'all' target - OPTIMIZED with targeted queries"""
+        Uses phase-based pairing with configurable priority system
+        Separates gmax/regional males for Phase 6 (if enabled)
 
-        # CHANGED: Fetch from multiple categories
+        FIXED ISSUES:
+        1. Unknown gender Pokemon (non-Ditto) are now excluded from normal_males
+        2. When no females exist, ALL males (not just special) are paired with Ditto
+        """
+
+        print(f"\n{'=' * 60}")
+        print("[DEBUG handle_all_breeding] Starting")
+        print(f"[DEBUG] Categories: {categories}")
+        print(f"[DEBUG] Count requested: {count}")
+        print(f"[DEBUG] Selective mode: {selective}")
+        print(f"[DEBUG] Priority system: {priority_system}")
+        print(f"[DEBUG] allow_gmax_male: {allow_gmax_male}")
+        print(f"[DEBUG] allow_regional_male: {allow_regional_male}")
+        print(f"{'=' * 60}\n")
+
         all_females = []
         all_males = []
 
         for category in categories:
+            print(f"[DEBUG] Fetching from category: {category}")
+
             females_task = db.get_pokemon_for_breeding(
-                user_id, category, gender='female', cooldown_ids=cooldown_ids
-            )
-            males_task = db.get_pokemon_for_breeding(
-                user_id, category, gender='male', cooldown_ids=cooldown_ids
+                user_id,
+                category,
+                gender="female",
+                cooldown_ids=cooldown_ids,
             )
 
-            category_females, category_males = await asyncio.gather(females_task, males_task)
+            males_task = db.get_pokemon_for_breeding(
+                user_id,
+                category,
+                cooldown_ids=cooldown_ids,
+            )
+
+            category_females, category_all = await asyncio.gather(
+                females_task,
+                males_task,
+            )
+
+            category_males = [
+                p for p in category_all
+                if p["gender"] in ("male", "unknown")
+            ]
+
+            print(
+                f"[DEBUG] Category {category}: "
+                f"{len(category_females)} females, "
+                f"{len(category_males)} males+unknowns"
+            )
+
             all_females.extend(category_females)
             all_males.extend(category_males)
-
-        # Remove duplicates by pokemon_id
-        seen_female_ids = set()
-        females = []
-        for f in all_females:
-            if f['pokemon_id'] not in seen_female_ids:
-                females.append(f)
-                seen_female_ids.add(f['pokemon_id'])
-
-        seen_male_ids = set()
-        males_and_dittos = []
-        for m in all_males:
-            if m['pokemon_id'] not in seen_male_ids:
-                males_and_dittos.append(m)
-                seen_male_ids.add(m['pokemon_id'])
-
-        # Separate dittos from regular males
-        dittos = [m for m in males_and_dittos if m.get('is_ditto', False)]
-        males = [m for m in males_and_dittos if not m.get('is_ditto', False)]
-
-        # Sort by IV (descending)
-        females.sort(key=lambda x: x['iv_percent'], reverse=True)
-        males.sort(key=lambda x: x['iv_percent'], reverse=True)
-        dittos.sort(key=lambda x: x['iv_percent'], reverse=True)
-
-        pairs = []
-        used_male_ids = set()
-
-        # Pair females
-        for female in females:
-            if len(pairs) >= count:
-                break
-
-            male, match_type = self.find_best_male_for_female(
-                female, males, dittos, utils, selective, used_male_ids, overrides
-            )
-
-            if male:
-                pairs.append({'female': female, 'male': male})
-                used_male_ids.add(male['pokemon_id'])
-
-        # Pair remaining males with Ditto
-        if len(pairs) < count:
-            remaining_males = [m for m in males if m['pokemon_id'] not in used_male_ids]
-
-            for male in remaining_males:
-                if len(pairs) >= count:
-                    break
-
-                for ditto in dittos:
-                    if ditto['pokemon_id'] not in used_male_ids:
-                        if self.can_pair_pokemon(ditto, male, utils, selective, overrides):
-                            pairs.append({'female': ditto, 'male': male})
-                            used_male_ids.add(ditto['pokemon_id'])
-                            break
-
-        return pairs
-
-    async def handle_gmax_breeding_optimized(self, user_id, categories, targets, utils, 
-                                            selective, count, overrides, cooldown_ids):
-        """Handle Gmax target - OPTIMIZED"""
-
-        # CHANGED: Fetch from multiple categories
-        all_gmax_females = []
-        all_gmax_males = []
-        all_normal_males = []
-
-        for category in categories:
-            gmax_females_task = db.get_pokemon_for_breeding(
-                user_id, category, gender='female', is_gmax=True, cooldown_ids=cooldown_ids
-            )
-            gmax_males_task = db.get_pokemon_for_breeding(
-                user_id, category, gender='male', is_gmax=True, cooldown_ids=cooldown_ids
-            )
-            normal_males_task = db.get_pokemon_for_breeding(
-                user_id, category, gender='male', is_gmax=False, cooldown_ids=cooldown_ids
-            )
-
-            cat_gmax_f, cat_gmax_m, cat_normal_m = await asyncio.gather(
-                gmax_females_task, gmax_males_task, normal_males_task
-            )
-            all_gmax_females.extend(cat_gmax_f)
-            all_gmax_males.extend(cat_gmax_m)
-            all_normal_males.extend(cat_normal_m)
-
-        # Remove duplicates
-        gmax_females = self._deduplicate_pokemon(all_gmax_females)
-        gmax_males = self._deduplicate_pokemon(all_gmax_males)
-        normal_males_all = self._deduplicate_pokemon(all_normal_males)
-
-        # Separate dittos
-        dittos = [m for m in normal_males_all if m.get('is_ditto', False)]
-        normal_males = [m for m in normal_males_all if not m.get('is_ditto', False)]
-
-        # Sort by IV
-        gmax_females.sort(key=lambda x: x['iv_percent'], reverse=True)
-        gmax_males.sort(key=lambda x: x['iv_percent'], reverse=True)
-        normal_males.sort(key=lambda x: x['iv_percent'], reverse=True)
-        dittos.sort(key=lambda x: x['iv_percent'], reverse=True)
-
-        pairs = []
-        used_male_ids = set()
-
-        # Pair Gmax females
-        for female in gmax_females:
-            if len(pairs) >= count:
-                break
-
-            male, match_type = self.find_best_male_for_female(
-                female, normal_males, dittos, utils, selective, used_male_ids, overrides
-            )
-
-            if male:
-                pairs.append({'female': female, 'male': male})
-                used_male_ids.add(male['pokemon_id'])
-
-        # Pair Gmax males with Ditto ONLY
-        if len(pairs) < count:
-            for male in gmax_males:
-                if len(pairs) >= count:
-                    break
-
-                for ditto in dittos:
-                    if ditto['pokemon_id'] not in used_male_ids:
-                        if self.can_pair_pokemon(ditto, male, utils, selective, overrides):
-                            pairs.append({'female': ditto, 'male': male})
-                            used_male_ids.add(ditto['pokemon_id'])
-                            break
-
-        return pairs
-
-    async def handle_regionals_breeding_optimized(self, user_id, categories, targets, 
-                                                  utils, selective, count, overrides, cooldown_ids):
-        """Handle Regionals target - OPTIMIZED"""
-
-        # CHANGED: Fetch from multiple categories
-        all_regional_females = []
-        all_regional_males = []
-        all_normal_males = []
-
-        for category in categories:
-            regional_females_task = db.get_pokemon_for_breeding(
-                user_id, category, gender='female', is_regional=True, cooldown_ids=cooldown_ids
-            )
-            regional_males_task = db.get_pokemon_for_breeding(
-                user_id, category, gender='male', is_regional=True, cooldown_ids=cooldown_ids
-            )
-            normal_males_task = db.get_pokemon_for_breeding(
-                user_id, category, gender='male', is_regional=False, cooldown_ids=cooldown_ids
-            )
-
-            cat_reg_f, cat_reg_m, cat_norm_m = await asyncio.gather(
-                regional_females_task, regional_males_task, normal_males_task
-            )
-            all_regional_females.extend(cat_reg_f)
-            all_regional_males.extend(cat_reg_m)
-            all_normal_males.extend(cat_norm_m)
-
-        regional_females = self._deduplicate_pokemon(all_regional_females)
-        regional_males = self._deduplicate_pokemon(all_regional_males)
-        normal_males_all = self._deduplicate_pokemon(all_normal_males)
-
-        dittos = [m for m in normal_males_all if m.get('is_ditto', False)]
-        normal_males = [m for m in normal_males_all if not m.get('is_ditto', False)]
-
-        regional_females.sort(key=lambda x: x['iv_percent'], reverse=True)
-        regional_males.sort(key=lambda x: x['iv_percent'], reverse=True)
-        normal_males.sort(key=lambda x: x['iv_percent'], reverse=True)
-        dittos.sort(key=lambda x: x['iv_percent'], reverse=True)
-
-        pairs = []
-        used_male_ids = set()
-
-        # Pair Regional females
-        for female in regional_females:
-            if len(pairs) >= count:
-                break
-
-            male, match_type = self.find_best_male_for_female(
-                female, normal_males, dittos, utils, selective, used_male_ids, overrides
-            )
-
-            if male:
-                pairs.append({'female': female, 'male': male})
-                used_male_ids.add(male['pokemon_id'])
-
-        # Pair Regional males with Ditto ONLY
-        if len(pairs) < count:
-            for male in regional_males:
-                if len(pairs) >= count:
-                    break
-
-                for ditto in dittos:
-                    if ditto['pokemon_id'] not in used_male_ids:
-                        if self.can_pair_pokemon(ditto, male, utils, selective, overrides):
-                            pairs.append({'female': ditto, 'male': male})
-                            used_male_ids.add(ditto['pokemon_id'])
-                            break
-
-        return pairs
-
-    async def handle_tripmax_breeding_optimized(self, user_id, categories, utils, 
-                                               selective, count, overrides, cooldown_ids):
-        """Handle TripMax - OPTIMIZED"""
-        # TripMax uses fixed category, so categories should be [TRIPMAX_CATEGORY]
-        return await self.handle_all_breeding_optimized(
-            user_id, categories, utils, selective, count, overrides, cooldown_ids
-        )
-
-    async def handle_tripzero_breeding_optimized(self, user_id, categories, utils, 
-                                                selective, count, overrides, cooldown_ids):
-        """Handle TripZero - OPTIMIZED (fetch pre-sorted by IV ascending)"""
-
-        # TripZero uses fixed category, so categories should be [TRIPZERO_CATEGORY]
-        all_females = []
-        all_males = []
-
-        for category in categories:
-            females_task = db.get_pokemon_for_breeding(
-                user_id, category, gender='female', cooldown_ids=cooldown_ids
-            )
-            males_task = db.get_pokemon_for_breeding(
-                user_id, category, gender='male', cooldown_ids=cooldown_ids
-            )
-
-            cat_females, cat_males = await asyncio.gather(females_task, males_task)
-            all_females.extend(cat_females)
-            all_males.extend(cat_males)
 
         females = self._deduplicate_pokemon(all_females)
         males_all = self._deduplicate_pokemon(all_males)
 
-        # Sort by IV ascending (lowest first)
-        females.sort(key=lambda x: x['iv_percent'])
-        males_all.sort(key=lambda x: x['iv_percent'])
+        print("\n[DEBUG] After deduplication:")
+        print(f"[DEBUG] Total females: {len(females)}")
+        print(f"[DEBUG] Total males_all: {len(males_all)}")
 
-        dittos = [m for m in males_all if m.get('is_ditto', False)]
-        males = [m for m in males_all if not m.get('is_ditto', False)]
+        dittos = [m for m in males_all if m.get("is_ditto", False)]
+
+        # FIXED: Only include MALE gender Pokemon in normal_males
+        # Unknown gender Pokemon (except Ditto) can ONLY breed with Ditto
+        normal_males = [
+            m for m in males_all
+            if not m.get("is_ditto", False)
+            and not m.get("is_gmax", False)
+            and not m.get("is_regional", False)
+            and m["gender"] == "male"  # ← FIX: Only male gender
+        ]
+
+        special_males = [
+            m for m in males_all
+            if not m.get("is_ditto", False)
+            and (m.get("is_gmax", False) or m.get("is_regional", False))
+            and m["gender"] == "male"  # ← FIX: Only male gender
+        ]
+
+        # Collect unknown gender Pokemon (non-Ditto) separately
+        unknown_gender_males = [
+            m for m in males_all
+            if not m.get("is_ditto", False)
+            and m["gender"] == "unknown"
+        ]
+
+        # Build debug lists safely (NO nested f-strings)
+        female_preview = [f"{p['name']} ({p['pokemon_id']})" for p in females[:5]]
+        ditto_preview = [f"Ditto ({p['pokemon_id']})" for p in dittos[:5]]
+        normal_preview = [f"{p['name']} ({p['pokemon_id']})" for p in normal_males[:5]]
+        special_preview = [f"{p['name']} ({p['pokemon_id']})" for p in special_males[:5]]
+        unknown_preview = [f"{p['name']} ({p['pokemon_id']})" for p in unknown_gender_males[:5]]
+
+        print("\n[DEBUG] === SEPARATION BY TYPE ===")
+        print(f"[DEBUG] females: {len(females)} - {female_preview}")
+        print(f"[DEBUG] dittos: {len(dittos)} - {ditto_preview}")
+        print(f"[DEBUG] normal_males (MALE gender only): {len(normal_males)} - {normal_preview}")
+        print(f"[DEBUG] special_males (MALE gender only): {len(special_males)} - {special_preview}")
+        print(f"[DEBUG] unknown_gender_males: {len(unknown_gender_males)} - {unknown_preview}")
+
+        reverse_sort = iv_sort_order == "descending"
+
+        females.sort(key=lambda x: x["iv_percent"], reverse=reverse_sort)
+        normal_males.sort(key=lambda x: x["iv_percent"], reverse=reverse_sort)
+        special_males.sort(key=lambda x: x["iv_percent"], reverse=reverse_sort)
+        unknown_gender_males.sort(key=lambda x: x["iv_percent"], reverse=reverse_sort)
+        dittos.sort(key=lambda x: x["iv_percent"], reverse=reverse_sort)
 
         pairs = []
-        used_male_ids = set()
 
-        for female in females:
-            if len(pairs) >= count:
-                break
+        if females:
+            print("\n[DEBUG] === PHASE-BASED PAIRING ===")
 
-            male, match_type = self.find_best_male_for_female_tripzero(
-                female, males, dittos, utils, selective, used_male_ids, overrides
+            pairs = self.execute_phase_based_pairing(
+                females,
+                normal_males,
+                dittos,
+                utils,
+                selective,
+                overrides,
+                count,
+                priority_system,
+                allow_gmax_male,
+                allow_regional_male,
+                additional_males_phase6=special_males,
             )
+        else:
+            print("\n[DEBUG] === SKIPPING PHASE-BASED PAIRING: No females found ===")
 
-            if male:
-                pairs.append({'female': female, 'male': male})
-                used_male_ids.add(male['pokemon_id'])
+        # FIXED: When no females, pair ALL males with Ditto (not just special_males)
+        if len(pairs) < count and not females:
+            print("\n[DEBUG] === PAIRING MALES WITH DITTO (no females) ===")
 
-        if len(pairs) < count:
-            remaining_males = [m for m in males if m['pokemon_id'] not in used_male_ids]
+            # Combine all breedable males
+            all_breedable_males = normal_males + special_males + unknown_gender_males
 
-            for male in remaining_males:
+            print(f"[DEBUG] Total breedable males: {len(all_breedable_males)}")
+            print(f"[DEBUG]   - normal_males: {len(normal_males)}")
+            print(f"[DEBUG]   - special_males: {len(special_males)}")
+            print(f"[DEBUG]   - unknown_gender_males: {len(unknown_gender_males)}")
+            print(f"[DEBUG] Available dittos: {len(dittos)}")
+
+            used_male_ids = {pair["male"]["pokemon_id"] for pair in pairs}
+
+            for male in all_breedable_males:
                 if len(pairs) >= count:
                     break
 
+                if male["pokemon_id"] in used_male_ids:
+                    continue
+
                 for ditto in dittos:
+                    if ditto["pokemon_id"] in used_male_ids:
+                        continue
+
+                    if self.can_pair_pokemon(ditto, male, utils, selective, overrides):
+                        print(
+                            f"[DEBUG]   ✅ PAIRING: Ditto {ditto['pokemon_id']} × "
+                            f"{male['name']} {male['pokemon_id']}"
+                        )
+                        pairs.append({"female": ditto, "male": male})
+                        used_male_ids.add(ditto["pokemon_id"])
+                        break
+
+        print("\n[DEBUG] === FINAL RESULTS ===")
+        print(f"[DEBUG] Total pairs: {len(pairs)}")
+
+        for i, pair in enumerate(pairs, 1):
+            print(
+                f"[DEBUG]   Pair {i}: "
+                f"{pair['female']['name']} ({pair['female']['pokemon_id']}) × "
+                f"{pair['male']['name']} ({pair['male']['pokemon_id']})"
+            )
+
+        print(f"{'=' * 60}\n")
+        return pairs
+
+
+    async def handle_gmax_breeding(
+        self, user_id, categories, utils, selective, count,
+        overrides, cooldown_ids, iv_sort_order, priority_system,
+        allow_gmax_male, allow_regional_male
+    ):
+        """
+        Handle Gigantamax target - Only breed Gigantamax Pokemon
+
+        Strategy:
+        1. Pair Gmax females (is_gmax=True) using phase system
+        2. Pair Gmax males with Ditto ONLY
+        """
+        print(f"\n{'=' * 60}")
+        print(f"[DEBUG handle_gmax_breeding] Starting")
+        print(f"[DEBUG] Count requested: {count}")
+        print(f"[DEBUG] Selective mode: {selective}")
+        print(f"[DEBUG] Priority system: {priority_system}")
+        print(f"[DEBUG] allow_gmax_male: {allow_gmax_male}")
+        print(f"[DEBUG] allow_regional_male: {allow_regional_male}")
+        print(f"{'=' * 60}\n")
+
+        # Fetch Gigantamax females and all males (including unknowns for Ditto)
+        all_gmax_females = []
+        all_males = []
+
+        for category in categories:
+            print(f"[DEBUG] Fetching from category: {category}")
+
+            gmax_females_task = db.get_pokemon_for_breeding(
+                user_id, category, gender='female', is_gmax=True, cooldown_ids=cooldown_ids
+            )
+
+            # DON'T filter by gender - we need males AND unknowns (Ditto)
+            males_task = db.get_pokemon_for_breeding(
+                user_id, category, cooldown_ids=cooldown_ids
+            )
+
+            cat_gmax_f, cat_all = await asyncio.gather(
+                gmax_females_task,
+                males_task
+            )
+
+            # Filter to only males and unknowns (exclude females since we already have gmax females)
+            cat_males = [p for p in cat_all if p['gender'] in ['male', 'unknown']]
+
+            print(
+                f"[DEBUG] Category {category}: "
+                f"{len(cat_gmax_f)} gmax females, {len(cat_males)} males+unknowns"
+            )
+
+            all_gmax_females.extend(cat_gmax_f)
+            all_males.extend(cat_males)
+
+        # Remove duplicates
+        gmax_females = self._deduplicate_pokemon(all_gmax_females)
+        males_all = self._deduplicate_pokemon(all_males)
+
+        print(f"\n[DEBUG] After deduplication:")
+        print(f"[DEBUG] Total gmax_females: {len(gmax_females)}")
+        print(f"[DEBUG] Total males_all: {len(males_all)}")
+
+        # Separate by type
+        dittos = [m for m in males_all if m.get('is_ditto', False)]
+        gmax_males = [
+            m for m in males_all
+            if m.get('is_gmax', False) and not m.get('is_ditto', False)
+        ]
+        normal_males = [
+            m for m in males_all
+            if not m.get('is_gmax', False) and not m.get('is_ditto', False)
+        ]
+
+        # Build debug lists safely (NO nested f-strings)
+        dittos_list = [f"Ditto ({p['pokemon_id']})" for p in dittos[:5]]
+        gmax_males_list = [f"{p['name']} ({p['pokemon_id']})" for p in gmax_males]
+        normal_males_list = [f"{p['name']} ({p['pokemon_id']})" for p in normal_males[:5]]
+        gmax_females_list = [f"{p['name']} ({p['pokemon_id']})" for p in gmax_females]
+
+        print(f"\n[DEBUG] === SEPARATION BY TYPE ===")
+        print(f"[DEBUG] dittos: {len(dittos)} - {dittos_list}...")
+        print(f"[DEBUG] gmax_males: {len(gmax_males)} - {gmax_males_list}")
+        print(f"[DEBUG] normal_males: {len(normal_males)} - {normal_males_list}...")
+        print(f"[DEBUG] gmax_females: {len(gmax_females)} - {gmax_females_list}")
+
+        # Sort by IV
+        reverse_sort = (iv_sort_order == 'descending')
+
+        gmax_females.sort(key=lambda x: x['iv_percent'], reverse=reverse_sort)
+        normal_males.sort(key=lambda x: x['iv_percent'], reverse=reverse_sort)
+        gmax_males.sort(key=lambda x: x['iv_percent'], reverse=reverse_sort)
+        dittos.sort(key=lambda x: x['iv_percent'], reverse=reverse_sort)
+
+        pairs = []
+
+        # Phase 1: Pair Gmax females using phase system (ONLY if gmax females exist)
+        if gmax_females:
+            print(f"\n[DEBUG] === PHASE 1: Pairing Gmax females ===")
+
+            pairs = self.execute_phase_based_pairing(
+                gmax_females,
+                normal_males,
+                dittos,
+                utils,
+                selective,
+                overrides,
+                count,
+                priority_system,
+                allow_gmax_male,
+                allow_regional_male,
+                additional_males_phase6=gmax_males  # Gmax males available in Phase 6 only
+            )
+
+            print(f"\n[DEBUG] Pairs after phase_based_pairing: {len(pairs)}")
+            for i, pair in enumerate(pairs, 1):
+                print(
+                    f"[DEBUG]   Pair {i}: "
+                    f"{pair['female']['name']} ({pair['female']['pokemon_id']}) × "
+                    f"{pair['male']['name']} ({pair['male']['pokemon_id']})"
+                )
+        else:
+            print(f"\n[DEBUG] === SKIPPING PHASE 1: No gmax females found ===")
+
+        # Phase 2: If still need more pairs, pair Gmax males with Ditto
+        if len(pairs) < count and gmax_males:
+            print(f"\n[DEBUG] === PHASE 2: Pairing Gmax males with Ditto ===")
+            print(f"[DEBUG] Need {count - len(pairs)} more pairs")
+            print(f"[DEBUG] Available gmax_males: {len(gmax_males)}")
+            print(f"[DEBUG] Available dittos: {len(dittos)}")
+
+            used_male_ids = {pair['male']['pokemon_id'] for pair in pairs}
+            print(f"[DEBUG] used_male_ids so far: {used_male_ids}")
+
+            for idx, male in enumerate(gmax_males):
+                print(
+                    f"\n[DEBUG] Checking gmax_male {idx + 1}/{len(gmax_males)}: "
+                    f"{male['name']} (ID: {male['pokemon_id']}, IV: {male['iv_percent']}%)"
+                )
+
+                if len(pairs) >= count:
+                    print(f"[DEBUG] Already have {count} pairs, breaking")
+                    break
+
+                if male['pokemon_id'] in used_male_ids:
+                    print(f"[DEBUG] ❌ Male {male['pokemon_id']} already used in previous pairing, skipping")
+                    continue
+
+                paired = False
+                for ditto_idx, ditto in enumerate(dittos):
+                    print(
+                        f"[DEBUG]   Trying Ditto {ditto_idx + 1}/{len(dittos)} "
+                        f"(ID: {ditto['pokemon_id']}, IV: {ditto['iv_percent']}%)"
+                    )
+
                     if ditto['pokemon_id'] not in used_male_ids:
+                        print(
+                            f"[DEBUG]   Ditto {ditto['pokemon_id']} not in used_male_ids, "
+                            f"checking can_pair_pokemon"
+                        )
+
                         if self.can_pair_pokemon(ditto, male, utils, selective, overrides):
+                            print(
+                                f"[DEBUG]   ✅ PAIRING: Ditto {ditto['pokemon_id']} × "
+                                f"{male['name']} {male['pokemon_id']}"
+                            )
                             pairs.append({'female': ditto, 'male': male})
                             used_male_ids.add(ditto['pokemon_id'])
+                            paired = True
                             break
+                        else:
+                            print(f"[DEBUG]   ❌ can_pair_pokemon returned False")
+                    else:
+                        print(f"[DEBUG]   ❌ Ditto {ditto['pokemon_id']} already used")
+
+                if not paired:
+                    print(
+                        f"[DEBUG] ⚠️ Could not find compatible Ditto for "
+                        f"{male['name']} ({male['pokemon_id']})"
+                    )
+
+        print(f"\n[DEBUG] === FINAL RESULTS ===")
+        print(f"[DEBUG] Total pairs: {len(pairs)}")
+
+        for i, pair in enumerate(pairs, 1):
+            print(
+                f"[DEBUG]   Pair {i}: "
+                f"{pair['female']['name']} ({pair['female']['pokemon_id']}) × "
+                f"{pair['male']['name']} ({pair['male']['pokemon_id']})"
+            )
+
+        print(f"{'=' * 60}\n")
 
         return pairs
 
-    """
-    DEBUGGED VERSION OF handle_mychoice_breeding_optimized
-    ========================================================
 
-    This version has extensive print statements to help debug issues.
-    Replace your existing method with this one.
-    """
 
-    async def handle_mychoice_breeding_optimized(
-        self, user_id, categories, settings, utils, selective, count, overrides, cooldown_ids,
+
+    async def handle_regionals_breeding(
+        self, user_id, categories, utils, selective, count,
+        overrides, cooldown_ids, iv_sort_order, priority_system,
+        allow_gmax_male, allow_regional_male
     ):
-        """Handle MyChoice with BREED FILTERS support - ENHANCED with species+filter combination and asymmetric filtering"""
+        """
+        Handle Regionals target - Only breed Regional forms
 
-        print("\n" + "="*80)
-        print("DEBUG: Starting handle_mychoice_breeding_optimized")
-        print("="*80)
+        Strategy:
+        1. Pair Regional females (is_regional=True) using phase system
+        2. Pair Regional males with Ditto ONLY
+        """
+        print(f"\n{'=' * 60}")
+        print(f"[DEBUG handle_regionals_breeding] Starting")
+        print(f"[DEBUG] Count requested: {count}")
+        print(f"[DEBUG] Selective mode: {selective}")
+        print(f"[DEBUG] Priority system: {priority_system}")
+        print(f"[DEBUG] allow_gmax_male: {allow_gmax_male}")
+        print(f"[DEBUG] allow_regional_male: {allow_regional_male}")
+        print(f"{'=' * 60}\n")
 
+        # Fetch Regional females and all males (including unknowns for Ditto)
+        all_regional_females = []
+        all_males = []
+
+        for category in categories:
+            print(f"[DEBUG] Fetching from category: {category}")
+
+            regional_females_task = db.get_pokemon_for_breeding(
+                user_id, category, gender='female', is_regional=True, cooldown_ids=cooldown_ids
+            )
+
+            # DON'T filter by gender - we need males AND unknowns (Ditto)
+            males_task = db.get_pokemon_for_breeding(
+                user_id, category, cooldown_ids=cooldown_ids
+            )
+
+            cat_reg_f, cat_all = await asyncio.gather(
+                regional_females_task,
+                males_task
+            )
+
+            # Filter to only males and unknowns (exclude females since we already have regional females)
+            cat_males = [p for p in cat_all if p['gender'] in ['male', 'unknown']]
+
+            print(
+                f"[DEBUG] Category {category}: "
+                f"{len(cat_reg_f)} regional females, {len(cat_males)} males+unknowns"
+            )
+
+            all_regional_females.extend(cat_reg_f)
+            all_males.extend(cat_males)
+
+        # Remove duplicates
+        regional_females = self._deduplicate_pokemon(all_regional_females)
+        males_all = self._deduplicate_pokemon(all_males)
+
+        print(f"\n[DEBUG] After deduplication:")
+        print(f"[DEBUG] Total regional_females: {len(regional_females)}")
+        print(f"[DEBUG] Total males_all: {len(males_all)}")
+
+        # Separate by type
+        dittos = [m for m in males_all if m.get('is_ditto', False)]
+        regional_males = [
+            m for m in males_all
+            if m.get('is_regional', False) and not m.get('is_ditto', False)
+        ]
+        normal_males = [
+            m for m in males_all
+            if not m.get('is_regional', False) and not m.get('is_ditto', False)
+        ]
+
+        # Build debug lists safely (NO nested f-strings)
+        dittos_list = [f"Ditto ({p['pokemon_id']})" for p in dittos[:5]]
+        regional_males_list = [f"{p['name']} ({p['pokemon_id']})" for p in regional_males]
+        normal_males_list = [f"{p['name']} ({p['pokemon_id']})" for p in normal_males[:5]]
+        regional_females_list = [f"{p['name']} ({p['pokemon_id']})" for p in regional_females]
+
+        print(f"\n[DEBUG] === SEPARATION BY TYPE ===")
+        print(f"[DEBUG] dittos: {len(dittos)} - {dittos_list}...")
+        print(f"[DEBUG] regional_males: {len(regional_males)} - {regional_males_list}")
+        print(f"[DEBUG] normal_males: {len(normal_males)} - {normal_males_list}...")
+        print(f"[DEBUG] regional_females: {len(regional_females)} - {regional_females_list}")
+
+        # Sort by IV
+        reverse_sort = (iv_sort_order == 'descending')
+
+        regional_females.sort(key=lambda x: x['iv_percent'], reverse=reverse_sort)
+        normal_males.sort(key=lambda x: x['iv_percent'], reverse=reverse_sort)
+        regional_males.sort(key=lambda x: x['iv_percent'], reverse=reverse_sort)
+        dittos.sort(key=lambda x: x['iv_percent'], reverse=reverse_sort)
+
+        pairs = []
+
+        # Phase 1: Pair Regional females using phase system (ONLY if regional females exist)
+        if regional_females:
+            print(f"\n[DEBUG] === PHASE 1: Pairing Regional females ===")
+
+            pairs = self.execute_phase_based_pairing(
+                regional_females,
+                normal_males,
+                dittos,
+                utils,
+                selective,
+                overrides,
+                count,
+                priority_system,
+                allow_gmax_male,
+                allow_regional_male,
+                additional_males_phase6=regional_males  # Regional males available in Phase 6 only
+            )
+
+            print(f"\n[DEBUG] Pairs after phase_based_pairing: {len(pairs)}")
+            for i, pair in enumerate(pairs, 1):
+                print(
+                    f"[DEBUG]   Pair {i}: "
+                    f"{pair['female']['name']} ({pair['female']['pokemon_id']}) × "
+                    f"{pair['male']['name']} ({pair['male']['pokemon_id']})"
+                )
+        else:
+            print(f"\n[DEBUG] === SKIPPING PHASE 1: No regional females found ===")
+
+        # Phase 2: If still need more pairs, pair Regional males with Ditto
+        if len(pairs) < count and regional_males:
+            print(f"\n[DEBUG] === PHASE 2: Pairing Regional males with Ditto ===")
+            print(f"[DEBUG] Need {count - len(pairs)} more pairs")
+            print(f"[DEBUG] Available regional_males: {len(regional_males)}")
+            print(f"[DEBUG] Available dittos: {len(dittos)}")
+
+            used_male_ids = {pair['male']['pokemon_id'] for pair in pairs}
+            print(f"[DEBUG] used_male_ids so far: {used_male_ids}")
+
+            for idx, male in enumerate(regional_males):
+                print(
+                    f"\n[DEBUG] Checking regional_male {idx + 1}/{len(regional_males)}: "
+                    f"{male['name']} (ID: {male['pokemon_id']}, IV: {male['iv_percent']}%)"
+                )
+
+                if len(pairs) >= count:
+                    print(f"[DEBUG] Already have {count} pairs, breaking")
+                    break
+
+                if male['pokemon_id'] in used_male_ids:
+                    print(f"[DEBUG] ❌ Male {male['pokemon_id']} already used in previous pairing, skipping")
+                    continue
+
+                paired = False
+                for ditto_idx, ditto in enumerate(dittos):
+                    print(
+                        f"[DEBUG]   Trying Ditto {ditto_idx + 1}/{len(dittos)} "
+                        f"(ID: {ditto['pokemon_id']}, IV: {ditto['iv_percent']}%)"
+                    )
+
+                    if ditto['pokemon_id'] not in used_male_ids:
+                        print(
+                            f"[DEBUG]   Ditto {ditto['pokemon_id']} not in used_male_ids, "
+                            f"checking can_pair_pokemon"
+                        )
+
+                        if self.can_pair_pokemon(ditto, male, utils, selective, overrides):
+                            print(
+                                f"[DEBUG]   ✅ PAIRING: Ditto {ditto['pokemon_id']} × "
+                                f"{male['name']} {male['pokemon_id']}"
+                            )
+                            pairs.append({'female': ditto, 'male': male})
+                            used_male_ids.add(ditto['pokemon_id'])
+                            paired = True
+                            break
+                        else:
+                            print(f"[DEBUG]   ❌ can_pair_pokemon returned False")
+                    else:
+                        print(f"[DEBUG]   ❌ Ditto {ditto['pokemon_id']} already used")
+
+                if not paired:
+                    print(
+                        f"[DEBUG] ⚠️ Could not find compatible Ditto for "
+                        f"{male['name']} ({male['pokemon_id']})"
+                    )
+
+        print(f"\n[DEBUG] === FINAL RESULTS ===")
+        print(f"[DEBUG] Total pairs: {len(pairs)}")
+
+        for i, pair in enumerate(pairs, 1):
+            print(
+                f"[DEBUG]   Pair {i}: "
+                f"{pair['female']['name']} ({pair['female']['pokemon_id']}) × "
+                f"{pair['male']['name']} ({pair['male']['pokemon_id']})"
+            )
+
+        print(f"{'=' * 60}\n")
+
+        return pairs
+
+
+
+    async def handle_tripmax_breeding(self, user_id, categories, utils, selective, count, 
+                                       overrides, cooldown_ids, priority_system,
+                                       allow_gmax_male, allow_regional_male):
+        """Handle TripMax - High IV breeding (descending IV sort)"""
+        return await self.handle_all_breeding(
+            user_id, categories, utils, selective, count, overrides, cooldown_ids,
+            'descending', priority_system, allow_gmax_male, allow_regional_male
+        )
+
+    async def handle_tripzero_breeding(self, user_id, categories, utils, selective, count, 
+                                        overrides, cooldown_ids, priority_system,
+                                        allow_gmax_male, allow_regional_male):
+        """Handle TripZero - Low IV breeding (ascending IV sort)"""
+        return await self.handle_all_breeding(
+            user_id, categories, utils, selective, count, overrides, cooldown_ids,
+            'ascending', priority_system, allow_gmax_male, allow_regional_male
+        )
+
+    async def handle_mychoice_breeding(self, user_id, categories, settings, utils, selective, 
+                                        count, overrides, cooldown_ids, iv_sort_order):
+        """
+        Handle MyChoice - Custom male/female pairing
+
+        Important: Matches by exact name (Pikachu ≠ Gigantamax Pikachu)
+        """
         mychoice_males = settings.get("mychoice_male", [])
         mychoice_females = settings.get("mychoice_female", [])
-
-        print(f"DEBUG: Raw mychoice_males from settings: {mychoice_males}")
-        print(f"DEBUG: Raw mychoice_females from settings: {mychoice_females}")
 
         # Handle legacy single-value format
         if isinstance(mychoice_males, str):
@@ -489,454 +830,10 @@ class Breeding(commands.Cog):
         if isinstance(mychoice_females, str):
             mychoice_females = [mychoice_females] if mychoice_females else []
 
-        print(f"DEBUG: Processed mychoice_males: {mychoice_males}")
-        print(f"DEBUG: Processed mychoice_females: {mychoice_females}")
-
-        # Get breed filters
-        print("\nDEBUG: Fetching breed filters from database...")
-        breed_filters = await db.get_breed_filters(user_id)
-        print(f"DEBUG: Raw breed_filters from DB: {breed_filters}")
-
-        male_filter = breed_filters.get('male', {})
-        female_filter = breed_filters.get('female', {})
-
-        print(f"DEBUG: male_filter dict: {male_filter}")
-        print(f"DEBUG: female_filter dict: {female_filter}")
-
-        male_filter_enabled = male_filter.get('enabled', False) and bool(male_filter.get('criteria'))
-        female_filter_enabled = female_filter.get('enabled', False) and bool(female_filter.get('criteria'))
-
-        print(f"DEBUG: male_filter_enabled: {male_filter_enabled}")
-        print(f"DEBUG: female_filter_enabled: {female_filter_enabled}")
-
-        male_criteria = male_filter.get('criteria', {}) if male_filter_enabled else {}
-        female_criteria = female_filter.get('criteria', {}) if female_filter_enabled else {}
-
-        print(f"DEBUG: male_criteria to use: {male_criteria}")
-        print(f"DEBUG: female_criteria to use: {female_criteria}")
-
-        has_male_species = bool(mychoice_males)
-        has_female_species = bool(mychoice_females)
-        has_male_filter = bool(male_criteria)
-        has_female_filter = bool(female_criteria)
-
-        print(f"\nDEBUG: Criteria check:")
-        print(f"  - has_male_species: {has_male_species}")
-        print(f"  - has_female_species: {has_female_species}")
-        print(f"  - has_male_filter: {has_male_filter}")
-        print(f"  - has_female_filter: {has_female_filter}")
-
-        # Must have SOMETHING set for at least ONE gender
-        if not (has_male_species or has_male_filter or has_female_species or has_female_filter):
-            print("DEBUG: ERROR - No criteria set for either gender")
+        if not mychoice_males or not mychoice_females:
             return []
 
-        print(f"\nDEBUG: Fetching pokemon from categories: {categories}")
-
-        # Fetch ALL pokemon from target inventories
-        all_pokemon = []
-        for category in categories:
-            print(f"DEBUG: Fetching from category: {category}")
-            category_pokemon = await db.get_pokemon_for_breeding(user_id, category, cooldown_ids=cooldown_ids)
-            print(f"DEBUG: Found {len(category_pokemon)} pokemon in {category}")
-            all_pokemon.extend(category_pokemon)
-
-        print(f"DEBUG: Total pokemon fetched (before dedup): {len(all_pokemon)}")
-
-        # Remove duplicates
-        unique_pokemon = self._deduplicate_pokemon(all_pokemon)
-        print(f"DEBUG: Unique pokemon after dedup: {len(unique_pokemon)}")
-
-        # Sample first few pokemon for debugging
-        if unique_pokemon:
-            print(f"\nDEBUG: Sample pokemon (first 3):")
-            for i, p in enumerate(unique_pokemon[:3]):
-                print(f"  {i+1}. ID:{p['pokemon_id']} Name:{p['name']} Gender:{p['gender']} "
-                      f"IV:{p['iv_percent']}% Moves:{p.get('moves', [])} "
-                      f"SpdIV:{p.get('spdiv')}")
-
-        # ===== APPLY FILTERS AND SPECIES MATCHING (ENHANCED WITH ASYMMETRIC SUPPORT) =====
-        male_candidates = []
-        female_candidates = []
-
-        any_male_ditto = any("ditto" in m.lower() for m in mychoice_males)
-        any_female_ditto = any("ditto" in f.lower() for f in mychoice_females)
-
-        print(f"\nDEBUG: Processing {len(unique_pokemon)} pokemon...")
-        print(f"DEBUG: any_male_ditto: {any_male_ditto}, any_female_ditto: {any_female_ditto}")
-
-        male_rejected_species = 0
-        male_rejected_filter = 0
-        female_rejected_species = 0
-        female_rejected_filter = 0
-
-        # ===== MALE FILTERING =====
-        if has_male_species or has_male_filter:
-            print("DEBUG: Applying male criteria...")
-
-            for i, pokemon in enumerate(unique_pokemon):
-                male_match = False
-
-                # === CASE 1: BOTH species AND filter set (AND logic) ===
-                if has_male_species and has_male_filter:
-                    # Must match BOTH species AND filter
-                    species_match = False
-
-                    for male_species in mychoice_males:
-                        is_male_ditto = "ditto" in male_species.lower()
-
-                        if is_male_ditto and pokemon.get("is_ditto", False):
-                            species_match = True
-                            break
-                        elif (
-                            not is_male_ditto
-                            and pokemon["gender"] == "male"
-                            and self.matches_target(pokemon, male_species, utils)
-                        ):
-                            species_match = True
-                            break
-
-                    # If species matched, now check filter
-                    if species_match:
-                        filter_result = self._pokemon_matches_filter(pokemon, male_criteria, utils)
-                        if filter_result:
-                            male_match = True
-                            if i < 5:
-                                print(f"  DEBUG: Pokemon {i+1} - Male SPECIES+FILTER MATCH")
-                        else:
-                            male_rejected_filter += 1
-                            if i < 5:
-                                print(f"  DEBUG: Pokemon {i+1} - Male FILTER REJECTED (species matched)")
-                    else:
-                        male_rejected_species += 1
-                        if i < 5:
-                            print(f"  DEBUG: Pokemon {i+1} - Male SPECIES REJECTED")
-
-                # === CASE 2: Only species set ===
-                elif has_male_species:
-                    for male_species in mychoice_males:
-                        is_male_ditto = "ditto" in male_species.lower()
-
-                        if is_male_ditto and pokemon.get("is_ditto", False):
-                            male_match = True
-                            if i < 5:
-                                print(f"  DEBUG: Pokemon {i+1} - Male SPECIES MATCH (Ditto)")
-                            break
-                        elif (
-                            not is_male_ditto
-                            and pokemon["gender"] == "male"
-                            and self.matches_target(pokemon, male_species, utils)
-                        ):
-                            male_match = True
-                            if i < 5:
-                                print(f"  DEBUG: Pokemon {i+1} - Male SPECIES MATCH ({male_species})")
-                            break
-
-                    if not male_match and i < 5:
-                        male_rejected_species += 1
-                        print(f"  DEBUG: Pokemon {i+1} - Male SPECIES REJECTED")
-
-                # === CASE 3: Only filter set ===
-                elif has_male_filter:
-                    # Check if valid gender first
-                    if pokemon["gender"] == "male" or pokemon.get("is_ditto", False):
-                        filter_result = self._pokemon_matches_filter(pokemon, male_criteria, utils)
-                        if filter_result:
-                            male_match = True
-                            if i < 5:
-                                print(f"  DEBUG: Pokemon {i+1} - Male FILTER MATCH (no species requirement)")
-                        else:
-                            male_rejected_filter += 1
-                            if i < 5:
-                                print(f"  DEBUG: Pokemon {i+1} - Male FILTER REJECTED")
-
-                if male_match:
-                    male_candidates.append(pokemon)
-        else:
-            # No male criteria - use ALL males/dittos
-            print("DEBUG: No male criteria - using ALL males/dittos")
-            male_candidates = [p for p in unique_pokemon if p['gender'] == 'male' or p.get('is_ditto', False)]
-
-        # ===== FEMALE FILTERING =====
-        if has_female_species or has_female_filter:
-            print("DEBUG: Applying female criteria...")
-
-            for i, pokemon in enumerate(unique_pokemon):
-                female_match = False
-
-                # === CASE 1: BOTH species AND filter set (AND logic) ===
-                if has_female_species and has_female_filter:
-                    # Must match BOTH species AND filter
-                    species_match = False
-
-                    for female_species in mychoice_females:
-                        is_female_ditto = "ditto" in female_species.lower()
-
-                        if is_female_ditto and pokemon.get("is_ditto", False):
-                            species_match = True
-                            break
-                        elif (
-                            not is_female_ditto
-                            and pokemon["gender"] == "female"
-                            and self.matches_target(pokemon, female_species, utils)
-                        ):
-                            species_match = True
-                            break
-
-                    # If species matched, now check filter
-                    if species_match:
-                        filter_result = self._pokemon_matches_filter(pokemon, female_criteria, utils)
-                        if filter_result:
-                            female_match = True
-                            if i < 5:
-                                print(f"  DEBUG: Pokemon {i+1} - Female SPECIES+FILTER MATCH")
-                        else:
-                            female_rejected_filter += 1
-                            if i < 5:
-                                print(f"  DEBUG: Pokemon {i+1} - Female FILTER REJECTED (species matched)")
-                    else:
-                        female_rejected_species += 1
-                        if i < 5:
-                            print(f"  DEBUG: Pokemon {i+1} - Female SPECIES REJECTED")
-
-                # === CASE 2: Only species set ===
-                elif has_female_species:
-                    for female_species in mychoice_females:
-                        is_female_ditto = "ditto" in female_species.lower()
-
-                        if is_female_ditto and pokemon.get("is_ditto", False):
-                            female_match = True
-                            if i < 5:
-                                print(f"  DEBUG: Pokemon {i+1} - Female SPECIES MATCH (Ditto)")
-                            break
-                        elif (
-                            not is_female_ditto
-                            and pokemon["gender"] == "female"
-                            and self.matches_target(pokemon, female_species, utils)
-                        ):
-                            female_match = True
-                            if i < 5:
-                                print(f"  DEBUG: Pokemon {i+1} - Female SPECIES MATCH ({female_species})")
-                            break
-
-                    if not female_match and i < 5:
-                        female_rejected_species += 1
-                        print(f"  DEBUG: Pokemon {i+1} - Female SPECIES REJECTED")
-
-                # === CASE 3: Only filter set ===
-                elif has_female_filter:
-                    # Check if valid gender first
-                    if pokemon["gender"] == "female" or pokemon.get("is_ditto", False):
-                        filter_result = self._pokemon_matches_filter(pokemon, female_criteria, utils)
-                        if filter_result:
-                            female_match = True
-                            if i < 5:
-                                print(f"  DEBUG: Pokemon {i+1} - Female FILTER MATCH (no species requirement)")
-                        else:
-                            female_rejected_filter += 1
-                            if i < 5:
-                                print(f"  DEBUG: Pokemon {i+1} - Female FILTER REJECTED")
-
-                if female_match:
-                    female_candidates.append(pokemon)
-        else:
-            # No female criteria - use ALL females/dittos
-            print("DEBUG: No female criteria - using ALL females/dittos")
-            female_candidates = [p for p in unique_pokemon if p['gender'] == 'female' or p.get('is_ditto', False)]
-
-        print(f"\nDEBUG: Filtering summary:")
-        print(f"  - Male candidates: {len(male_candidates)}")
-        print(f"  - Male rejected by species: {male_rejected_species}")
-        print(f"  - Male rejected by filter: {male_rejected_filter}")
-        print(f"  - Female candidates: {len(female_candidates)}")
-        print(f"  - Female rejected by species: {female_rejected_species}")
-        print(f"  - Female rejected by filter: {female_rejected_filter}")
-
-        if not male_candidates or not female_candidates:
-            print("DEBUG: ERROR - Not enough candidates to make pairs!")
-            print("="*80 + "\n")
-            return []
-
-        # Sort by IV (highest first)
-        male_candidates.sort(key=lambda x: x["iv_percent"], reverse=True)
-        female_candidates.sort(key=lambda x: x["iv_percent"], reverse=True)
-
-        print(f"\nDEBUG: Top 3 male candidates:")
-        for i, m in enumerate(male_candidates[:3]):
-            print(f"  {i+1}. ID:{m['pokemon_id']} {m['name']} IV:{m['iv_percent']}%")
-
-        print(f"\nDEBUG: Top 3 female candidates:")
-        for i, f in enumerate(female_candidates[:3]):
-            print(f"  {i+1}. ID:{f['pokemon_id']} {f['name']} IV:{f['iv_percent']}%")
-
-        # ===== PAIR THEM UP =====
-        pairs = []
-        used_male_ids = set()
-        used_female_ids = set()
-
-        print(f"\nDEBUG: Starting pairing process (need {count} pairs)...")
-
-        for i, female in enumerate(female_candidates):
-            if len(pairs) >= count:
-                break
-
-            if female["pokemon_id"] in used_female_ids:
-                continue
-
-            print(f"\nDEBUG: Trying to pair female #{i+1}: {female['name']} (ID:{female['pokemon_id']})")
-
-            for j, male in enumerate(male_candidates):
-                if male["pokemon_id"] in used_male_ids:
-                    continue
-
-                can_pair = self.can_pair_pokemon(
-                    female, male, utils, selective, overrides, is_mychoice=True
-                )
-
-                if j < 3:  # Log first 3 attempts
-                    print(f"  - Trying male #{j+1}: {male['name']} (ID:{male['pokemon_id']}) - can_pair={can_pair}")
-
-                if not can_pair:
-                    continue
-
-                print(f"  ✅ PAIRED: {female['name']} × {male['name']}")
-                pairs.append({"female": female, "male": male})
-                used_female_ids.add(female["pokemon_id"])
-                used_male_ids.add(male["pokemon_id"])
-                break
-
-        print(f"\nDEBUG: Final result: Generated {len(pairs)} pairs")
-        print("="*80 + "\n")
-
-        return pairs
-
-
-    def _pokemon_matches_filter(self, pokemon: dict, criteria: dict, utils) -> bool:
-        """Check if a Pokemon matches the given filter criteria - COMPLETE VERSION"""
-
-        # ===== MOVES FILTER =====
-        if 'moves' in criteria and criteria['moves']:
-            pokemon_moves = pokemon.get('moves', [])
-            if not pokemon_moves:
-                print(f"      DEBUG FILTER: No moves stored on pokemon")
-                return False
-
-            # Pokemon must have ALL required moves
-            for required_move in criteria['moves']:
-                pokemon_moves_lower = [m.lower() for m in pokemon_moves]
-                if required_move.lower() not in pokemon_moves_lower:
-                    print(f"      DEBUG FILTER: Missing required move '{required_move}'")
-                    print(f"      DEBUG FILTER: Pokemon has: {pokemon_moves}")
-                    return False
-
-            print(f"      DEBUG FILTER: All required moves found")
-
-        # ===== NO MOVES FILTER =====
-        if 'no_moves' in criteria and criteria['no_moves']:
-            pokemon_moves = pokemon.get('moves', [])
-            if pokemon_moves:
-                pokemon_moves_lower = [m.lower() for m in pokemon_moves]
-                for excluded_move in criteria['no_moves']:
-                    if excluded_move.lower() in pokemon_moves_lower:
-                        print(f"      DEBUG FILTER: Pokemon has excluded move '{excluded_move}'")
-                        return False
-            print(f"      DEBUG FILTER: No excluded moves found")
-
-        # ===== LEVEL FILTER =====
-        if 'level' in criteria:
-            pokemon_level = pokemon.get('level')
-
-            if pokemon_level is None:
-                print(f"      DEBUG FILTER: No level data stored on pokemon")
-                return False
-
-            if 'exact' in criteria['level']:
-                if pokemon_level != criteria['level']['exact']:
-                    print(f"      DEBUG FILTER: Level mismatch - need exactly {criteria['level']['exact']}, got {pokemon_level}")
-                    return False
-                print(f"      DEBUG FILTER: Level exact match: {pokemon_level}")
-            else:
-                if pokemon_level < criteria['level']['min'] or pokemon_level > criteria['level']['max']:
-                    print(f"      DEBUG FILTER: Level out of range - need {criteria['level']['min']}-{criteria['level']['max']}, got {pokemon_level}")
-                    return False
-                print(f"      DEBUG FILTER: Level in range: {pokemon_level}")
-
-        # ===== FAVORITE FILTER =====
-        if 'is_favorite' in criteria:
-            pokemon_is_fav = pokemon.get('is_favorite', False)
-            if pokemon_is_fav != criteria['is_favorite']:
-                print(f"      DEBUG FILTER: Favorite mismatch - need {criteria['is_favorite']}, got {pokemon_is_fav}")
-                return False
-            print(f"      DEBUG FILTER: Favorite status matches")
-
-        # ===== NICKNAME FILTER =====
-        if 'nickname' in criteria:
-            pokemon_nick = pokemon.get('nickname', '')
-            if not pokemon_nick:
-                print(f"      DEBUG FILTER: No nickname on pokemon (required: '{criteria['nickname']}')")
-                return False
-            if criteria['nickname'].lower() not in pokemon_nick.lower():
-                print(f"      DEBUG FILTER: Nickname '{pokemon_nick}' doesn't contain '{criteria['nickname']}'")
-                return False
-            print(f"      DEBUG FILTER: Nickname contains '{criteria['nickname']}'")
-
-        # ===== NO NICKNAME FILTER =====
-        if 'no_nickname' in criteria:
-            pokemon_nick = pokemon.get('nickname', '')
-            if pokemon_nick and criteria['no_nickname'].lower() in pokemon_nick.lower():
-                print(f"      DEBUG FILTER: Nickname '{pokemon_nick}' contains excluded text '{criteria['no_nickname']}'")
-                return False
-            print(f"      DEBUG FILTER: Nickname OK (doesn't contain excluded text)")
-
-        # ===== INDIVIDUAL IV FILTERS =====
-        iv_fields = ['hpiv', 'atkiv', 'defiv', 'spatkiv', 'spdefiv', 'spdiv']
-        for iv_field in iv_fields:
-            if iv_field in criteria:
-                required_range = criteria[iv_field]
-                pokemon_range = pokemon.get(iv_field)
-
-                if not pokemon_range:
-                    print(f"      DEBUG FILTER: No {iv_field} data stored on pokemon")
-                    return False
-
-                # Exact value check
-                if required_range['min'] == required_range['max']:
-                    if pokemon_range['min'] != required_range['min'] or pokemon_range['max'] != required_range['max']:
-                        print(f"      DEBUG FILTER: {iv_field} mismatch - need exactly {required_range['min']}, got {pokemon_range}")
-                        return False
-                    print(f"      DEBUG FILTER: {iv_field} exact match: {required_range['min']}")
-                else:
-                    # Range check
-                    if pokemon_range['min'] < required_range['min'] or pokemon_range['max'] > required_range['max']:
-                        print(f"      DEBUG FILTER: {iv_field} range mismatch - need {required_range}, got {pokemon_range}")
-                        return False
-                    print(f"      DEBUG FILTER: {iv_field} range OK: {pokemon_range} within {required_range}")
-
-        # ===== DUPLICATE IV FILTERS =====
-        for dup_type in ['trip', 'quad', 'penta', 'hex']:
-            if dup_type in criteria and criteria[dup_type]:
-                pokemon_dup = pokemon.get(dup_type, [])
-                required_values = criteria[dup_type]
-
-                print(f"      DEBUG FILTER: Checking {dup_type} - need {required_values}, have {pokemon_dup}")
-
-                # Pokemon must have ALL required duplicate values
-                for required_val in required_values:
-                    if required_val not in pokemon_dup:
-                        print(f"      DEBUG FILTER: Missing {dup_type} value {required_val}")
-                        return False
-
-                print(f"      DEBUG FILTER: All {dup_type} values found")
-
-        # All filters passed
-        print(f"      DEBUG FILTER: ✅ All filters passed!")
-        return True
-
-    async def handle_specific_targets_breeding_optimized(self, user_id, categories, targets, 
-                                                        utils, selective, count, overrides, cooldown_ids):
-        """Handle specific targets - OPTIMIZED"""
-
-        # CHANGED: Fetch from multiple categories
+        # Fetch Pokemon from all specified categories
         all_pokemon = []
         for category in categories:
             category_pokemon = await db.get_pokemon_for_breeding(
@@ -944,66 +841,749 @@ class Breeding(commands.Cog):
             )
             all_pokemon.extend(category_pokemon)
 
-        # Remove duplicates
-        all_pokemon = self._deduplicate_pokemon(all_pokemon)
+        unique_pokemon = self._deduplicate_pokemon(all_pokemon)
 
-        # Filter matching targets
-        filtered = []
-        for pokemon in all_pokemon:
-            for target in targets:
-                if self.matches_target(pokemon, target, utils):
-                    filtered.append(pokemon)
-                    break
+        male_species_pokemon = []
+        female_species_pokemon = []
 
-        if not filtered:
+        # Match Pokemon to specified species (EXACT NAME MATCH)
+        for pokemon in unique_pokemon:
+            # Match male species
+            for male_species in mychoice_males:
+                if self._exact_name_match(pokemon['name'], male_species):
+                    if pokemon['gender'] == 'male' or pokemon.get('is_ditto', False):
+                        male_species_pokemon.append(pokemon)
+                        break
+
+            # Match female species
+            for female_species in mychoice_females:
+                if self._exact_name_match(pokemon['name'], female_species):
+                    if pokemon['gender'] == 'female' or pokemon.get('is_ditto', False):
+                        female_species_pokemon.append(pokemon)
+                        break
+
+        if not male_species_pokemon or not female_species_pokemon:
             return []
 
-        filtered_females = [p for p in filtered if p['gender'] == 'female']
-        filtered_males = [p for p in filtered if p['gender'] == 'male']
-
-        all_males = [p for p in all_pokemon if p['gender'] == 'male']
-        dittos = [p for p in all_pokemon if p.get('is_ditto', False)]
-
         # Sort by IV
-        filtered_females.sort(key=lambda x: x['iv_percent'], reverse=True)
-        filtered_males.sort(key=lambda x: x['iv_percent'], reverse=True)
-        all_males.sort(key=lambda x: x['iv_percent'], reverse=True)
-        dittos.sort(key=lambda x: x['iv_percent'], reverse=True)
+        reverse_sort = (iv_sort_order == 'descending')
+        male_species_pokemon.sort(key=lambda x: x["iv_percent"], reverse=reverse_sort)
+        female_species_pokemon.sort(key=lambda x: x["iv_percent"], reverse=reverse_sort)
 
         pairs = []
         used_male_ids = set()
+        used_female_ids = set()
 
-        for female in filtered_females:
+        # Pair highest/lowest IV females with highest/lowest IV males (based on sort order)
+        for female in female_species_pokemon:
             if len(pairs) >= count:
                 break
 
-            male, match_type = self.find_best_male_for_female(
-                female, all_males, dittos, utils, selective, used_male_ids, overrides
-            )
+            if female["pokemon_id"] in used_female_ids:
+                continue
 
-            if male:
-                pairs.append({'female': female, 'male': male})
-                used_male_ids.add(male['pokemon_id'])
-
-        if len(pairs) < count:
-            for male in filtered_males:
-                if len(pairs) >= count:
-                    break
-
-                if male['pokemon_id'] in used_male_ids:
+            for male in male_species_pokemon:
+                if male["pokemon_id"] in used_male_ids:
                     continue
 
-                for ditto in dittos:
-                    if ditto['pokemon_id'] not in used_male_ids:
-                        if self.can_pair_pokemon(ditto, male, utils, selective, overrides):
-                            pairs.append({'female': ditto, 'male': male})
-                            used_male_ids.add(ditto['pokemon_id'])
-                            used_male_ids.add(male['pokemon_id'])
-                            break
+                if not self.can_pair_pokemon(female, male, utils, selective, overrides, is_mychoice=True):
+                    continue
+
+                pairs.append({"female": female, "male": male})
+                used_female_ids.add(female["pokemon_id"])
+                used_male_ids.add(male["pokemon_id"])
+                break
 
         return pairs
 
-    # ===== HELPER METHODS =====
+    async def handle_specific_targets_breeding(
+        self,
+        user_id,
+        categories,
+        targets,
+        utils,
+        selective,
+        count,
+        overrides,
+        cooldown_ids,
+        iv_sort_order,
+        priority_system,
+        allow_gmax_male,
+        allow_regional_male
+    ):
+        """
+        Handle specific targets - Breed specific Pokemon species
+
+        Example: target = ['hisuian sneasel']
+
+        Strategy:
+        1. Pair all target females FIRST with ANY compatible males (target or non-target)
+        2. ONLY AFTER all target females are paired (or no more compatible males),
+           then pair remaining target males with Ditto
+        """
+        print(f"\n{'=' * 60}")
+        print(f"[DEBUG handle_specific_targets_breeding] Starting")
+        print(f"[DEBUG] Targets: {targets}")
+        print(f"[DEBUG] Count requested: {count}")
+        print(f"[DEBUG] Selective mode: {selective}")
+        print(f"[DEBUG] Priority system: {priority_system}")
+        print(f"[DEBUG] allow_gmax_male: {allow_gmax_male}")
+        print(f"[DEBUG] allow_regional_male: {allow_regional_male}")
+        print(f"{'=' * 60}\n")
+
+        # Fetch all Pokemon from categories
+        all_pokemon = []
+        for category in categories:
+            category_pokemon = await db.get_pokemon_for_breeding(
+                user_id,
+                category,
+                cooldown_ids=cooldown_ids
+            )
+            all_pokemon.extend(category_pokemon)
+
+        all_pokemon = self._deduplicate_pokemon(all_pokemon)
+
+        print(f"[DEBUG] Total Pokemon fetched: {len(all_pokemon)}")
+
+        # Filter Pokemon matching targets (EXACT NAME MATCH)
+        target_females = []
+        target_males = []
+        dittos = []
+
+        # Collect ALL males for pairing with target females
+        normal_males = []
+        special_males = []
+
+        for pokemon in all_pokemon:
+            print(
+                f"[DEBUG] Processing: {pokemon['name']} "
+                f"(ID: {pokemon['pokemon_id']}, "
+                f"Gender: {pokemon['gender']}, "
+                f"is_regional: {pokemon.get('is_regional', False)}, "
+                f"is_gmax: {pokemon.get('is_gmax', False)}, "
+                f"is_ditto: {pokemon.get('is_ditto', False)})"
+            )
+
+            # Check if matches any target
+            matches_target = False
+            for target in targets:
+                if self._exact_name_match(pokemon["name"], target):
+                    matches_target = True
+                    print(f"[DEBUG]   ✅ Matches target '{target}'")
+                    break
+
+            if matches_target:
+                if pokemon["gender"] == "female":
+                    target_females.append(pokemon)
+                    print(f"[DEBUG]   → Added to target_females")
+                elif pokemon["gender"] == "male":
+                    target_males.append(pokemon)
+                    print(f"[DEBUG]   → Added to target_males")
+
+            # Collect ALL males and dittos (both target and non-target)
+            if pokemon.get("is_ditto", False):
+                dittos.append(pokemon)
+                print(f"[DEBUG]   → Added to dittos")
+            elif pokemon["gender"] == "male":
+                # Separate normal vs special males
+                if pokemon.get("is_gmax", False) or pokemon.get("is_regional", False):
+                    special_males.append(pokemon)
+                    print(f"[DEBUG]   → Added to special_males")
+                else:
+                    normal_males.append(pokemon)
+                    print(f"[DEBUG]   → Added to normal_males")
+
+        # ===== SUMMARY (FIXED — NO NESTED F-STRINGS) =====
+        target_females_list = [f"{p['name']} ({p['pokemon_id']})" for p in target_females]
+        target_males_list = [f"{p['name']} ({p['pokemon_id']})" for p in target_males]
+        dittos_list = [f"Ditto ({p['pokemon_id']})" for p in dittos]
+        normal_males_list = [f"{p['name']} ({p['pokemon_id']})" for p in normal_males]
+        special_males_list = [f"{p['name']} ({p['pokemon_id']})" for p in special_males]
+
+        print(f"\n[DEBUG] === SUMMARY ===")
+        print(f"[DEBUG] target_females: {len(target_females)} - {target_females_list}")
+        print(f"[DEBUG] target_males: {len(target_males)} - {target_males_list}")
+        print(f"[DEBUG] dittos: {len(dittos)} - {dittos_list}")
+        print(f"[DEBUG] normal_males: {len(normal_males)} - {normal_males_list}")
+        print(f"[DEBUG] special_males: {len(special_males)} - {special_males_list}")
+
+        if not target_females and not target_males:
+            print(f"[DEBUG] ❌ No target females or males found - returning empty")
+            return []
+
+        # Sort by IV
+        reverse_sort = iv_sort_order == "descending"
+
+        target_females.sort(key=lambda x: x["iv_percent"], reverse=reverse_sort)
+        target_males.sort(key=lambda x: x["iv_percent"], reverse=reverse_sort)
+        normal_males.sort(key=lambda x: x["iv_percent"], reverse=reverse_sort)
+        special_males.sort(key=lambda x: x["iv_percent"], reverse=reverse_sort)
+        dittos.sort(key=lambda x: x["iv_percent"], reverse=reverse_sort)
+
+        pairs = []
+
+        # ===== PHASE 1: Pair target females =====
+        if target_females:
+            print(f"\n[DEBUG] === PHASE 1: Pairing target females ===")
+
+            pairs = self.execute_phase_based_pairing(
+                target_females,
+                normal_males,
+                dittos,
+                utils,
+                selective,
+                overrides,
+                count,
+                priority_system,
+                allow_gmax_male,
+                allow_regional_male,
+                additional_males_phase6=special_males
+            )
+
+            print(f"\n[DEBUG] Pairs after phase_based_pairing: {len(pairs)}")
+            for i, pair in enumerate(pairs, 1):
+                print(
+                    f"[DEBUG]   Pair {i}: "
+                    f"{pair['female']['name']} ({pair['female']['pokemon_id']}) × "
+                    f"{pair['male']['name']} ({pair['male']['pokemon_id']})"
+                )
+        else:
+            print(f"\n[DEBUG] === SKIPPING PHASE 1: No target females found ===")
+
+        # ===== PHASE 2: Pair target males with Ditto ONLY =====
+        if len(pairs) < count and target_males:
+            print(f"\n[DEBUG] === PHASE 2: Pairing target males with Ditto ===")
+            print(f"[DEBUG] Need {count - len(pairs)} more pairs")
+
+            used_male_ids = {pair["male"]["pokemon_id"] for pair in pairs}
+            used_female_ids = {pair["female"]["pokemon_id"] for pair in pairs}
+
+            print(f"[DEBUG] used_male_ids: {used_male_ids}")
+            print(f"[DEBUG] used_female_ids: {used_female_ids}")
+
+            # Check if any target females are still unpaired
+            unpaired_target_females = [
+                f for f in target_females
+                if f["pokemon_id"] not in used_female_ids
+            ]
+            print(f"[DEBUG] Unpaired target females: {len(unpaired_target_females)}")
+
+            if unpaired_target_females:
+                print(
+                    f"[DEBUG] ⚠️ There are still "
+                    f"{len(unpaired_target_females)} unpaired target females!"
+                )
+                print(
+                    f"[DEBUG] NOT pairing target males yet - "
+                    f"target females have priority"
+                )
+            else:
+                print(
+                    f"[DEBUG] All target females are paired (or none existed). "
+                    f"Proceeding with target males."
+                )
+
+                for idx, male in enumerate(target_males):
+                    print(
+                        f"\n[DEBUG] Checking target_male {idx + 1}/"
+                        f"{len(target_males)}: "
+                        f"{male['name']} (ID: {male['pokemon_id']})"
+                    )
+
+                    if len(pairs) >= count:
+                        print(f"[DEBUG] Already have {count} pairs, breaking")
+                        break
+
+                    if male["pokemon_id"] in used_male_ids:
+                        print(f"[DEBUG] Male {male['pokemon_id']} already used, skipping")
+                        continue
+
+                    for ditto_idx, ditto in enumerate(dittos):
+                        print(
+                            f"[DEBUG]   Trying Ditto {ditto_idx + 1}/"
+                            f"{len(dittos)} (ID: {ditto['pokemon_id']})"
+                        )
+
+                        if ditto["pokemon_id"] not in used_male_ids:
+                            print(
+                                f"[DEBUG]   Ditto not in used_male_ids, "
+                                f"checking can_pair_pokemon"
+                            )
+
+                            if self.can_pair_pokemon(
+                                ditto,
+                                male,
+                                utils,
+                                selective,
+                                overrides
+                            ):
+                                print(
+                                    f"[DEBUG]   ✅ PAIRING: Ditto "
+                                    f"{ditto['pokemon_id']} × "
+                                    f"{male['name']} {male['pokemon_id']}"
+                                )
+                                pairs.append({
+                                    "female": ditto,
+                                    "male": male
+                                })
+                                used_male_ids.add(ditto["pokemon_id"])
+                                used_male_ids.add(male["pokemon_id"])
+                                break
+                            else:
+                                print(f"[DEBUG]   ❌ can_pair_pokemon returned False")
+                        else:
+                            print(
+                                f"[DEBUG]   Ditto "
+                                f"{ditto['pokemon_id']} already used"
+                            )
+
+        # ===== FINAL RESULTS =====
+        print(f"\n[DEBUG] === FINAL RESULTS ===")
+        print(f"[DEBUG] Total pairs: {len(pairs)}")
+        for i, pair in enumerate(pairs, 1):
+            print(
+                f"[DEBUG]   Pair {i}: "
+                f"{pair['female']['name']} ({pair['female']['pokemon_id']}) × "
+                f"{pair['male']['name']} ({pair['male']['pokemon_id']})"
+            )
+        print(f"{'=' * 60}\n")
+
+        return pairs
+
+
+
+
+    # ========================================
+    # PHASE-BASED PAIRING SYSTEM
+    # ========================================
+
+    def execute_phase_based_pairing(self, females, males, dittos, utils, selective, 
+                                     overrides, count, priority_system,
+                                     allow_gmax_male, allow_regional_male,
+                                     additional_males_phase6=None):
+        """
+        Execute phase-based pairing strategy
+
+        Priority Systems:
+        1. same_dex_first (default): Phase 1 (same dex) → Phase 2 (egg group) → Phase 3-6
+        2. egg_group_first: ONLY Phase 2 (same dex = same egg group, so Phase 1 skipped) → Phase 3-6
+
+        Phases:
+        - Phase 1: Females with male counterparts (same dex, NOT gmax/regional) [SKIPPED in egg_group_first]
+        - Phase 2: Females with egg group males (NOT gmax/regional)
+        - Phase 3: Female-only species
+        - Phase 4: Females with Ditto
+        - Phase 5: Males with Ditto
+        - Phase 6: Remaining females with gmax/regional males (if enabled)
+        """
+        pairs = []
+        used_male_ids = set()
+        used_female_ids = set()
+
+        # Separate female-only species from regular females
+        regular_females = []
+        female_only_females = []
+
+        for female in females:
+            if female.get('is_female_only', False):
+                female_only_females.append(female)
+            else:
+                regular_females.append(female)
+
+        # Determine phase order based on priority system
+        if priority_system == 'egg_group_first':
+            # Egg-group-first: ONLY Phase 2 (same dex = same egg group, so Phase 1 is redundant)
+            phase_order = [
+                ('phase2', self._pair_females_with_egg_group_males)
+            ]
+        else:
+            # Same-dex-first (default): Phase 1 first, then Phase 2
+            phase_order = [
+                ('phase1', self._pair_females_with_same_dex_males),
+                ('phase2', self._pair_females_with_egg_group_males)
+            ]
+
+        # Execute Phase 1 and/or Phase 2 based on priority system
+        for phase_name, phase_func in phase_order:
+            if len(pairs) >= count:
+                break
+
+            phase_func(
+                regular_females, males, utils, selective, overrides,
+                pairs, used_female_ids, used_male_ids, count,
+                allow_gmax=False, allow_regional=False  # NOT allowed in Phase 1/2
+            )
+
+        # Phase 3: Female-only species
+        if len(pairs) < count:
+            self._pair_female_only_species(
+                female_only_females, males, dittos, utils, selective, overrides,
+                pairs, used_female_ids, used_male_ids, count
+            )
+
+        # Phase 4: Remaining females with Ditto
+        if len(pairs) < count:
+            self._pair_females_with_ditto(
+                females, dittos, utils, selective, overrides,
+                pairs, used_female_ids, used_male_ids, count
+            )
+
+        # Phase 5: Remaining males with Ditto
+        if len(pairs) < count:
+            self._pair_males_with_ditto(
+                males, dittos, utils, selective, overrides,
+                pairs, used_male_ids, count
+            )
+
+        # Phase 6: Remaining females with gmax/regional males (if enabled)
+        if len(pairs) < count and (allow_gmax_male or allow_regional_male):
+            # Combine regular males with additional males (gmax/regional)
+            all_males_phase6 = males.copy()
+            if additional_males_phase6:
+                all_males_phase6.extend(additional_males_phase6)
+
+            self._pair_females_with_special_males_phase6(
+                females, all_males_phase6, utils, selective, overrides,
+                pairs, used_female_ids, used_male_ids, count,
+                allow_gmax_male, allow_regional_male
+            )
+
+        return pairs
+
+    def _pair_females_with_same_dex_males(self, females, males, utils, selective, overrides,
+                                          pairs, used_female_ids, used_male_ids, count,
+                                          allow_gmax, allow_regional):
+        """Phase 1: Pair females with males of same dex number"""
+        for female in females:
+            if len(pairs) >= count:
+                break
+            if female['pokemon_id'] in used_female_ids:
+                continue
+
+            female_dex = female.get('dex_number', 0)
+            if female_dex == 0:
+                continue
+
+            # Find males with same dex number
+            same_dex_males = [
+                m for m in males
+                if m.get('dex_number') == female_dex
+                and m['pokemon_id'] not in used_male_ids
+                and (allow_gmax or not m.get('is_gmax', False))
+                and (allow_regional or not m.get('is_regional', False))
+            ]
+
+            # Try to pair with first compatible male
+            for male in same_dex_males:
+                if self.can_pair_pokemon(female, male, utils, selective, overrides):
+                    pairs.append({'female': female, 'male': male})
+                    used_female_ids.add(female['pokemon_id'])
+                    used_male_ids.add(male['pokemon_id'])
+                    break
+
+    def _pair_females_with_egg_group_males(self, females, males, utils, selective, overrides,
+                                           pairs, used_female_ids, used_male_ids, count,
+                                           allow_gmax, allow_regional):
+        """Phase 2: Pair females with males in same egg group"""
+        for female in females:
+            if len(pairs) >= count:
+                break
+            if female['pokemon_id'] in used_female_ids:
+                continue
+
+            female_groups = female.get('egg_groups', [])
+            if not female_groups:
+                continue
+
+            # Find males with common egg group
+            compatible_males = [
+                m for m in males
+                if m['pokemon_id'] not in used_male_ids
+                and any(group in m.get('egg_groups', []) for group in female_groups)
+                and (allow_gmax or not m.get('is_gmax', False))
+                and (allow_regional or not m.get('is_regional', False))
+            ]
+
+            # Try to pair with first compatible male
+            for male in compatible_males:
+                if self.can_pair_pokemon(female, male, utils, selective, overrides):
+                    pairs.append({'female': female, 'male': male})
+                    used_female_ids.add(female['pokemon_id'])
+                    used_male_ids.add(male['pokemon_id'])
+                    break
+
+    def _pair_female_only_species(self, female_only_females, males, dittos, utils, selective, 
+                                   overrides, pairs, used_female_ids, used_male_ids, count):
+        """Phase 3: Pair female-only species (try egg group males first, then Ditto)"""
+        for female in female_only_females:
+            if len(pairs) >= count:
+                break
+            if female['pokemon_id'] in used_female_ids:
+                continue
+
+            paired = False
+
+            # Try egg group males first
+            female_groups = female.get('egg_groups', [])
+            if female_groups:
+                compatible_males = [
+                    m for m in males
+                    if m['pokemon_id'] not in used_male_ids
+                    and any(group in m.get('egg_groups', []) for group in female_groups)
+                ]
+
+                for male in compatible_males:
+                    if self.can_pair_pokemon(female, male, utils, selective, overrides):
+                        pairs.append({'female': female, 'male': male})
+                        used_female_ids.add(female['pokemon_id'])
+                        used_male_ids.add(male['pokemon_id'])
+                        paired = True
+                        break
+
+            # If no egg group male found, try Ditto
+            if not paired:
+                for ditto in dittos:
+                    if ditto['pokemon_id'] not in used_male_ids:
+                        if self.can_pair_pokemon(female, ditto, utils, selective, overrides):
+                            pairs.append({'female': female, 'male': ditto})
+                            used_female_ids.add(female['pokemon_id'])
+                            used_male_ids.add(ditto['pokemon_id'])
+                            break
+
+    def _pair_females_with_ditto(self, females, dittos, utils, selective, overrides,
+                                  pairs, used_female_ids, used_male_ids, count):
+        """Phase 4: Pair remaining females with Ditto"""
+        for female in females:
+            if len(pairs) >= count:
+                break
+            if female['pokemon_id'] in used_female_ids:
+                continue
+
+            for ditto in dittos:
+                if ditto['pokemon_id'] not in used_male_ids:
+                    if self.can_pair_pokemon(female, ditto, utils, selective, overrides):
+                        pairs.append({'female': female, 'male': ditto})
+                        used_female_ids.add(female['pokemon_id'])
+                        used_male_ids.add(ditto['pokemon_id'])
+                        break
+
+    def _pair_males_with_ditto(self, males, dittos, utils, selective, overrides,
+                                pairs, used_male_ids, count):
+        """Phase 5: Pair remaining males with Ditto"""
+        for male in males:
+            if len(pairs) >= count:
+                break
+            if male['pokemon_id'] in used_male_ids:
+                continue
+
+            for ditto in dittos:
+                if ditto['pokemon_id'] not in used_male_ids:
+                    if self.can_pair_pokemon(ditto, male, utils, selective, overrides):
+                        pairs.append({'female': ditto, 'male': male})
+                        used_male_ids.add(ditto['pokemon_id'])
+                        break
+
+    def _pair_females_with_special_males_phase6(self, females, males, utils, selective, overrides,
+                                                  pairs, used_female_ids, used_male_ids, count,
+                                                  allow_gmax, allow_regional):
+        """
+        Phase 6: Pair remaining females with gmax/regional males (if enabled)
+
+        Priority:
+        1. Same dex + regional male (if allow_regional)
+        2. Same dex + gmax male (if allow_gmax)
+        3. Egg group + regional male (if allow_regional)
+        4. Egg group + gmax male (if allow_gmax)
+        """
+        for female in females:
+            if len(pairs) >= count:
+                break
+            if female['pokemon_id'] in used_female_ids:
+                continue
+
+            female_dex = female.get('dex_number', 0)
+            female_groups = female.get('egg_groups', [])
+
+            paired = False
+
+            # Priority 1: Same dex + regional male
+            if allow_regional and not paired:
+                same_dex_regional = [
+                    m for m in males
+                    if m.get('dex_number') == female_dex
+                    and m.get('is_regional', False)
+                    and m['pokemon_id'] not in used_male_ids
+                ]
+
+                for male in same_dex_regional:
+                    if self.can_pair_pokemon(female, male, utils, selective, overrides):
+                        pairs.append({'female': female, 'male': male})
+                        used_female_ids.add(female['pokemon_id'])
+                        used_male_ids.add(male['pokemon_id'])
+                        paired = True
+                        break
+
+            # Priority 2: Same dex + gmax male
+            if allow_gmax and not paired:
+                same_dex_gmax = [
+                    m for m in males
+                    if m.get('dex_number') == female_dex
+                    and m.get('is_gmax', False)
+                    and m['pokemon_id'] not in used_male_ids
+                ]
+
+                for male in same_dex_gmax:
+                    if self.can_pair_pokemon(female, male, utils, selective, overrides):
+                        pairs.append({'female': female, 'male': male})
+                        used_female_ids.add(female['pokemon_id'])
+                        used_male_ids.add(male['pokemon_id'])
+                        paired = True
+                        break
+
+            # Priority 3: Egg group + regional male
+            if allow_regional and not paired:
+                egg_group_regional = [
+                    m for m in males
+                    if any(group in m.get('egg_groups', []) for group in female_groups)
+                    and m.get('is_regional', False)
+                    and m['pokemon_id'] not in used_male_ids
+                ]
+
+                for male in egg_group_regional:
+                    if self.can_pair_pokemon(female, male, utils, selective, overrides):
+                        pairs.append({'female': female, 'male': male})
+                        used_female_ids.add(female['pokemon_id'])
+                        used_male_ids.add(male['pokemon_id'])
+                        paired = True
+                        break
+
+            # Priority 4: Egg group + gmax male
+            if allow_gmax and not paired:
+                egg_group_gmax = [
+                    m for m in males
+                    if any(group in m.get('egg_groups', []) for group in female_groups)
+                    and m.get('is_gmax', False)
+                    and m['pokemon_id'] not in used_male_ids
+                ]
+
+                for male in egg_group_gmax:
+                    if self.can_pair_pokemon(female, male, utils, selective, overrides):
+                        pairs.append({'female': female, 'male': male})
+                        used_female_ids.add(female['pokemon_id'])
+                        used_male_ids.add(male['pokemon_id'])
+                        paired = True
+                        break
+
+    # ========================================
+    # PAIRING HELPER METHODS
+    # ========================================
+
+    def can_pair_pokemon(
+        self,
+        female,
+        male,
+        utils,
+        selective,
+        overrides=None,
+        is_mychoice=False
+    ):
+        """
+        Check if two Pokemon can be paired
+
+        Rules:
+        - Basic breeding compatibility (egg groups, gender, etc.)
+        - Selective mode: must have old/new ID pairing
+        - MyChoice mode: bypasses all restrictions
+        """
+        print(
+            f"    [DEBUG can_pair_pokemon] Checking: "
+            f"{female['name']} ({female['pokemon_id']}) × "
+            f"{male['name']} ({male['pokemon_id']})"
+        )
+        print(
+            f"    [DEBUG can_pair_pokemon]   selective={selective}, "
+            f"is_mychoice={is_mychoice}"
+        )
+
+        # Basic breeding compatibility
+        can_breed = self.can_breed_basic(female, male)
+        print(
+            f"    [DEBUG can_pair_pokemon]   can_breed_basic: {can_breed}"
+        )
+
+        if not can_breed:
+            return False
+
+        # Selective mode check (unless MyChoice)
+        if not is_mychoice and selective:
+            can_pair = utils.can_pair_ids(
+                female["pokemon_id"],
+                male["pokemon_id"],
+                overrides
+            )
+            print(
+                f"    [DEBUG can_pair_pokemon]   "
+                f"can_pair_ids (selective mode): {can_pair}"
+            )
+            if not can_pair:
+                return False
+
+        print("    [DEBUG can_pair_pokemon]   ✅ APPROVED")
+        return True
+
+
+    # FIXED: can_breed_basic method
+    # 
+    # The bug was in the gender check - it was allowing Unknown × Male and Female × Unknown
+    # pairings even when neither Pokemon was a Ditto. This caused Pokemon like Sinistea
+    # (unknown gender) to incorrectly pair with female Pokemon like Gastly.
+    #
+    # The fix: After handling Ditto cases, ONLY allow Female × Male pairings.
+    # Unknown gender Pokemon can ONLY breed with Ditto.
+
+    def can_breed_basic(self, female, male):
+        """
+        Check basic breeding compatibility
+
+        Rules:
+        - Cannot breed with Undiscovered egg group
+        - Ditto can breed with anything (except Ditto × Ditto)
+        - Otherwise need Female × Male genders AND shared egg group
+        """
+        is_ditto_female = female.get('is_ditto', False)
+        is_ditto_male = male.get('is_ditto', False)
+
+        # Cannot breed Ditto × Ditto
+        if is_ditto_female and is_ditto_male:
+            return False
+
+        # Ditto can breed with anything (except another Ditto)
+        if is_ditto_female or is_ditto_male:
+            return True
+
+        # Need Female × Male genders ONLY (unknown gender cannot breed without Ditto)
+        if female['gender'] != 'female' or male['gender'] != 'male':
+            return False
+
+        # Check for shared egg group
+        groups1 = female.get('egg_groups', [])
+        groups2 = male.get('egg_groups', [])
+
+        # Can't breed with Undiscovered
+        if 'Undiscovered' in groups1 or 'Undiscovered' in groups2:
+            return False
+
+        # Must share at least one egg group
+        return any(group in groups2 for group in groups1)
+
+    def _exact_name_match(self, pokemon_name, target_name):
+        """
+        Check if Pokemon name exactly matches target name
+
+        Important: Case-insensitive, but must be exact match
+        Example: "Pikachu" matches "pikachu" but NOT "Gigantamax Pikachu"
+        """
+        return pokemon_name.lower() == target_name.lower()
 
     def _deduplicate_pokemon(self, pokemon_list):
         """Remove duplicate Pokemon by pokemon_id, keeping first occurrence"""
@@ -1015,133 +1595,82 @@ class Breeding(commands.Cog):
                 seen_ids.add(pokemon['pokemon_id'])
         return unique
 
-    def can_pair_pokemon(self, female, male, utils, selective, overrides=None, is_mychoice=False):
-        """Check if two Pokemon can be paired"""
+    def get_pairing_reason(self, female, male, utils, selective, overrides=None):
+        """
+        Get human-readable reason for pairing
+
+        Returns reasons like:
+        - "Same dex #25"
+        - "Matching egg group"
+        - "Gmax female with normal male"
+        - "Old+New IDs"
+        """
+        is_ditto_female = female.get('is_ditto', False)
+        is_ditto_male = male.get('is_ditto', False)
+        female_dex = female.get('dex_number', 0)
+        male_dex = male.get('dex_number', 0)
         is_gmax_female = female.get('is_gmax', False)
         is_gmax_male = male.get('is_gmax', False)
         is_regional_female = female.get('is_regional', False)
         is_regional_male = male.get('is_regional', False)
-        is_ditto_female = female.get('is_ditto', False)
+        is_female_only = female.get('is_female_only', False)
 
-        # In mychoice mode, skip all special restrictions - user knows what they want
-        if not is_mychoice:
-            if is_gmax_female and is_gmax_male:
-                return False
-            if is_regional_female and is_regional_male:
-                return False
-            if is_gmax_male and not is_ditto_female:
-                return False
-            if is_regional_male and not is_ditto_female:
-                return False
+        reasons = []
 
-        # Basic breeding compatibility checks (always apply)
-        if not self.can_breed_optimized(female, male):
-            return False
-        if selective and not utils.can_pair_ids(female['pokemon_id'], male['pokemon_id'], overrides):
-            return False
+        # Gigantamax reasons
+        if is_gmax_female and not is_gmax_male and not is_ditto_male:
+            reasons.append("Gmax female with normal male")
+        elif is_gmax_female and is_gmax_male:
+            reasons.append("Gmax female with Gmax male")
+        elif is_gmax_male and is_ditto_female:
+            reasons.append("Gmax male with Ditto")
 
-        return True
+        # Regional reasons
+        if is_regional_female and not is_regional_male and not is_ditto_male:
+            reasons.append("Regional female with normal male")
+        elif is_regional_female and is_regional_male:
+            reasons.append("Regional female with Regional male")
+        elif is_regional_male and is_ditto_female:
+            reasons.append("Regional male with Ditto")
 
-    def can_breed_optimized(self, female, male):
-        """Check breeding compatibility"""
-        groups1 = female.get('egg_groups', ['Undiscovered'])
-        groups2 = male.get('egg_groups', ['Undiscovered'])
+        # Female-only species
+        if is_female_only:
+            reasons.append("Female-only species")
 
-        if 'Undiscovered' in groups1 or 'Undiscovered' in groups2:
-            return False
-        if female.get('is_ditto', False) or male.get('is_ditto', False):
-            return True
-        if not ((female['gender'] == 'female' and male['gender'] == 'male')):
-            return False
+        # Same dex number
+        if female_dex == male_dex and female_dex > 0 and not is_ditto_female and not is_ditto_male:
+            reasons.append(f"Same dex #{female_dex}")
+        # Matching egg group (if not same dex)
+        elif not is_ditto_female and not is_ditto_male:
+            female_groups = set(female.get('egg_groups', []))
+            male_groups = set(male.get('egg_groups', []))
+            shared = female_groups & male_groups
+            if shared:
+                reasons.append(f"Matching egg group")
 
-        return any(group in groups2 for group in groups1)
+        # Ditto pairing
+        if is_ditto_female or is_ditto_male:
+            reasons.append("Ditto pairing")
 
-    def find_best_male_for_female(self, female, males, dittos, utils, selective, used_male_ids, overrides=None):
-        """Find best male match for female"""
-        # Same dex number males
-        same_dex_males = [
-            m for m in males 
-            if m.get('dex_number') == female.get('dex_number') 
-            and m.get('dex_number', 0) > 0
-            and m['pokemon_id'] not in used_male_ids
-        ]
+        # High IV pair
+        if female['iv_percent'] >= 80 and male['iv_percent'] >= 80:
+            reasons.append("High IV pair")
 
-        for male in same_dex_males:
-            if self.can_pair_pokemon(female, male, utils, selective, overrides):
-                return male, 'same_dex'
+        # Selective mode (old/new IDs)
+        if selective and utils.can_pair_ids(female['pokemon_id'], male['pokemon_id'], overrides):
+            female_override = overrides.get(female['pokemon_id']) if overrides else None
+            male_override = overrides.get(male['pokemon_id']) if overrides else None
 
-        # Compatible egg group males
-        female_groups = female.get('egg_groups', [])
-        compatible_males = [
-            m for m in males
-            if m['pokemon_id'] not in used_male_ids
-            and any(group in m.get('egg_groups', []) for group in female_groups)
-        ]
+            if female_override or male_override:
+                reasons.append("Different trainers (override)")
+            else:
+                reasons.append("Different trainers")
 
-        for male in compatible_males:
-            if self.can_pair_pokemon(female, male, utils, selective, overrides):
-                return male, 'compatible'
+        return ", ".join(reasons) if reasons else None
 
-        # Ditto
-        for ditto in dittos:
-            if ditto['pokemon_id'] not in used_male_ids:
-                if self.can_pair_pokemon(female, ditto, utils, selective, overrides):
-                    return ditto, 'ditto'
-
-        return None, None
-
-    def find_best_male_for_female_tripzero(self, female, males, dittos, utils, selective, used_male_ids, overrides=None):
-        """Find LOWEST IV male for TripZero"""
-        same_dex_males = [
-            m for m in males 
-            if m.get('dex_number') == female.get('dex_number') 
-            and m.get('dex_number', 0) > 0
-            and m['pokemon_id'] not in used_male_ids
-        ]
-        same_dex_males.sort(key=lambda x: x['iv_percent'])
-
-        for male in same_dex_males:
-            if self.can_pair_pokemon(female, male, utils, selective, overrides):
-                return male, 'same_dex'
-
-        female_groups = female.get('egg_groups', [])
-        compatible_males = [
-            m for m in males
-            if m['pokemon_id'] not in used_male_ids
-            and any(group in m.get('egg_groups', []) for group in female_groups)
-        ]
-        compatible_males.sort(key=lambda x: x['iv_percent'])
-
-        for male in compatible_males:
-            if self.can_pair_pokemon(female, male, utils, selective, overrides):
-                return male, 'compatible'
-
-        dittos_sorted = sorted(dittos, key=lambda x: x['iv_percent'])
-        for ditto in dittos_sorted:
-            if ditto['pokemon_id'] not in used_male_ids:
-                if self.can_pair_pokemon(female, ditto, utils, selective, overrides):
-                    return ditto, 'ditto'
-
-        return None, None
-
-    def matches_target(self, pokemon, target, utils):
-        """Check if Pokemon matches target specification"""
-        pokemon_name = pokemon['name'].lower()
-        pokemon_base = pokemon.get('base_species', pokemon['name']).lower()
-        target_lower = target.lower()
-
-        form_keywords = ['alolan', 'galarian', 'hisuian', 'paldean', 'gigantamax', 
-                         'mega', 'primal', 'aqua breed', 'combat breed', 'blaze breed']
-
-        target_has_form = any(keyword in target_lower for keyword in form_keywords)
-        pokemon_has_form = pokemon.get('is_regional', False) or pokemon.get('is_gmax', False)
-
-        if target_has_form:
-            return target_lower in pokemon_name
-        else:
-            if pokemon_has_form:
-                return False
-            return target_lower == pokemon_base or target_lower in pokemon_name
+    # ========================================
+    # RESULT DISPLAY
+    # ========================================
 
     async def send_breed_result(self, ctx, pairs, selective, utils, show_info, overrides=None, cooldown_ids=None):
         """Send breeding pair results using Discord Components V2"""
@@ -1153,7 +1682,7 @@ class Breeding(commands.Cog):
 
         command = " ".join(command_parts)
 
-        # Create button class for removing individual pair from cooldown
+        # Create button classes
         class RemovePairCooldownButton(discord.ui.Button):
             def __init__(self, female_id, male_id, pair_num, ctx_author_id):
                 super().__init__(
@@ -1174,10 +1703,8 @@ class Breeding(commands.Cog):
                     await interaction.response.send_message(view=ErrorView(), ephemeral=True)
                     return
 
-                # Defer the response
                 await interaction.response.defer()
 
-                # Remove this pair from cooldown
                 pair_ids = [self.female_id, self.male_id]
                 await db.remove_cooldown(interaction.user.id, pair_ids)
 
@@ -1191,7 +1718,6 @@ class Breeding(commands.Cog):
 
                 await interaction.followup.send(view=SuccessView())
 
-        # Create button class for removing all pairs from cooldown
         class RemoveAllCooldownButton(discord.ui.Button):
             def __init__(self, pokemon_ids, ctx_author_id):
                 super().__init__(
@@ -1211,10 +1737,8 @@ class Breeding(commands.Cog):
                     await interaction.response.send_message(view=ErrorView(), ephemeral=True)
                     return
 
-                # Defer the response
                 await interaction.response.defer()
 
-                # Remove from cooldown
                 await db.remove_cooldown(interaction.user.id, self.pokemon_ids)
 
                 class SuccessView(discord.ui.LayoutView):
@@ -1228,7 +1752,6 @@ class Breeding(commands.Cog):
 
                 await interaction.followup.send(view=SuccessView())
 
-        # Create button class for generating next pair
         class NextPairButton(discord.ui.Button):
             def __init__(self, ctx_obj, count):
                 super().__init__(
@@ -1248,10 +1771,8 @@ class Breeding(commands.Cog):
                     await interaction.response.send_message(view=ErrorView(), ephemeral=True)
                     return
 
-                # Defer the response
                 await interaction.response.defer()
 
-                # Create a temporary message to trigger breed command again
                 class TempMessage:
                     def __init__(self, original_msg):
                         self.author = original_msg.author
@@ -1261,7 +1782,6 @@ class Breeding(commands.Cog):
 
                 temp_msg = TempMessage(self.ctx_obj.message)
 
-                # Create a context-like object for the new breed command
                 class TempContext:
                     def __init__(self, bot, msg, original_ctx):
                         self.bot = bot
@@ -1273,21 +1793,18 @@ class Breeding(commands.Cog):
                         self._original_ctx = original_ctx
 
                     async def send(self, *args, **kwargs):
-                        # Remove reference parameter to avoid error
                         kwargs.pop('reference', None)
                         kwargs.pop('mention_author', None)
                         return await self._original_ctx.send(*args, **kwargs)
 
                 temp_ctx = TempContext(self.ctx_obj.bot, temp_msg, self.ctx_obj)
 
-                # Get the breeding cog and call breed_command
                 breeding_cog = self.ctx_obj.bot.get_cog('Breeding')
                 if breeding_cog:
                     await breeding_cog.breed_command(temp_ctx, self.count)
 
         # Handle different show_info modes
         if show_info == 'off':
-            # Simple text output with buttons
             class SimpleView(discord.ui.LayoutView):
                 container1 = discord.ui.Container(
                     discord.ui.TextDisplay(content=f"**📝 Breeding Command**"),
@@ -1304,13 +1821,12 @@ class Breeding(commands.Cog):
             return
 
         if show_info == 'simple':
-            # Build compatibility info
             content_lines = []
 
             for i, pair in enumerate(pairs, 1):
                 female = pair['female']
                 male = pair['male']
-                comp = utils.get_compatibility(female, male, selective, overrides)
+                comp = self.get_compatibility(female, male, selective, overrides, utils)
                 content_lines.append(f"{config.REPLY}**Pair {i}/{len(pairs)}:** Compatibility - {comp}")
 
             content = "\n".join(content_lines)
@@ -1337,7 +1853,6 @@ class Breeding(commands.Cog):
             return
 
         # Detailed mode (default)
-        # Build components list
         components = [
             discord.ui.TextDisplay(content=f"**📝 Next Breeding Command**"),
             discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
@@ -1350,7 +1865,7 @@ class Breeding(commands.Cog):
         for i, pair in enumerate(pairs, 1):
             female = pair['female']
             male = pair['male']
-            comp = utils.get_compatibility(female, male, selective, overrides)
+            comp = self.get_compatibility(female, male, selective, overrides, utils)
 
             female_icon = config.GENDER_FEMALE if female['gender'] == 'female' else config.GENDER_UNKNOWN
             male_icon = config.GENDER_MALE if male['gender'] == 'male' else config.GENDER_UNKNOWN
@@ -1366,7 +1881,6 @@ class Breeding(commands.Cog):
             if reason:
                 pair_text += f"\n{config.REPLY} **Reason:** {reason}"
 
-            # Add Section with individual Remove Cd button
             components.append(
                 discord.ui.Section(
                     discord.ui.TextDisplay(content=pair_text),
@@ -1379,10 +1893,8 @@ class Breeding(commands.Cog):
                 )
             )
 
-            # Always add separator after each pair
             components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
 
-        # Add footer and buttons
         components.extend([
             discord.ui.TextDisplay(content=f"_These Pokémon have been added to cooldown for {config.COOLDOWN_DAYS}d {config.COOLDOWN_HOURS}h_"),
             discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
@@ -1392,51 +1904,56 @@ class Breeding(commands.Cog):
             ),
         ])
 
-        # Create the view dynamically
         class DetailedView(discord.ui.LayoutView):
             container1 = discord.ui.Container(*components)
 
         await ctx.send(view=DetailedView(), reference=ctx.message, mention_author=False)
 
-    def get_pairing_reason(self, female, male, utils, selective, overrides=None):
-        """Get human-readable reason for pairing"""
+    def get_compatibility(self, female, male, selective, overrides, utils):
+        """
+        Calculate expected compatibility based on new rules
+
+        Selective Mode (different trainers):
+        - Same dex: High
+        - Matching egg group: High  
+        - Ditto: Medium
+
+        Not Selective Mode (can be same/different trainers):
+        - Same dex: Medium or High
+        - Matching egg group: Low or Medium
+        - Ditto: Low or Medium
+
+        Rule: If different trainers (selective), never Low
+        """
         is_ditto_female = female.get('is_ditto', False)
         is_ditto_male = male.get('is_ditto', False)
         female_dex = female.get('dex_number', 0)
         male_dex = male.get('dex_number', 0)
-        is_gmax_female = female.get('is_gmax', False)
-        is_gmax_male = male.get('is_gmax', False)
-        is_regional_female = female.get('is_regional', False)
-        is_regional_male = male.get('is_regional', False)
 
-        reasons = []
+        # Check if different trainers (selective mode OR old/new pairing)
+        different_trainers = False
+        if selective:
+            different_trainers = utils.can_pair_ids(female['pokemon_id'], male['pokemon_id'], overrides)
 
-        if is_gmax_female and not is_gmax_male and not is_ditto_male:
-            reasons.append("Gmax female with normal male")
-        elif is_gmax_male and is_ditto_female:
-            reasons.append("Gmax male with Ditto")
-
-        if is_regional_female and not is_regional_male and not is_ditto_male:
-            reasons.append("Regional female with normal male")
-        elif is_regional_male and is_ditto_female:
-            reasons.append("Regional male with Ditto")
-
-        if female_dex == male_dex and female_dex > 0 and not is_ditto_female and not is_ditto_male:
-            reasons.append(f"Same dex #{female_dex}")
-
-        if female['iv_percent'] >= 80 and male['iv_percent'] >= 80:
-            reasons.append("High IV pair")
-
-        if selective and utils.can_pair_ids(female['pokemon_id'], male['pokemon_id'], overrides):
-            female_override = overrides.get(female['pokemon_id']) if overrides else None
-            male_override = overrides.get(male['pokemon_id']) if overrides else None
-
-            if female_override or male_override:
-                reasons.append("Old+New IDs (with override)")
+        # Ditto pairing
+        if is_ditto_female or is_ditto_male:
+            if different_trainers:
+                return "Medium"
             else:
-                reasons.append("Old+New IDs")
+                return "Low/Medium"
 
-        return ", ".join(reasons) if reasons else None
+        # Same dex number
+        if female_dex == male_dex and female_dex > 0:
+            if different_trainers:
+                return "High"
+            else:
+                return "Medium/High"
+
+        # Different dex, matching egg group
+        if different_trainers:
+            return "High"
+        else:
+            return "Low/Medium"
 
 
 async def setup(bot):
