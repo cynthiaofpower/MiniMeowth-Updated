@@ -732,12 +732,12 @@ class Settings(commands.Cog):
                 ),
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
                 discord.ui.Section(
-                    discord.ui.TextDisplay(content="- **Allow Male to be Gmax with Gmax/Normal/Gmax Female. Still a Last resort.**"),
+                    discord.ui.TextDisplay(content="- **Allow Male Gmax with Gmax/Normal/Regional Female**. \n> Still a Last resort if Enabled."),
                     accessory=GmaxMaleToggleButton(allow_gmax_male_with_female),
                 ),
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
                 discord.ui.Section(
-                    discord.ui.TextDisplay(content="- **Allow Male to be Regional with Regional/Normal/Gmax Female. Still a Last resort**"),
+                    discord.ui.TextDisplay(content="- **Allow Male Regional with Regional/Normal/Gmax Female**. \n> Still a Last resort if Enabled"),
                     accessory=RegionalMaleToggleButton(allow_regional_male_with_female),
                 ),
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
