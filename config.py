@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Bot Configuration
-PREFIX = ["m!", "M!", "n!", "N!"] 
+PREFIX = ["m!", "M!", "n!","l!", "N!"] 
 EMBED_COLOR = 0x9c8e8b  # RGB: 156, 142, 139
 
 # MongoDB Configuration
@@ -35,7 +35,7 @@ OLD_ID_MAX = 271800
 NEW_ID_MIN = 271900
 
 # Pairing Constants
-MAX_BREED_PAIRS = 2  # Maximum pairs per breed command
+MAX_BREED_PAIRS = 5  # Maximum pairs per breed command
 
 # Gender display and other usefull emojis
 GENDER_MALE = "<:male_sign:1449750028536250420>"
@@ -166,3 +166,31 @@ UNKNOWN_ONLY = [
     'Zapdos', 'Zarude', 'Zekrom', 'Zenith Marshadow', 'Zeraora',
     'Zygarde', 'Zygarde Cell', 'Zygarde Core',
 ]
+
+REGIONAL_FORMS = [
+        "Galarian Zen Darmanitan", "Galarian Farfetch'd",
+        "Combat Breed Tauros", "Galarian Darmanitan", "Blaze Breed Tauros",
+        "Hisuian Typhlosion", "Galarian Zigzagoon", "Hisuian Growlithe",
+        "Galarian Rapidash", "Galarian Slowpoke", "Hisuian Electrode",
+        "Galarian Mr. Mime", "Aqua Breed Tauros", "Galarian Articuno",
+        "Galarian Slowking", "Hisuian Lilligant", "Galarian Darumaka",
+        "Galarian Stunfisk", "Hisuian Decidueye", "Alolan Sandshrew",
+        "Alolan Sandslash", "Alolan Ninetales", "Hisuian Arcanine",
+        "Galarian Slowbro", "Alolan Exeggutor", "Galarian Weezing",
+        "Galarian Moltres", "Hisuian Qwilfish", "Galarian Corsola",
+        "Galarian Linoone", "Hisuian Samurott", "Hisuian Braviary",
+        "Alolan Raticate", "Galarian Meowth", "Alolan Graveler",
+        "Galarian Ponyta", "Hisuian Voltorb", "Galarian Zapdos",
+        "Hisuian Sneasel", "Galarian Yamask", "Hisuian Zoroark",
+        "Hisuian Sliggoo", "Hisuian Avalugg", "Alolan Rattata",
+        "Alolan Diglett", "Alolan Dugtrio", "Alolan Persian",
+        "Alolan Geodude", "Alolan Marowak", "Paldean Wooper",
+        "Hisuian Goodra", "Alolan Raichu", "Alolan Vulpix",
+        "Alolan Meowth", "Alolan Grimer", "Hisuian Zorua", "Alolan Golem",
+        "Alolan Muk"
+    ]
+
+GIGANTAMAX_FORMS = [
+"Gigantamax Corviknight","Gigantamax Butterfree","Gigantamax Charizard","Gigantamax Blastoise","Gigantamax Rillaboom","Gigantamax Cinderace","Gigantamax Venusaur","Gigantamax Garbodor","Gigantamax Inteleon","Gigantamax Orbeetle","Gigantamax Pikachu","Gigantamax Machamp","Gigantamax Kingler","Gigantamax Snorlax","Gigantamax Drednaw","Gigantamax Meowth","Gigantamax Gengar","Gigantamax Lapras","Gigantamax Eevee","Gigantamax Low Key Toxtricity","Gigantamax Amped Toxtricity","Gigantamax Centiskorch","Gigantamax Sandaconda","Gigantamax Grimmsnarl","Gigantamax Copperajah","Gigantamax Coalossal","Gigantamax Hatterene","Gigantamax Duraludon","Gigantamax Appletun","Gigantamax Alcremie","Gigantamax Flapple"]
+
+FEMALE_ONLY_DEX = [29, 30, 31, 113, 115, 124, 238, 241, 242, 314, 380, 413, 416, 440, 478, 488, 548, 549, 629, 630, 669, 670, 671, 758, 761, 762, 763, 856, 857, 858, 868, 869, 905, 957, 958, 959, 1017]
