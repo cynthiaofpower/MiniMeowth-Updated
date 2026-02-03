@@ -40,7 +40,7 @@ class Breeding(commands.Cog):
         self.bot = bot
 
     @commands.hybrid_command(name='breed', aliases=['b', 'daycare', 'dc'])
-    @app_commands.describe(count="Number of pairs to generate (max 2)")
+    @app_commands.describe(count="Number of pairs to generate (max 5)")
     async def breed_command(self, ctx, count: int = 1):
         """
         Generate optimal breeding pairs using advanced phase-based pairing
