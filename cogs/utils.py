@@ -636,7 +636,7 @@ class Utils(commands.Cog):
                 is_regional = self.is_regional(pokemon_name)
                 is_ditto = 'Ditto' in egg_groups
                 is_female_only = self.is_female_only(pokemon_name)  # ADD THIS
-                
+
                 pokemon_data.append({
                     'pokemon_id': pokemon_id,
                     'name': pokemon_name,
@@ -714,11 +714,13 @@ class Utils(commands.Cog):
         - quad 31 → also stores trip 31
 
         Returns: {
+            'name': ['Pokemon1', 'Pokemon2', ...],  # NEW
             'moves': ['move1', 'move2', ...],
             'no_moves': ['move1', 'move2'],
             'hpiv': {'min': X, 'max': Y},
             'atkiv': {'min': X, 'max': Y},
             ...
+            'iv_percent': {'min': X, 'max': Y},  # Overall IV percentage
             'trip': [31, 30],  # List of trip values
             'quad': [31],      # Quadruple value
             'penta': [31],     # Pentuple value
@@ -736,10 +738,11 @@ class Utils(commands.Cog):
         result = {
             'moves': [],
             'no_moves': [],
-            'trip': [],   # Can have up to 2 values
-            'quad': [],   # Can have 1 value
-            'penta': [],  # Can have 1 value
-            'hex': []     # Can have 1 value
+            'name': [],      # ← FIXED: Initialize name list
+            'trip': [],      # Can have up to 2 values
+            'quad': [],      # Can have 1 value
+            'penta': [],     # Can have 1 value
+            'hex': []        # Can have 1 value
         }
 
         i = 0
@@ -770,6 +773,48 @@ class Utils(commands.Cog):
                         i += 1
                     if move_parts:
                         result['no_moves'].append(' '.join(move_parts))
+                    continue
+                else:
+                    i += 1
+
+            # ===== NAME FILTER =====
+            if arg in ['--name', '--n']:
+                if i + 1 < len(args):
+                    name_parts = []
+                    i += 1
+                    while i < len(args) and not args[i].startswith('--'):
+                        name_parts.append(args[i])
+                        i += 1
+                    if name_parts:
+                        # Join parts and title case (for consistency with Pokemon names)
+                        pokemon_name = ' '.join(name_parts).title()
+                        result['name'].append(pokemon_name)
+                    continue
+                else:
+                    i += 1
+
+            # ===== IV PERCENTAGE FILTER (overall IV) =====
+            if arg in ['--iv', '--ivs', '--ivpercent']:
+                if i + 1 < len(args):
+                    iv_str = args[i + 1].strip()
+
+                    # Parse IV percentage value
+                    if iv_str.replace('.', '').replace('-', '').isdigit():
+                        # Exact value
+                        val = float(iv_str)
+                        result['iv_percent'] = {'min': val, 'max': val}
+                    elif iv_str.startswith('>='):
+                        result['iv_percent'] = {'min': float(iv_str[2:]), 'max': 100.0}
+                    elif iv_str.startswith('>'):
+                        val = float(iv_str[1:])
+                        result['iv_percent'] = {'min': val, 'max': 100.0}
+                    elif iv_str.startswith('<='):
+                        result['iv_percent'] = {'min': 0.0, 'max': float(iv_str[2:])}
+                    elif iv_str.startswith('<'):
+                        val = float(iv_str[1:])
+                        result['iv_percent'] = {'min': 0.0, 'max': val}
+
+                    i += 2
                     continue
                 else:
                     i += 1
@@ -926,6 +971,8 @@ class Utils(commands.Cog):
             result.pop('moves', None)
         if not result.get('no_moves'):
             result.pop('no_moves', None)
+        if not result.get('name'):           # ← FIXED: Clean up empty name list
+            result.pop('name', None)
         if not result.get('trip'):
             result.pop('trip', None)
         if not result.get('quad'):
