@@ -1048,6 +1048,16 @@ class Breeding(commands.Cog):
                     reasons.append(f"gender is {pokemon_gender}, need male/unknown or Ditto")
                     match = False
 
+            # ===== IV PERCENTAGE FILTER (OVERALL IV) ===== ← FIXED: ADD THIS SECTION
+            if 'iv_percent' in criteria:
+                pokemon_iv = pokemon.get('iv_percent', 0)
+                required_iv = criteria['iv_percent']
+
+                # Check if Pokemon's IV percentage is within required range
+                if pokemon_iv < required_iv['min'] or pokemon_iv > required_iv['max']:
+                    reasons.append(f"IV% {pokemon_iv} outside required {required_iv['min']}-{required_iv['max']}")
+                    match = False
+
             # ===== MOVE FILTERS =====
             if 'moves' in criteria:
                 pokemon_moves = pokemon.get('moves', [])
