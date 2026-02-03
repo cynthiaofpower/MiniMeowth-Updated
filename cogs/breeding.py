@@ -134,6 +134,12 @@ class Breeding(commands.Cog):
                 id_overrides, cooldown_ids, iv_sort_order, priority_system,
                 allow_gmax_male_with_female, allow_regional_male_with_female
             )
+        elif breeding_mode == 'command_breeding':
+            pairs = await self.handle_command_breeding(
+                user_id, categories, settings, utils, selective, count, 
+                id_overrides, cooldown_ids, iv_sort_order, priority_system,
+                allow_gmax_male_with_female, allow_regional_male_with_female
+            )
         elif breeding_mode == 'all':
             pairs = await self.handle_all_breeding(
                 user_id, categories, utils, selective, count, 
@@ -195,6 +201,8 @@ class Breeding(commands.Cog):
         # Determine breeding mode
         if 'mychoice' in targets:
             return (target_inventories, 'mychoice')
+        elif 'command_breeding' in targets:  # NEW
+            return (target_inventories, 'command_breeding')  # NEW
         elif 'gigantamax' in targets or 'gmax' in targets:
             return (target_inventories, 'gmax')
         elif 'regionals' in targets:
@@ -793,6 +801,361 @@ class Breeding(commands.Cog):
         print(f"{'=' * 60}\n")
 
         return pairs
+
+    # Add this new handler method to your Breeding class in breeding.py
+
+    async def handle_command_breeding(
+        self,
+        user_id,
+        categories,
+        settings,
+        utils,
+        selective,
+        count,
+        overrides,
+        cooldown_ids,
+        iv_sort_order,
+        priority_system,
+        allow_gmax_male,
+        allow_regional_male
+    ):
+        """
+        Handle command_breeding target - Filter-based pairing with advanced criteria
+
+        Uses command strings like:
+        - Female: "--n meowth --spdiv 31 --move fake out"
+        - Male: "--nomove fake out --unfav"
+
+        At least one command (male or female) must be set.
+        """
+        print(f"\n{'=' * 60}")
+        print(f"[DEBUG handle_command_breeding] Starting")
+        print(f"[DEBUG] Count requested: {count}")
+        print(f"[DEBUG] Selective mode: {selective}")
+        print(f"[DEBUG] Categories: {categories}")
+        print(f"{'=' * 60}\n")
+
+        # Get command strings from settings
+        command_male = settings.get('command_male', '')
+        command_female = settings.get('command_female', '')
+
+        print(f"[DEBUG] command_male: '{command_male}'")
+        print(f"[DEBUG] command_female: '{command_female}'")
+
+        # At least one command must be set
+        if not command_male and not command_female:
+            print("[DEBUG] ❌ ERROR: Both commands are empty!")
+            return []
+
+        # Parse commands into filter criteria
+        male_criteria = utils.parse_add_flags(command_male) if command_male else {}
+        female_criteria = utils.parse_add_flags(command_female) if command_female else {}
+
+        print(f"\n[DEBUG] Parsed male_criteria: {male_criteria}")
+        print(f"[DEBUG] Parsed female_criteria: {female_criteria}")
+
+        # Fetch ALL Pokemon from categories (we'll filter in code)
+        all_pokemon = []
+        for category in categories:
+            print(f"[DEBUG] Fetching from category: {category}")
+            category_pokemon = await db.get_pokemon_for_breeding(
+                user_id,
+                category,
+                cooldown_ids=cooldown_ids
+            )
+            all_pokemon.extend(category_pokemon)
+
+        all_pokemon = self._deduplicate_pokemon(all_pokemon)
+        print(f"[DEBUG] Total Pokemon fetched: {len(all_pokemon)}")
+
+        # Filter Pokemon based on criteria
+        candidate_females = self._filter_pokemon_by_criteria(
+            all_pokemon, 
+            female_criteria, 
+            utils,
+            role='female'
+        )
+        candidate_males = self._filter_pokemon_by_criteria(
+            all_pokemon, 
+            male_criteria, 
+            utils,
+            role='male'
+        )
+
+        print(f"\n[DEBUG] After filtering:")
+        print(f"[DEBUG] candidate_females: {len(candidate_females)}")
+        print(f"[DEBUG] candidate_males: {len(candidate_males)}")
+
+        # Debug: Show first few candidates
+        if candidate_females:
+            print(f"[DEBUG] Sample females:")
+            for p in candidate_females[:3]:
+                print(f"[DEBUG]   - {p['name']} (ID: {p['pokemon_id']}, Gender: {p['gender']}, IV: {p['iv_percent']}%)")
+
+        if candidate_males:
+            print(f"[DEBUG] Sample males:")
+            for p in candidate_males[:3]:
+                print(f"[DEBUG]   - {p['name']} (ID: {p['pokemon_id']}, Gender: {p['gender']}, IV: {p['iv_percent']}%)")
+
+        if not candidate_females and not candidate_males:
+            print("[DEBUG] ❌ ERROR: No Pokemon match the specified criteria!")
+            return []
+
+        # Separate by type for pairing
+        normal_males = []
+        special_males = []
+        dittos = []
+
+        for male in candidate_males:
+            if male.get('is_ditto', False):
+                dittos.append(male)
+            elif male.get('is_gmax', False) or male.get('is_regional', False):
+                special_males.append(male)
+            else:
+                normal_males.append(male)
+
+        print(f"\n[DEBUG] Male separation:")
+        print(f"[DEBUG] normal_males: {len(normal_males)}")
+        print(f"[DEBUG] special_males: {len(special_males)}")
+        print(f"[DEBUG] dittos: {len(dittos)}")
+
+        # Sort by IV
+        reverse_sort = iv_sort_order == 'descending'
+        candidate_females.sort(key=lambda x: x['iv_percent'], reverse=reverse_sort)
+        normal_males.sort(key=lambda x: x['iv_percent'], reverse=reverse_sort)
+        special_males.sort(key=lambda x: x['iv_percent'], reverse=reverse_sort)
+        dittos.sort(key=lambda x: x['iv_percent'], reverse=reverse_sort)
+
+        pairs = []
+
+        # If we have females, use phase-based pairing
+        if candidate_females:
+            print(f"\n[DEBUG] === PHASE-BASED PAIRING (females exist) ===")
+
+            pairs = self.execute_phase_based_pairing(
+                candidate_females,
+                normal_males,
+                dittos,
+                utils,
+                selective,
+                overrides,
+                count,
+                priority_system,
+                allow_gmax_male,
+                allow_regional_male,
+                additional_males_phase6=special_males
+            )
+
+            print(f"[DEBUG] Pairs after phase_based_pairing: {len(pairs)}")
+
+        # If no females but have males, pair males with Ditto
+        if len(pairs) < count and not candidate_females and candidate_males:
+            print(f"\n[DEBUG] === PAIRING MALES WITH DITTO (no females) ===")
+
+            # Combine all males
+            all_males = normal_males + special_males
+            print(f"[DEBUG] Total males to pair: {len(all_males)}")
+            print(f"[DEBUG] Available dittos: {len(dittos)}")
+
+            used_male_ids = {pair['male']['pokemon_id'] for pair in pairs}
+
+            for male in all_males:
+                if len(pairs) >= count:
+                    break
+
+                if male['pokemon_id'] in used_male_ids:
+                    continue
+
+                for ditto in dittos:
+                    if ditto['pokemon_id'] in used_male_ids:
+                        continue
+
+                    if self.can_pair_pokemon(ditto, male, utils, selective, overrides):
+                        print(f"[DEBUG]   ✅ PAIRING: Ditto {ditto['pokemon_id']} × {male['name']} {male['pokemon_id']}")
+                        pairs.append({'female': ditto, 'male': male})
+                        used_male_ids.add(ditto['pokemon_id'])
+                        break
+
+        print(f"\n[DEBUG] === FINAL RESULTS ===")
+        print(f"[DEBUG] Total pairs: {len(pairs)}")
+        for i, pair in enumerate(pairs, 1):
+            print(f"[DEBUG]   Pair {i}: {pair['female']['name']} ({pair['female']['pokemon_id']}) × {pair['male']['name']} ({pair['male']['pokemon_id']})")
+        print(f"{'=' * 60}\n")
+
+        return pairs
+
+
+    def _filter_pokemon_by_criteria(self, pokemon_list, criteria, utils, role='female'):
+        """
+        Filter Pokemon based on command criteria
+
+        criteria: dict from parse_add_flags
+        role: 'female' or 'male' (for gender assignment of unknown gender Pokemon)
+
+        Returns: list of Pokemon matching ALL criteria
+        """
+        if not criteria:
+            print(f"[DEBUG _filter_pokemon_by_criteria] No criteria for {role}, returning all Pokemon")
+            # No criteria = all Pokemon are candidates
+            return pokemon_list
+
+        print(f"\n[DEBUG _filter_pokemon_by_criteria] Filtering {len(pokemon_list)} Pokemon for {role}")
+        print(f"[DEBUG] Criteria: {criteria}")
+
+        filtered = []
+
+        # Extract name filter (special handling)
+        name_filter = criteria.get('name')  # Can be list of names or None
+
+        for pokemon in pokemon_list:
+            match = True
+            reasons = []
+
+            # ===== NAME FILTER (EXACT MATCH) =====
+            if name_filter:
+                # name_filter should be a list of names from --n flags
+                if not isinstance(name_filter, list):
+                    name_filter = [name_filter]
+
+                # Check if pokemon name EXACTLY matches any of the specified names
+                name_match = any(
+                    utils._exact_name_match(pokemon['name'], target_name) 
+                    for target_name in name_filter
+                )
+
+                if not name_match:
+                    reasons.append(f"name not in {name_filter}")
+                    match = False
+
+            # ===== GENDER ASSIGNMENT FOR UNKNOWN GENDER =====
+            # If Pokemon has unknown gender AND is specified by name, treat it as the specified role
+            pokemon_gender = pokemon['gender']
+            if pokemon_gender == 'unknown' and name_filter:
+                # This unknown gender Pokemon is explicitly requested, so assign it the role's gender
+                pokemon_gender = role
+                print(f"[DEBUG]   {pokemon['name']} (unknown) assigned as '{role}' gender")
+
+            # ===== GENDER FILTER (after assignment) =====
+            # For breeding, we need proper gender roles
+            if role == 'female':
+                # Must be female OR Ditto
+                if pokemon_gender != 'female' and not pokemon.get('is_ditto', False):
+                    reasons.append(f"gender is {pokemon_gender}, need female or Ditto")
+                    match = False
+            elif role == 'male':
+                # Must be male, unknown, OR Ditto
+                if pokemon_gender not in ['male', 'unknown'] and not pokemon.get('is_ditto', False):
+                    reasons.append(f"gender is {pokemon_gender}, need male/unknown or Ditto")
+                    match = False
+
+            # ===== MOVE FILTERS =====
+            if 'moves' in criteria:
+                pokemon_moves = pokemon.get('moves', [])
+                # Must have ALL specified moves
+                for required_move in criteria['moves']:
+                    if required_move.lower() not in [m.lower() for m in pokemon_moves]:
+                        reasons.append(f"missing move '{required_move}'")
+                        match = False
+                        break
+
+            if 'no_moves' in criteria:
+                pokemon_moves = pokemon.get('moves', [])
+                # Must NOT have ANY of these moves
+                for forbidden_move in criteria['no_moves']:
+                    if forbidden_move.lower() in [m.lower() for m in pokemon_moves]:
+                        reasons.append(f"has forbidden move '{forbidden_move}'")
+                        match = False
+                        break
+
+            # ===== IV FILTERS =====
+            for iv_name in ['hpiv', 'atkiv', 'defiv', 'spatkiv', 'spdefiv', 'spdiv']:
+                if iv_name in criteria:
+                    pokemon_iv = pokemon.get(iv_name)
+                    required_iv = criteria[iv_name]
+
+                    if not pokemon_iv:
+                        reasons.append(f"no {iv_name} data")
+                        match = False
+                        continue
+
+                    # Check if Pokemon's IV range matches required range
+                    # Pokemon must have EXACT match for exact values
+                    if required_iv['min'] == required_iv['max']:
+                        # Exact value required
+                        if pokemon_iv.get('min') != required_iv['min'] or pokemon_iv.get('max') != required_iv['max']:
+                            reasons.append(f"{iv_name} not exactly {required_iv['min']}")
+                            match = False
+                    else:
+                        # Range required - Pokemon's range must be within required range
+                        if pokemon_iv.get('min', 0) < required_iv['min'] or pokemon_iv.get('max', 31) > required_iv['max']:
+                            reasons.append(f"{iv_name} range {pokemon_iv} outside required {required_iv}")
+                            match = False
+
+            # ===== DUPLICATE IV FILTERS =====
+            for dup_type in ['trip', 'quad', 'penta', 'hex']:
+                if dup_type in criteria and criteria[dup_type]:
+                    pokemon_dup = pokemon.get(dup_type, [])
+                    required_dup = criteria[dup_type]
+
+                    # Pokemon must have ALL required duplicate values
+                    if not all(val in pokemon_dup for val in required_dup):
+                        reasons.append(f"{dup_type} missing values {required_dup}")
+                        match = False
+
+            # ===== LEVEL FILTER =====
+            if 'level' in criteria:
+                pokemon_level = pokemon.get('level')
+                level_filter = criteria['level']
+
+                if pokemon_level is None:
+                    reasons.append("no level data")
+                    match = False
+                elif 'exact' in level_filter:
+                    if pokemon_level != level_filter['exact']:
+                        reasons.append(f"level {pokemon_level} != {level_filter['exact']}")
+                        match = False
+                else:
+                    min_lvl = level_filter.get('min', 1)
+                    max_lvl = level_filter.get('max', 100)
+                    if pokemon_level < min_lvl or pokemon_level > max_lvl:
+                        reasons.append(f"level {pokemon_level} outside {min_lvl}-{max_lvl}")
+                        match = False
+
+            # ===== FAVORITE FILTER =====
+            if 'is_favorite' in criteria:
+                required_fav = criteria['is_favorite']
+                pokemon_fav = pokemon.get('is_favorite', False)
+
+                if pokemon_fav != required_fav:
+                    reasons.append(f"favorite is {pokemon_fav}, need {required_fav}")
+                    match = False
+
+            # ===== NICKNAME FILTER =====
+            if 'nickname' in criteria:
+                required_nick = criteria['nickname'].lower()
+                pokemon_nick = (pokemon.get('nickname') or '').lower()
+
+                if required_nick not in pokemon_nick:
+                    reasons.append(f"nickname '{pokemon_nick}' doesn't contain '{required_nick}'")
+                    match = False
+
+            if 'no_nickname' in criteria:
+                forbidden_nick = criteria['no_nickname'].lower()
+                pokemon_nick = (pokemon.get('nickname') or '').lower()
+
+                if forbidden_nick in pokemon_nick:
+                    reasons.append(f"nickname '{pokemon_nick}' contains forbidden '{forbidden_nick}'")
+                    match = False
+
+            # ===== FINAL DECISION =====
+            if match:
+                filtered.append(pokemon)
+                print(f"[DEBUG]   ✅ {pokemon['name']} (ID: {pokemon['pokemon_id']}) - MATCH")
+            else:
+                print(f"[DEBUG]   ❌ {pokemon['name']} (ID: {pokemon['pokemon_id']}) - REJECTED: {', '.join(reasons)}")
+
+        print(f"[DEBUG] Filtered result: {len(filtered)} Pokemon match criteria")
+        return filtered
 
 
 
