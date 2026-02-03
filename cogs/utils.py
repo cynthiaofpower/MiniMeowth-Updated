@@ -436,30 +436,6 @@ class Utils(commands.Cog):
         base_name = self.get_base_species(species_name)
         return self.egg_groups.get(base_name, ['Undiscovered'])
 
-    def get_base_species(self, name: str):
-        """Remove regional/form prefixes to get base species (cached)"""
-        # Check cache first
-        if name in self.base_species_cache:
-            return self.base_species_cache[name]
-
-        original_name = name
-        prefixes = [
-            'Alolan ', 'Galarian ', 'Hisuian ', 'Paldean ',
-            'Gigantamax ', 'Mega ', 'Primal ',
-            'Aqua Breed ', 'Combat Breed ', 'Blaze Breed '
-        ]
-
-        for prefix in prefixes:
-            if name.startswith(prefix):
-                name = name.replace(prefix, '', 1)
-                break  # Only remove first matching prefix
-
-        result = name.strip()
-
-        # Cache the result
-        self.base_species_cache[original_name] = result
-        return result
-
     def is_regional(self, name: str):
         """Check if Pokemon is a regional form using config list"""
         return name in config.REGIONAL_FORMS
@@ -477,6 +453,15 @@ class Utils(commands.Cog):
         """Check if species is male-only by dex number"""
         dex_num = self.get_dex_number(species)
         return dex_num in self.male_only_dex
+
+    def _exact_name_match(self, pokemon_name, target_name):
+        """
+        Check if Pokemon name exactly matches target name
+
+        Important: Case-insensitive, but must be exact match
+        Example: "Pikachu" matches "pikachu" but NOT "Gigantamax Pikachu"
+        """
+        return pokemon_name.lower() == target_name.lower()
 
 
     def can_breed(self, species1: str, species2: str, gender1: str, gender2: str):
@@ -705,15 +690,20 @@ class Utils(commands.Cog):
     # ===== REPLACE YOUR parse_add_flags METHOD WITH THIS UPDATED VERSION =====
     # This goes in your utils.py file
 
+    # REPLACE the parse_add_flags method in utils.py with this updated version
+
     def parse_add_flags(self, args_str: str) -> dict:
         """
-        Parse command flags for moves, IVs, level, favorites, and nickname
+        Parse command flags for moves, IVs, level, favorites, nickname, and NAME
         AUTOMATICALLY POPULATES IMPLIED DUPLICATES:
         - hex 31 → also stores penta 31, quad 31, trip 31
         - penta 31 → also stores quad 31, trip 31
         - quad 31 → also stores trip 31
 
+        NEW: Supports --name / --n for specifying Pokemon names
+
         Returns: {
+            'name': ['meowth', 'persian', ...],  # NEW: List of Pokemon names
             'moves': ['move1', 'move2', ...],
             'no_moves': ['move1', 'move2'],
             'hpiv': {'min': X, 'max': Y},
@@ -734,6 +724,7 @@ class Utils(commands.Cog):
 
         args = args_str.split()
         result = {
+            'name': [],       # NEW: Pokemon names
             'moves': [],
             'no_moves': [],
             'trip': [],   # Can have up to 2 values
@@ -745,6 +736,22 @@ class Utils(commands.Cog):
         i = 0
         while i < len(args):
             arg = args[i].lower()
+
+            # ===== NAME FILTER (NEW) =====
+            if arg in ['--name', '--n']:
+                if i + 1 < len(args):
+                    name_parts = []
+                    i += 1
+                    while i < len(args) and not args[i].startswith('--'):
+                        name_parts.append(args[i])
+                        i += 1
+                    if name_parts:
+                        # Join parts and title case (for consistency with Pokemon names)
+                        pokemon_name = ' '.join(name_parts).title()
+                        result['name'].append(pokemon_name)
+                    continue
+                else:
+                    i += 1
 
             # ===== MOVE FLAG =====
             if arg == '--move':
@@ -922,6 +929,8 @@ class Utils(commands.Cog):
                 result['trip'].insert(0, value)  # Add at start
 
         # ===== CLEAN UP EMPTY LISTS/FIELDS =====
+        if not result.get('name'):
+            result.pop('name', None)
         if not result.get('moves'):
             result.pop('moves', None)
         if not result.get('no_moves'):
@@ -1051,15 +1060,6 @@ class Utils(commands.Cog):
     def count_mint_shinies(self, shinies_list: list) -> int:
         """Count level 1 shinies"""
         return sum(1 for s in shinies_list if s.get('level', 0) == 1)
-
-    def _exact_name_match(self, pokemon_name, target_name):
-        """
-        Check if Pokemon name exactly matches target name
-
-        Important: Case-insensitive, but must be exact match
-        Example: "Pikachu" matches "pikachu" but NOT "Gigantamax Pikachu"
-        """
-        return pokemon_name.lower() == target_name.lower()
 
 
 async def setup(bot):
