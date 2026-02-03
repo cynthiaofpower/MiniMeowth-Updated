@@ -1615,6 +1615,14 @@ class Settings(commands.Cog):
         if 'no_moves' in parsed:
             criteria_parts.append(f"No moves: {', '.join(f'`{m}`' for m in parsed['no_moves'])}")
 
+        # ===== ADD THIS SECTION: Overall IV percentage filter =====
+        if 'iv_percent' in parsed:
+            iv_range = parsed['iv_percent']
+            if iv_range['min'] == iv_range['max']:
+                criteria_parts.append(f"IV%: `{iv_range['min']}%`")
+            else:
+                criteria_parts.append(f"IV%: `{iv_range['min']}%-{iv_range['max']}%`")
+
         # IV filters
         iv_parts = []
         for iv_name in ['hpiv', 'atkiv', 'defiv', 'spatkiv', 'spdefiv', 'spdiv']:
@@ -1768,48 +1776,8 @@ class Settings(commands.Cog):
             # Save command
             await db.update_settings(user_id, {'command_male': value})
 
-            # Build description of what was set
-            criteria_parts = []
-            if 'name' in parsed:
-                criteria_parts.append(f"Names: {', '.join(f'`{n}`' for n in parsed['name'])}")
-            if 'moves' in parsed:
-                criteria_parts.append(f"Moves: {', '.join(f'`{m}`' for m in parsed['moves'])}")
-            if 'no_moves' in parsed:
-                criteria_parts.append(f"No moves: {', '.join(f'`{m}`' for m in parsed['no_moves'])}")
-
-            for iv_name in ['hpiv', 'atkiv', 'defiv', 'spatkiv', 'spdefiv', 'spdiv']:
-                if iv_name in parsed:
-                    iv_range = parsed[iv_name]
-                    if iv_range['min'] == iv_range['max']:
-                        criteria_parts.append(f"{iv_name.upper()}: `{iv_range['min']}`")
-                    else:
-                        criteria_parts.append(f"{iv_name.upper()}: `{iv_range['min']}-{iv_range['max']}`")
-
-            if 'trip' in parsed:
-                criteria_parts.append(f"Triple: `{parsed['trip']}`")
-            if 'quad' in parsed:
-                criteria_parts.append(f"Quad: `{parsed['quad']}`")
-            if 'penta' in parsed:
-                criteria_parts.append(f"Penta: `{parsed['penta']}`")
-            if 'hex' in parsed:
-                criteria_parts.append(f"Hex: `{parsed['hex']}`")
-
-            if 'level' in parsed:
-                level = parsed['level']
-                if 'exact' in level:
-                    criteria_parts.append(f"Level: `{level['exact']}`")
-                else:
-                    criteria_parts.append(f"Level: `{level.get('min', 1)}-{level.get('max', 100)}`")
-
-            if 'is_favorite' in parsed:
-                criteria_parts.append(f"Favorite: `{parsed['is_favorite']}`")
-
-            if 'nickname' in parsed:
-                criteria_parts.append(f"Nickname contains: `{parsed['nickname']}`")
-            if 'no_nickname' in parsed:
-                criteria_parts.append(f"Nickname excludes: `{parsed['no_nickname']}`")
-
-            criteria_display = "\n".join(f"{config.REPLY} {part}" for part in criteria_parts)
+            # Build description using _build_criteria_display
+            criteria_display = self._build_criteria_display(parsed)
 
             class SuccessView(discord.ui.LayoutView):
                 container1 = discord.ui.Container(
@@ -1868,48 +1836,8 @@ class Settings(commands.Cog):
             # Save command
             await db.update_settings(user_id, {'command_female': value})
 
-            # Build description of what was set
-            criteria_parts = []
-            if 'name' in parsed:
-                criteria_parts.append(f"Names: {', '.join(f'`{n}`' for n in parsed['name'])}")
-            if 'moves' in parsed:
-                criteria_parts.append(f"Moves: {', '.join(f'`{m}`' for m in parsed['moves'])}")
-            if 'no_moves' in parsed:
-                criteria_parts.append(f"No moves: {', '.join(f'`{m}`' for m in parsed['no_moves'])}")
-
-            for iv_name in ['hpiv', 'atkiv', 'defiv', 'spatkiv', 'spdefiv', 'spdiv']:
-                if iv_name in parsed:
-                    iv_range = parsed[iv_name]
-                    if iv_range['min'] == iv_range['max']:
-                        criteria_parts.append(f"{iv_name.upper()}: `{iv_range['min']}`")
-                    else:
-                        criteria_parts.append(f"{iv_name.upper()}: `{iv_range['min']}-{iv_range['max']}`")
-
-            if 'trip' in parsed:
-                criteria_parts.append(f"Triple: `{parsed['trip']}`")
-            if 'quad' in parsed:
-                criteria_parts.append(f"Quad: `{parsed['quad']}`")
-            if 'penta' in parsed:
-                criteria_parts.append(f"Penta: `{parsed['penta']}`")
-            if 'hex' in parsed:
-                criteria_parts.append(f"Hex: `{parsed['hex']}`")
-
-            if 'level' in parsed:
-                level = parsed['level']
-                if 'exact' in level:
-                    criteria_parts.append(f"Level: `{level['exact']}`")
-                else:
-                    criteria_parts.append(f"Level: `{level.get('min', 1)}-{level.get('max', 100)}`")
-
-            if 'is_favorite' in parsed:
-                criteria_parts.append(f"Favorite: `{parsed['is_favorite']}`")
-
-            if 'nickname' in parsed:
-                criteria_parts.append(f"Nickname contains: `{parsed['nickname']}`")
-            if 'no_nickname' in parsed:
-                criteria_parts.append(f"Nickname excludes: `{parsed['no_nickname']}`")
-
-            criteria_display = "\n".join(f"{config.REPLY} {part}" for part in criteria_parts)
+            # Build description using _build_criteria_display
+            criteria_display = self._build_criteria_display(parsed)
 
             class SuccessView(discord.ui.LayoutView):
                 container1 = discord.ui.Container(
