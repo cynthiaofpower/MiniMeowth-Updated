@@ -11,41 +11,12 @@ class Settings(commands.Cog):
         self.bot = bot
 
     @commands.hybrid_command(name='settings')
-    @app_commands.describe(
-        setting_type="Setting to change: mode, target, setmale, setfemale, inventory, or info",
-        value="New value for the setting"
-    )
-    async def settings_command(self, ctx, setting_type: str = None, *, value: str = None):
+    async def settings_command(self, ctx):
         """
-        Manage breeding settings
-        Usage: settings [type] [value]
+        Display interactive settings menu
+        Usage: settings
         """
-        user_id = ctx.author.id
-
-        if not setting_type:
-            await self.show_settings(ctx)
-            return
-
-        setting_type = setting_type.lower()
-
-        if setting_type == 'mode':
-            await self.set_mode(ctx, value)
-        elif setting_type == 'target':
-            await self.set_target(ctx, value)
-        elif setting_type == 'setmale':
-            await self.set_mychoice_male(ctx, value)
-        elif setting_type == 'setfemale':
-            await self.set_mychoice_female(ctx, value)
-        elif setting_type in ['inventory', 'inventories', 'inv']:
-            await self.set_target_inventories(ctx, value)
-        elif setting_type == 'info':
-            await self.set_info_display(ctx, value)
-        else:
-            class ErrorView(discord.ui.LayoutView):
-                container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content="❌ Invalid setting type. Use `mode`, `target`, `setmale`, `setfemale`, `inventory`, or `info`"),
-                )
-            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
+        await self.show_settings(ctx)
 
     async def show_settings(self, ctx):
         """Display current user settings - INTERACTIVE REDESIGN"""
@@ -88,16 +59,20 @@ class Settings(commands.Cog):
         # Get mychoice settings
         mychoice_males = settings.get('mychoice_male', [])
         mychoice_females = settings.get('mychoice_female', [])
-
-        # CHANGED: Get target_inventories instead of mychoice_inventories
         target_inventories = settings.get('target_inventories', [config.NORMAL_CATEGORY])
+
+        # Get new toggle settings
+        priority_system = settings.get('priority_system', 'same_dex_first')
+        iv_sort_order = settings.get('iv_sort_order', 'descending')
+        allow_gmax_male_with_female = settings.get('allow_gmax_male_with_female', False)
+        allow_regional_male_with_female = settings.get('allow_regional_male_with_female', False)
 
         # Format males/females display
         if mychoice_males:
             if len(mychoice_males) <= 7:
                 males_display = ", ".join(f"`{m}`" for m in mychoice_males)
             else:
-                males_display = f"`{mychoice_males[0]}`, `{mychoice_males[1]}` + {len(mychoice_males)-1} more"
+                males_display = f"`{mychoice_males[0]}`, `{mychoice_males[1]}` + {len(mychoice_males)-2} more"
         else:
             males_display = "Not set"
 
@@ -105,7 +80,7 @@ class Settings(commands.Cog):
             if len(mychoice_females) <= 7:
                 females_display = ", ".join(f"`{f}`" for f in mychoice_females)
             else:
-                females_display = f"`{mychoice_females[0]}`, `{mychoice_females[1]}` + {len(mychoice_females)-1} more"
+                females_display = f"`{mychoice_females[0]}`, `{mychoice_females[1]}` + {len(mychoice_females)-2} more"
         else:
             females_display = "Not set"
 
@@ -382,6 +357,156 @@ class Settings(commands.Cog):
 
                 await interaction.followup.send(view=SuccessView())
 
+        class PrioritySystemSelect(discord.ui.Select):
+            def __init__(self, current_priority):
+                options = [
+                    discord.SelectOption(
+                        label="Same Dex First",
+                        value="same_dex_first",
+                        description="Prioritize same species pairs first",
+                        default=(current_priority == "same_dex_first")
+                    ),
+                    discord.SelectOption(
+                        label="Egg Group First",
+                        value="egg_group_first",
+                        description="Prioritize shared egg group pairs first",
+                        default=(current_priority == "egg_group_first")
+                    ),
+                ]
+                super().__init__(
+                    custom_id="priority_select",
+                    placeholder=f"Current: {'Same Dex First' if current_priority == 'same_dex_first' else 'Egg Group First'}",
+                    options=options
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != ctx.author.id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ This is not your settings menu!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                await interaction.response.defer()
+
+                new_priority = self.values[0]
+                await db.update_settings(interaction.user.id, {'priority_system': new_priority})
+
+                priority_name = "Same Dex First" if new_priority == 'same_dex_first' else "Egg Group First"
+
+                class SuccessView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content=f"✅ **Priority system updated to:** {priority_name}\n\n_Run `{config.PREFIX[0]}settings` to see updated settings_"),
+                    )
+
+                await interaction.followup.send(view=SuccessView())
+
+        class IVSortButton(discord.ui.Button):
+            def __init__(self, current_sort):
+                label = "High IV First (↓)" if current_sort == "descending" else "Low IV First (↑)"
+                super().__init__(
+                    style=discord.ButtonStyle.secondary,
+                    label=label,
+                    custom_id="iv_sort_button"
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != ctx.author.id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ This is not your settings menu!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                await interaction.response.defer()
+
+                current_settings = await db.get_settings(interaction.user.id)
+                current_sort = current_settings.get('iv_sort_order', 'descending')
+                new_sort = 'ascending' if current_sort == 'descending' else 'descending'
+
+                await db.update_settings(interaction.user.id, {'iv_sort_order': new_sort})
+
+                sort_name = "High IV First (↓)" if new_sort == 'descending' else "Low IV First (↑)"
+
+                class SuccessView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content=f"✅ **IV sort order updated to:** {sort_name}\n\n_Run `{config.PREFIX[0]}settings` to see updated settings_"),
+                    )
+
+                await interaction.followup.send(view=SuccessView())
+
+        class GmaxMaleToggleButton(discord.ui.Button):
+            def __init__(self, current_state):
+                label = "Enabled" if current_state else "Disabled"
+                super().__init__(
+                    style=discord.ButtonStyle.secondary,
+                    label=label,
+                    custom_id="gmax_male_toggle"
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != ctx.author.id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ This is not your settings menu!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                await interaction.response.defer()
+
+                current_settings = await db.get_settings(interaction.user.id)
+                current_state = current_settings.get('allow_gmax_male_with_female', False)
+                new_state = not current_state
+
+                await db.update_settings(interaction.user.id, {'allow_gmax_male_with_female': new_state})
+
+                state_name = "Enabled" if new_state else "Disabled"
+
+                class SuccessView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content=f"✅ **Gmax male pairing is now:** {state_name}\n\n_Run `{config.PREFIX[0]}settings` to see updated settings_"),
+                    )
+
+                await interaction.followup.send(view=SuccessView())
+
+        class RegionalMaleToggleButton(discord.ui.Button):
+            def __init__(self, current_state):
+                label = "Enabled" if current_state else "Disabled"
+                super().__init__(
+                    style=discord.ButtonStyle.secondary,
+                    label=label,
+                    custom_id="regional_male_toggle"
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != ctx.author.id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ This is not your settings menu!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                await interaction.response.defer()
+
+                current_settings = await db.get_settings(interaction.user.id)
+                current_state = current_settings.get('allow_regional_male_with_female', False)
+                new_state = not current_state
+
+                await db.update_settings(interaction.user.id, {'allow_regional_male_with_female': new_state})
+
+                state_name = "Enabled" if new_state else "Disabled"
+
+                class SuccessView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content=f"✅ **Regional male pairing is now:** {state_name}\n\n_Run `{config.PREFIX[0]}settings` to see updated settings_"),
+                    )
+
+                await interaction.followup.send(view=SuccessView())
+
         class MoreInfoButton(discord.ui.Button):
             def __init__(self):
                 super().__init__(
@@ -407,13 +532,22 @@ class Settings(commands.Cog):
                     f"{config.REPLY} **Detailed** - Full info with IVs, names, compatibility, reasons\n"
                     f"{config.REPLY} **Simple** - Basic info with names and compatibility only\n"
                     f"{config.REPLY} **Off** - Command only, no extra info\n\n"
+                    "**Priority System:**\n"
+                    f"{config.REPLY} **Same Dex First** - Prioritizes same species pairs\n"
+                    f"{config.REPLY} **Egg Group First** - Prioritizes shared egg group pairs\n\n"
+                    "**IV Sort Order:**\n"
+                    f"{config.REPLY} **High IV First (↓)** - Sorts Pokemon by highest IV first\n"
+                    f"{config.REPLY} **Low IV First (↑)** - Sorts Pokemon by lowest IV first\n\n"
+                    "**Special Pairing Toggles:**\n"
+                    f"{config.REPLY} **Gmax Male Pairing** - Allow Gmax males with non-Gmax females\n"
+                    f"{config.REPLY} **Regional Male Pairing** - Allow Regional males with non-Regional females\n\n"
                     "**MyChoice Settings:**\n"
-                    f"{config.REPLY} Use `{config.PREFIX[0]}settings setmale <pokemon>` to set males\n"
-                    f"{config.REPLY} Use `{config.PREFIX[0]}settings setfemale <pokemon>` to set females\n"
+                    f"{config.REPLY} Use `{config.PREFIX[0]}setmale <pokemon>` to set males\n"
+                    f"{config.REPLY} Use `{config.PREFIX[0]}setfemale <pokemon>` to set females\n"
                     f"{config.REPLY} Supports multiple Pokemon: `dreepy, drakloak, dragapult`\n"
-                    f"{config.REPLY} Use `{config.PREFIX[0]}settings setmale none` to clear\n\n"
+                    f"{config.REPLY} Use `{config.PREFIX[0]}setmale none` to clear\n\n"
                     "**Breeding Inventories:**\n"
-                    f"{config.REPLY} Use `{config.PREFIX[0]}settings inventory <inv name(s)>` to set inventories\n"
+                    f"{config.REPLY} Use `{config.PREFIX[0]}setinv <inv name(s)>` to set inventories\n"
                     f"{config.REPLY} Supports multiple: `normal, duel, tripmax, tripzero` or `all`\n"
                     f"{config.REPLY} TripMax/TripZero targets use fixed inventories"
                 )
@@ -424,6 +558,47 @@ class Settings(commands.Cog):
                     )
 
                 await interaction.response.send_message(view=InfoView(), ephemeral=True)
+
+        class RefreshSettingsButton(discord.ui.Button):
+            def __init__(self):
+                super().__init__(
+                    style=discord.ButtonStyle.primary,
+                    emoji="⚙️",
+                    custom_id="refresh_settings"
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != ctx.author.id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ This is not your settings menu!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                await interaction.response.defer()
+
+                # Send a fresh settings view
+                from discord.ext import commands
+
+                # Create a fake context to reuse show_settings
+                class FakeContext:
+                    def __init__(self, interaction):
+                        self.author = interaction.user
+                        self.message = interaction.message
+
+                    async def send(self, *args, **kwargs):
+                        # Remove reference and mention_author from kwargs
+                        kwargs.pop('reference', None)
+                        kwargs.pop('mention_author', None)
+                        return await interaction.followup.send(*args, **kwargs)
+
+                fake_ctx = FakeContext(interaction)
+
+                # Get the Settings cog and call show_settings
+                settings_cog = interaction.client.get_cog('Settings')
+                if settings_cog:
+                    await settings_cog.show_settings(fake_ctx)
 
         class ResetButton(discord.ui.Button):
             def __init__(self):
@@ -450,7 +625,11 @@ class Settings(commands.Cog):
                     'mychoice_male': [],
                     'mychoice_female': [],
                     'target_inventories': [config.NORMAL_CATEGORY],
-                    'show_info': 'detailed'
+                    'show_info': 'detailed',
+                    'priority_system': 'same_dex_first',
+                    'iv_sort_order': 'descending',
+                    'allow_gmax_male_with_female': False,
+                    'allow_regional_male_with_female': False
                 })
 
                 class SuccessView(discord.ui.LayoutView):
@@ -461,7 +640,10 @@ class Settings(commands.Cog):
                                     f"{config.REPLY} Target: `All Pokemon`\n"
                                     f"{config.REPLY} MyChoice: `Cleared`\n"
                                     f"{config.REPLY} Inventories: `Normal`\n"
-                                    f"{config.REPLY} Info Mode: `Detailed`\n\n"
+                                    f"{config.REPLY} Info Mode: `Detailed`\n"
+                                    f"{config.REPLY} Priority: `Same Dex First`\n"
+                                    f"{config.REPLY} IV Sort: `High IV First`\n"
+                                    f"{config.REPLY} Gmax/Regional Toggles: `Disabled`\n\n"
                                     f"_Run `{config.PREFIX[0]}settings` to see updated settings_"
                         ),
                     )
@@ -469,7 +651,6 @@ class Settings(commands.Cog):
                 await interaction.followup.send(view=SuccessView())
 
         # Build the settings view
-        # CHANGED: Update inventory section text
         inventory_note = ""
         if target_uses_fixed_inventory:
             if 'tripmax' in targets:
@@ -477,28 +658,61 @@ class Settings(commands.Cog):
             elif 'tripzero' in targets:
                 inventory_note = "\n_TripZero target uses TripZero inventory (fixed)_"
 
+        # Combine related text displays to reduce component count
+        basic_settings_text = (
+            f"**⚙️ Your Current Settings For Daycare**\n\n"
+            f"- **Current Mode:** {mode_display}"
+        )
+
+        output_settings_text = f"- **Current Output Mode:** {info_display}"
+
+        target_settings_text = f"- **Current Target:** {target_display}"
+
+        inventory_settings_text = f"- **Breeding Inventory(s):** {inv_display}{inventory_note}"
+
+        mychoice_settings_text = (
+            f"- **Current Male(s):** {males_display}\n"
+            f"- **Current Female(s):** {females_display}"
+        )
+
+        priority_settings_text = f"- **Priority System:** {'Same Dex First' if priority_system == 'same_dex_first' else 'Egg Group First'}"
+
         class SettingsView(discord.ui.LayoutView):
             container1 = discord.ui.Container(
-                discord.ui.TextDisplay(content="**⚙️ Your Current Settings For Daycare**"),
-                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                discord.ui.TextDisplay(content=f"- **Current Mode:** {mode_display}"),
+                discord.ui.TextDisplay(content=basic_settings_text),
                 discord.ui.ActionRow(ModeSelect(mode)),
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                discord.ui.TextDisplay(content=f"- **Current Info Mode:** {info_display}"),
+                discord.ui.TextDisplay(content=output_settings_text),
                 discord.ui.ActionRow(InfoModeSelect(show_info)),
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                discord.ui.TextDisplay(content=f"- **Current Target:** {target_display}"),
+                discord.ui.TextDisplay(content=target_settings_text),
                 discord.ui.ActionRow(TargetSelect(targets)),
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                discord.ui.TextDisplay(content=f"- **Breeding Inventory(s) For Current Target:** {inv_display}{inventory_note}"),
+                discord.ui.TextDisplay(content=inventory_settings_text),
                 discord.ui.ActionRow(InventorySelect(target_inventories, target_uses_fixed_inventory)),
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                discord.ui.TextDisplay(
-                    content=f"- **Current Male(s):** {males_display}\n"
-                            f"- **Current Female(s):** {females_display}"
+                discord.ui.TextDisplay(content=priority_settings_text),
+                discord.ui.ActionRow(PrioritySystemSelect(priority_system)),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(content=mychoice_settings_text),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.Section(
+                    discord.ui.TextDisplay(content="- **Toggle IV Sort Order**"),
+                    accessory=IVSortButton(iv_sort_order),
+                ),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.Section(
+                    discord.ui.TextDisplay(content="- **Allow Male to be Gmax with Gmax/Normal Female**"),
+                    accessory=GmaxMaleToggleButton(allow_gmax_male_with_female),
+                ),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.Section(
+                    discord.ui.TextDisplay(content="- **Allow Male to be Regional with Regional/Normal Female**"),
+                    accessory=RegionalMaleToggleButton(allow_regional_male_with_female),
                 ),
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
                 discord.ui.ActionRow(
+                    RefreshSettingsButton(),
                     MoreInfoButton(),
                     ResetButton()
                 ),
@@ -506,18 +720,138 @@ class Settings(commands.Cog):
 
         await ctx.send(view=SettingsView(), reference=ctx.message, mention_author=False)
 
-    # ===== INDIVIDUAL SETTING METHODS (for text commands) =====
+    # ===== STANDALONE COMMANDS =====
+
+    @commands.hybrid_command(name='mode')
+    @app_commands.describe(value="Set pairing mode: selective or notselective")
+    async def mode_command(self, ctx, value: str = None):
+        """Set pairing mode"""
+        if not value:
+            # Show current mode
+            settings = await db.get_settings(ctx.author.id)
+            mode = settings.get('mode', 'notselective')
+            mode_display = "Selective (Old/New)" if mode == 'selective' else "Not Selective"
+
+            class InfoView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content=f"**Current Mode:** {mode_display}\n\nUse `{config.PREFIX[0]}mode selective` or `{config.PREFIX[0]}mode notselective` to change."),
+                )
+            await ctx.send(view=InfoView(), reference=ctx.message, mention_author=False)
+            return
+
+        await self.set_mode(ctx, value)
+
+    @commands.hybrid_command(name='target')
+    @app_commands.describe(value="Set breeding target(s)")
+    async def target_command(self, ctx, *, value: str = None):
+        """Set breeding target"""
+        if not value:
+            # Show current target
+            settings = await db.get_settings(ctx.author.id)
+            targets = settings.get('target', ['all'])
+            target_display = ", ".join(targets)
+
+            class InfoView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content=f"**Current Target:** {target_display}\n\nUse `{config.PREFIX[0]}target <target>` to change.\nExamples: `all`, `mychoice`, `tripmax`, `gigantamax`"),
+                )
+            await ctx.send(view=InfoView(), reference=ctx.message, mention_author=False)
+            return
+
+        await self.set_target(ctx, value)
+
+    @commands.hybrid_command(name='setmale')
+    @app_commands.describe(value="Set male species for mychoice target")
+    async def setmale_command(self, ctx, *, value: str = None):
+        """Set male species for mychoice target"""
+        if not value:
+            # Show current males
+            settings = await db.get_settings(ctx.author.id)
+            males = settings.get('mychoice_male', [])
+            males_display = ", ".join(f"`{m}`" for m in males) if males else "Not set"
+
+            class InfoView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content=f"**Current Males:** {males_display}\n\nUse `{config.PREFIX[0]}setmale <pokemon>` to set.\nSupports multiple: `dreepy, drakloak, dragapult`"),
+                )
+            await ctx.send(view=InfoView(), reference=ctx.message, mention_author=False)
+            return
+
+        await self.set_mychoice_male(ctx, value)
+
+    @commands.hybrid_command(name='setfemale')
+    @app_commands.describe(value="Set female species for mychoice target")
+    async def setfemale_command(self, ctx, *, value: str = None):
+        """Set female species for mychoice target"""
+        if not value:
+            # Show current females
+            settings = await db.get_settings(ctx.author.id)
+            females = settings.get('mychoice_female', [])
+            females_display = ", ".join(f"`{f}`" for f in females) if females else "Not set"
+
+            class InfoView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content=f"**Current Females:** {females_display}\n\nUse `{config.PREFIX[0]}setfemale <pokemon>` to set.\nSupports multiple: `dreepy, drakloak, dragapult`"),
+                )
+            await ctx.send(view=InfoView(), reference=ctx.message, mention_author=False)
+            return
+
+        await self.set_mychoice_female(ctx, value)
+
+    @commands.hybrid_command(name='targetinventory', aliases=['setinventory', 'targetinv', 'setinv'])
+    @app_commands.describe(value="Set which inventories to search for breeding")
+    async def targetinventory_command(self, ctx, *, value: str = None):
+        """Set breeding inventories"""
+        if not value:
+            # Show current inventories
+            settings = await db.get_settings(ctx.author.id)
+            inventories = settings.get('target_inventories', [config.NORMAL_CATEGORY])
+            inv_display_names = {
+                config.NORMAL_CATEGORY: "Normal",
+                config.TRIPMAX_CATEGORY: "TripMax",
+                config.TRIPZERO_CATEGORY: "TripZero",
+                config.DUEL_CATEGORY: "Duel"
+            }
+            inv_list = [inv_display_names.get(inv, inv) for inv in inventories]
+            inv_display = ", ".join(inv_list)
+
+            class InfoView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content=f"**Current Inventories:** {inv_display}\n\nUse `{config.PREFIX[0]}inventory <name>` to change.\nExamples: `normal`, `tripmax`, `all`"),
+                )
+            await ctx.send(view=InfoView(), reference=ctx.message, mention_author=False)
+            return
+
+        await self.set_target_inventories(ctx, value)
+
+    @commands.hybrid_command(name='breed_output', aliases=['dc_output', 'breedoutput', 'dcoutput'])
+    @app_commands.describe(value="Set breed info display mode")
+    async def breed_output_command(self, ctx, value: str = None):
+        """Set breed info display mode"""
+        if not value:
+            # Show current mode
+            settings = await db.get_settings(ctx.author.id)
+            show_info = settings.get('show_info', 'detailed')
+            info_display_map = {
+                "detailed": "Detailed (Full info)",
+                "simple": "Simple (Basic info)",
+                "off": "Off (Command only)"
+            }
+            info_display = info_display_map.get(show_info, "Detailed")
+
+            class InfoView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content=f"**Current Output Mode:** {info_display}\n\nUse `{config.PREFIX[0]}breed_output <mode>` to change.\nOptions: `detailed`, `simple`, `off`"),
+                )
+            await ctx.send(view=InfoView(), reference=ctx.message, mention_author=False)
+            return
+
+        await self.set_info_display(ctx, value)
+
+    # ===== INTERNAL METHODS =====
 
     async def set_target_inventories(self, ctx, value: str):
         """Set which inventories to search for breeding"""
-        if not value:
-            class ErrorView(discord.ui.LayoutView):
-                container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content="❌ Please specify inventories: `normal`, `tripmax`, `tripzero`, `duel`, or `all`"),
-                )
-            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
-            return
-
         value = value.lower().strip()
 
         # Handle "all" keyword
@@ -587,14 +921,6 @@ class Settings(commands.Cog):
 
     async def set_mychoice_male(self, ctx, value: str):
         """Set male species for mychoice target - supports multiple Pokemon"""
-        if not value:
-            class ErrorView(discord.ui.LayoutView):
-                container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content="❌ Please specify species name(s) or `none` to clear"),
-                )
-            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
-            return
-
         if value.lower() == 'none':
             user_id = ctx.author.id
             await db.update_settings(user_id, {'mychoice_male': []})
@@ -672,14 +998,6 @@ class Settings(commands.Cog):
 
     async def set_mychoice_female(self, ctx, value: str):
         """Set female species for mychoice target - supports multiple Pokemon"""
-        if not value:
-            class ErrorView(discord.ui.LayoutView):
-                container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content="❌ Please specify species name(s) or `none` to clear"),
-                )
-            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
-            return
-
         if value.lower() == 'none':
             user_id = ctx.author.id
             await db.update_settings(user_id, {'mychoice_female': []})
@@ -847,7 +1165,7 @@ class Settings(commands.Cog):
             discord.ui.TextDisplay(
                 content=f"**Next Steps:**\n"
                         f"{config.REPLY} Set your target to `mychoice` to use these custom pairs\n"
-                        f"{config.REPLY} Use `{config.PREFIX[0]}settings` or `{config.PREFIX[0]}settings target mychoice`"
+                        f"{config.REPLY} Use `{config.PREFIX[0]}settings` or `{config.PREFIX[0]}target mychoice`"
             ),
         ])
 
@@ -858,14 +1176,6 @@ class Settings(commands.Cog):
 
     async def set_info_display(self, ctx, value: str):
         """Set breed info display mode"""
-        if not value:
-            class ErrorView(discord.ui.LayoutView):
-                container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content="❌ Please specify: `simple`, `detailed`, or `off`"),
-                )
-            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
-            return
-
         value = value.lower()
 
         if value not in ['simple', 'detailed', 'off']:
@@ -912,14 +1222,6 @@ class Settings(commands.Cog):
 
     async def set_mode(self, ctx, value: str):
         """Set pairing mode"""
-        if not value:
-            class ErrorView(discord.ui.LayoutView):
-                container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content="❌ Please specify mode: `selective` or `notselective`"),
-                )
-            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
-            return
-
         value = value.lower()
 
         if value not in ['selective', 'notselective']:
@@ -961,14 +1263,6 @@ class Settings(commands.Cog):
 
     async def set_target(self, ctx, value: str):
         """Set breeding target"""
-        if not value:
-            class ErrorView(discord.ui.LayoutView):
-                container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content="❌ Please specify target(s)"),
-                )
-            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
-            return
-
         value = value.lower()
 
         if 'all' in value:
@@ -1046,7 +1340,11 @@ class Settings(commands.Cog):
             'mychoice_male': [],
             'mychoice_female': [],
             'target_inventories': [config.NORMAL_CATEGORY],
-            'show_info': 'detailed'
+            'show_info': 'detailed',
+            'priority_system': 'same_dex_first',
+            'iv_sort_order': 'descending',
+            'allow_gmax_male_with_female': False,
+            'allow_regional_male_with_female': False
         })
 
         class SuccessView(discord.ui.LayoutView):
@@ -1057,7 +1355,10 @@ class Settings(commands.Cog):
                             f"{config.REPLY} Target: `All Pokemon`\n"
                             f"{config.REPLY} MyChoice: `Cleared`\n"
                             f"{config.REPLY} Inventories: `Normal`\n"
-                            f"{config.REPLY} Info Mode: `Detailed`"
+                            f"{config.REPLY} Info Mode: `Detailed`\n"
+                            f"{config.REPLY} Priority: `Same Dex First`\n"
+                            f"{config.REPLY} IV Sort: `High IV First`\n"
+                            f"{config.REPLY} Gmax/Regional Toggles: `Disabled`"
                 ),
             )
 
