@@ -39,7 +39,7 @@ class Breeding(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.hybrid_command(name='breed')
+    @commands.hybrid_command(name='breed', aliases=['b', 'daycare', 'dc'])
     @app_commands.describe(count="Number of pairs to generate (max 2)")
     async def breed_command(self, ctx, count: int = 1):
         """
