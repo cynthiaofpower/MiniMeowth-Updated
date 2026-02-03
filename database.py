@@ -321,7 +321,7 @@ class Database:
             pokemon_data.setdefault('is_ditto', False)
             pokemon_data.setdefault('is_gmax', False)
             pokemon_data.setdefault('is_regional', False)
-            pokemon_data.setdefault('base_species', '')
+            pokemon_data.setdefault('is_female_only', False)
 
             # NEW: Ensure new fields with defaults
             pokemon_data.setdefault('level', None)
@@ -482,10 +482,10 @@ class Database:
             pokemon.setdefault('is_ditto', False)
             pokemon.setdefault('is_gmax', False)
             pokemon.setdefault('is_regional', False)
-            pokemon.setdefault('base_species', '')
             pokemon.setdefault('level', None)
             pokemon.setdefault('nickname', None)
             pokemon.setdefault('is_favorite', False)
+            pokemon.setdefault('is_female_only', False)
 
             if pid not in existing_map:
                 # New Pokemon - insert
