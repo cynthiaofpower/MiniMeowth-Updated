@@ -461,25 +461,23 @@ class Utils(commands.Cog):
         return result
 
     def is_regional(self, name: str):
-        """Check if Pokemon is a regional form"""
-        return name.startswith((
-            'Alolan ', 'Galarian ', 'Hisuian ', 'Paldean ',
-            'Aqua Breed ', 'Combat Breed ', 'Blaze Breed '
-        ))
+        """Check if Pokemon is a regional form using config list"""
+        return name in config.REGIONAL_FORMS
 
     def is_gigantamax(self, name: str):
-        """Check if Pokemon is Gigantamax"""
-        return 'Gigantamax' in name
+        """Check if Pokemon is Gigantamax using config list"""
+        return name in config.GIGANTAMAX_FORMS
+
+    def is_female_only(self, species: str):
+        """Check if species is female-only by dex number"""
+        dex_num = self.get_dex_number(species)
+        return dex_num in config.FEMALE_ONLY_DEX
 
     def is_male_only(self, species: str):
         """Check if species is male-only by dex number"""
         dex_num = self.get_dex_number(species)
         return dex_num in self.male_only_dex
 
-    def is_female_only(self, species: str):
-        """Check if species is female-only by dex number"""
-        dex_num = self.get_dex_number(species)
-        return dex_num in self.female_only_dex
 
     def can_breed(self, species1: str, species2: str, gender1: str, gender2: str):
         """Check if two Pokemon can breed together"""
@@ -634,11 +632,11 @@ class Utils(commands.Cog):
 
                 # Pre-compute all derived fields
                 egg_groups = self.get_egg_groups(pokemon_name)
-                base_species = self.get_base_species(pokemon_name)
                 is_gmax = self.is_gigantamax(pokemon_name)
                 is_regional = self.is_regional(pokemon_name)
                 is_ditto = 'Ditto' in egg_groups
-
+                is_female_only = self.is_female_only(pokemon_name)  # ADD THIS
+                
                 pokemon_data.append({
                     'pokemon_id': pokemon_id,
                     'name': pokemon_name,
@@ -647,10 +645,10 @@ class Utils(commands.Cog):
                     'dex_number': dex_number,
                     # Pre-computed fields for breeding logic
                     'egg_groups': egg_groups,
-                    'base_species': base_species,
                     'is_gmax': is_gmax,
                     'is_regional': is_regional,
                     'is_ditto': is_ditto,
+                    'is_female_only': is_female_only,  # ADD THIS
                     # NEW FIELDS
                     'level': level,
                     'nickname': nickname,
