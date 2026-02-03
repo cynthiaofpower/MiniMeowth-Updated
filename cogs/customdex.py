@@ -150,7 +150,7 @@ class DexCustomization(commands.Cog):
 
         await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
 
-    @commands.hybrid_command(name='dexcustomize', aliases=['dc', 'dexcust'])
+    @commands.hybrid_command(name='dexcustomize', aliases=['dce', 'dexcust'])
     @app_commands.describe(
         setting="Setting to change",
         value="New value for the setting"
@@ -182,7 +182,7 @@ class DexCustomization(commands.Cog):
 
             embed.add_field(
                 name="📐 Grid Layout",
-                value="`m!dc grid 5x4`\n"
+                value="`m!dce grid 5x4`\n"
                       "Set columns x rows (e.g., 5x4, 6x3)\n"
                       "Max: 40x40 (1600 Pokémon per page)",
                 inline=False
@@ -190,36 +190,36 @@ class DexCustomization(commands.Cog):
 
             embed.add_field(
                 name="🎨 Panel Colors",
-                value="`m!dc background #2A2A3C` - Background\n"
-                      "`m!dc glass #14142880` - Glass panels\n"
-                      "`m!dc border #FFFFFF50` - Borders\n"
+                value="`m!dce background #2A2A3C` - Background\n"
+                      "`m!dce glass #14142880` - Glass panels\n"
+                      "`m!dce border #FFFFFF50` - Borders\n"
                       "Use hex (#RRGGBB or #RRGGBBAA) or rgba",
                 inline=False
             )
 
             embed.add_field(
                 name="🏷️ Badge Customization",
-                value="`m!dc badgetext #FFD700` - Number color\n"
-                      "`m!dc badgebg #000000C8` - Box background\n"
-                      "`m!dc badgeborder #FFD700` - Box border\n"
-                      "`m!dc badge off` - Hide box (text only)",
+                value="`m!dce badgetext #FFD700` - Number color\n"
+                      "`m!dce badgebg #000000C8` - Box background\n"
+                      "`m!dce badgeborder #FFD700` - Box border\n"
+                      "`m!dce badge off` - Hide box (text only)",
                 inline=False
             )
 
             embed.add_field(
                 name="🔢 Count Colors",
-                value="`m!dc countcolor #64C8FF` - Caught (x1+)\n"
-                      "`m!dc uncaughtcount #787878` - Uncaught (x0)",
+                value="`m!dce countcolor #64C8FF` - Caught (x1+)\n"
+                      "`m!dce uncaughtcount #787878` - Uncaught (x0)",
                 inline=False
             )
 
             embed.add_field(
                 name="👻 Uncaught Pokémon",
-                value="`m!dc uncaught faded` - Semi-transparent\n"
-                      "`m!dc uncaught silhouette` - Dark silhouette\n"
-                      "`m!dc uncaught grayscale` - Grayscale\n"
-                      "`m!dc uncaught hidden` - Completely hidden\n"
-                      "`m!dc opacity 90` - Fade opacity (0-255)",
+                value="`m!dce uncaught faded` - Semi-transparent\n"
+                      "`m!dce uncaught silhouette` - Dark silhouette\n"
+                      "`m!dce uncaught grayscale` - Grayscale\n"
+                      "`m!dce uncaught hidden` - Completely hidden\n"
+                      "`m!dce opacity 90` - Fade opacity (0-255)",
                 inline=False
             )
 
