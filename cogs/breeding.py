@@ -928,9 +928,44 @@ class Breeding(commands.Cog):
 
         pairs = []
 
-        # If we have females, use phase-based pairing
-        if candidate_females:
-            print(f"\n[DEBUG] === PHASE-BASED PAIRING (females exist) ===")
+        # Check if any candidates have unknown gender
+        has_unknown_female = any(f['gender'] == 'unknown' for f in candidate_females)
+        has_unknown_male = any(m['gender'] == 'unknown' for m in candidate_males)
+
+        # SPECIAL CASE: If either role contains unknown gender Pokemon, use direct pairing
+        if has_unknown_female or has_unknown_male:
+            print(f"\n[DEBUG] === SPECIAL CASE: Unknown gender detected, using direct pairing ===")
+            print(f"[DEBUG] has_unknown_female: {has_unknown_female}")
+            print(f"[DEBUG] has_unknown_male: {has_unknown_male}")
+
+            # Combine all males for pairing
+            all_candidate_males = normal_males + special_males + dittos
+
+            used_male_ids = set()
+            used_female_ids = set()
+
+            for female in candidate_females:
+                if len(pairs) >= count:
+                    break
+                if female['pokemon_id'] in used_female_ids:
+                    continue
+
+                for male in all_candidate_males:
+                    if male['pokemon_id'] in used_male_ids:
+                        continue
+
+                    if self.can_pair_pokemon(female, male, utils, selective, overrides):
+                        print(f"[DEBUG]   ✅ PAIRING: {female['name']} {female['pokemon_id']} × {male['name']} {male['pokemon_id']}")
+                        pairs.append({'female': female, 'male': male})
+                        used_female_ids.add(female['pokemon_id'])
+                        used_male_ids.add(male['pokemon_id'])
+                        break
+
+            print(f"[DEBUG] Pairs after direct pairing: {len(pairs)}")
+
+        # Normal case: Use phase-based pairing for regular male/female Pokemon
+        elif candidate_females:
+            print(f"\n[DEBUG] === PHASE-BASED PAIRING (normal genders) ===")
 
             pairs = self.execute_phase_based_pairing(
                 candidate_females,
