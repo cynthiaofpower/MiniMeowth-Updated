@@ -582,6 +582,7 @@ class Settings(commands.Cog):
                 super().__init__(
                     style=discord.ButtonStyle.primary,
                     emoji="⚙️",
+                    label="Refresh",
                     custom_id="refresh_settings"
                 )
 
@@ -1399,7 +1400,7 @@ class Settings(commands.Cog):
 
     # ADD these new commands to your Settings class in settings.py
 
-    @commands.hybrid_command(name='viewcommands', aliases=['viewcmd', 'showcmd', 'showcommands'])
+    @commands.hybrid_command(name='viewcommands', aliases=['viewcmd', 'showcmd', 'cmd', 'cmdview'])
     async def viewcommands(self, ctx):
         """View your current command breeding filter settings"""
         user_id = ctx.author.id
@@ -1449,7 +1450,49 @@ class Settings(commands.Cog):
             female_display = "`Not set`"
             female_criteria = "_No filters configured_"
 
-        # Create clear buttons
+        # Create buttons
+        class SwapCommandsButton(discord.ui.Button):
+            def __init__(self, is_disabled):
+                super().__init__(
+                    style=discord.ButtonStyle.primary,
+                    label="Swap Male ↔ Female",
+                    emoji="🔄",
+                    disabled=is_disabled
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                if interaction.user.id != ctx.author.id:
+                    class ErrorView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(content="❌ This is not your command view!"),
+                        )
+                    await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                    return
+
+                await interaction.response.defer()
+
+                # Get current settings
+                current_settings = await db.get_settings(interaction.user.id)
+                current_male = current_settings.get('command_male', '')
+                current_female = current_settings.get('command_female', '')
+
+                # Swap them
+                await db.update_settings(interaction.user.id, {
+                    'command_male': current_female,
+                    'command_female': current_male
+                })
+
+                class SuccessView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(
+                            content=f"✅ **Commands swapped successfully!**\n\n"
+                                    f"{config.REPLY} Male command is now: `{current_female if current_female else 'Not set'}`\n"
+                                    f"{config.REPLY} Female command is now: `{current_male if current_male else 'Not set'}`\n\n"
+                                    f"_Run `{config.PREFIX[0]}viewcommands` to see updated settings_"
+                        ),
+                    )
+                await interaction.followup.send(view=SuccessView())
+
         class ClearMaleButton(discord.ui.Button):
             def __init__(self, is_disabled):
                 super().__init__(
@@ -1573,6 +1616,7 @@ class Settings(commands.Cog):
         has_male = bool(command_male)
         has_female = bool(command_female)
         has_any = has_male or has_female
+        has_both = has_male and has_female
 
         class CommandView(discord.ui.LayoutView):
             container1 = discord.ui.Container(
@@ -1594,10 +1638,14 @@ class Settings(commands.Cog):
                 ),
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
                 discord.ui.ActionRow(
+                    SwapCommandsButton(not has_both),
+                    RefreshButton()
+                ),
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.ActionRow(
                     ClearMaleButton(not has_male),
                     ClearFemaleButton(not has_female),
-                    ClearBothButton(not has_any),
-                    RefreshButton()
+                    ClearBothButton(not has_any)
                 ),
                 accent_colour=config.EMBED_COLOR
             )
@@ -1673,7 +1721,7 @@ class Settings(commands.Cog):
         else:
             return "_No criteria set_"
 
-    @commands.hybrid_command(name='setcommandmale', aliases=['setcmdmale', 'cmdmale'])
+    @commands.hybrid_command(name='setcommandmale', aliases=['setcmdmale', 'cmdmale', 'malecmd'])
     @app_commands.describe(value="Set filter command for male Pokemon")
     async def setcommandmale_command(self, ctx, *, value: str = None):
         """
@@ -1705,7 +1753,7 @@ class Settings(commands.Cog):
 
         await self.set_command_male(ctx, value)
 
-    @commands.hybrid_command(name='setcommandfemale', aliases=['setcmdfemale', 'cmdfemale'])
+    @commands.hybrid_command(name='setcommandfemale', aliases=['setcmdfemale', 'cmdfemale', 'femalecmd'])
     @app_commands.describe(value="Set filter command for female Pokemon")
     async def setcommandfemale_command(self, ctx, *, value: str = None):
         """
