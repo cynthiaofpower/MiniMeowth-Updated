@@ -1052,6 +1052,15 @@ class Utils(commands.Cog):
         """Count level 1 shinies"""
         return sum(1 for s in shinies_list if s.get('level', 0) == 1)
 
+    def _exact_name_match(self, pokemon_name, target_name):
+        """
+        Check if Pokemon name exactly matches target name
+
+        Important: Case-insensitive, but must be exact match
+        Example: "Pikachu" matches "pikachu" but NOT "Gigantamax Pikachu"
+        """
+        return pokemon_name.lower() == target_name.lower()
+
 
 async def setup(bot):
     await bot.add_cog(Utils(bot))
