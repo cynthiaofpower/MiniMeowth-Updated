@@ -48,6 +48,8 @@ class Settings(commands.Cog):
             target_display = "MyChoice (Custom)"
         elif 'gigantamax' in targets or 'gmax' in targets:
             target_display = "Gigantamax"
+        elif 'command_breeding' in targets:  # NEW
+            target_display = "Command Breeding (Filters)"  # NEW
         elif 'regionals' in targets or 'regional' in targets or 'reg' in targets:
             target_display = "Regionals"
         else:
@@ -60,6 +62,9 @@ class Settings(commands.Cog):
         mychoice_males = settings.get('mychoice_male', [])
         mychoice_females = settings.get('mychoice_female', [])
         target_inventories = settings.get('target_inventories', [config.NORMAL_CATEGORY])
+
+        command_male = settings.get('command_male', '')
+        command_female = settings.get('command_female', '')
 
         # Get new toggle settings
         priority_system = settings.get('priority_system', 'same_dex_first')
@@ -213,6 +218,12 @@ class Settings(commands.Cog):
                         value="mychoice",
                         description="Use custom male/female settings",
                         default=('mychoice' in current_targets)
+                    ),
+                    discord.SelectOption(
+                        label="Command Breeding",  # NEW
+                        value="command_breeding",  # NEW
+                        description="Filter-based pairing with commands",  # NEW
+                        default=('command_breeding' in current_targets)  # NEW
                     ),
                     discord.SelectOption(
                         label="TripMax",
@@ -523,7 +534,8 @@ class Settings(commands.Cog):
                     f"{config.REPLY} **Not Selective:** Pairs any compatible Pokemon regardless of ID\n\n"
                     "**Target Options:**\n"
                     f"{config.REPLY} **All** - Breed any compatible Pokemon\n"
-                    f"{config.REPLY} **MyChoice** - Use your custom male/female settings\n"
+                    f"{config.REPLY} **MyChoice** - Use your custom male/female species settings\n"
+                    f"{config.REPLY} **Command Breeding** - Filter-based pairing with advanced commands\n"  # NEW
                     f"{config.REPLY} **TripMax** - High IV pairs (fixed TripMax inventory)\n"
                     f"{config.REPLY} **TripZero** - Low IV pairs (fixed TripZero inventory)\n"
                     f"{config.REPLY} **Gigantamax** - Gigantamax Pokemon only\n"
@@ -546,6 +558,12 @@ class Settings(commands.Cog):
                     f"{config.REPLY} Use `{config.PREFIX[0]}setfemale <pokemon>` to set females\n"
                     f"{config.REPLY} Supports multiple Pokemon: `dreepy, drakloak, dragapult`\n"
                     f"{config.REPLY} Use `{config.PREFIX[0]}setmale none` to clear\n\n"
+                    "**Command Breeding Settings:**\n"  # NEW
+                    f"{config.REPLY} Use `{config.PREFIX[0]}setcommandmale <filters>` to set male filters\n"  # NEW
+                    f"{config.REPLY} Use `{config.PREFIX[0]}setcommandfemale <filters>` to set female filters\n"  # NEW
+                    f"{config.REPLY} Example: `setcommandmale --n meowth --spdiv 31 --move fake out`\n"  # NEW
+                    f"{config.REPLY} Example: `setcommandfemale --nomove fake out --unfav`\n"  # NEW
+                    f"{config.REPLY} Use `{config.PREFIX[0]}setcommandmale none` to clear\n\n"  # NEW
                     "**Breeding Inventories:**\n"
                     f"{config.REPLY} Use `{config.PREFIX[0]}setinv <inv name(s)>` to set inventories\n"
                     f"{config.REPLY} Supports multiple: `normal, duel, tripmax, tripzero` or `all`\n"
@@ -674,6 +692,17 @@ class Settings(commands.Cog):
             f"- **Current Male(s):** {males_display}\n"
             f"- **Current Female(s):** {females_display}"
         )
+
+        # NEW: Build command_breeding display (only if active)
+        command_settings_text = None  # Initialize as None
+        if 'command_breeding' in targets:
+            command_male_display = f"`{command_male}`" if command_male else "Not set"
+            command_female_display = f"`{command_female}`" if command_female else "Not set"
+
+            command_settings_text = (
+                f"- **Command Male:** {command_male_display}\n"
+                f"- **Command Female:** {command_female_display}"
+            )
 
         priority_settings_text = f"- **Priority System:** {'Same Dex First' if priority_system == 'same_dex_first' else 'Egg Group First'}"
 
@@ -1340,6 +1369,8 @@ class Settings(commands.Cog):
             'target': ['all'],
             'mychoice_male': [],
             'mychoice_female': [],
+            'command_male': '',  # NEW
+            'command_female': '',  # NEW
             'target_inventories': [config.NORMAL_CATEGORY],
             'show_info': 'detailed',
             'priority_system': 'same_dex_first',
@@ -1355,6 +1386,7 @@ class Settings(commands.Cog):
                             f"{config.REPLY} Mode: `Not Selective`\n"
                             f"{config.REPLY} Target: `All Pokemon`\n"
                             f"{config.REPLY} MyChoice: `Cleared`\n"
+                            f"{config.REPLY} Command Breeding: `Cleared`\n"  # NEW
                             f"{config.REPLY} Inventories: `Normal`\n"
                             f"{config.REPLY} Info Mode: `Detailed`\n"
                             f"{config.REPLY} Priority: `Same Dex First`\n"
@@ -1364,6 +1396,402 @@ class Settings(commands.Cog):
             )
 
         await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
+
+    # ADD these new commands to your Settings class in settings.py
+
+    @commands.hybrid_command(name='viewcommands', aliases=['viewcmd', 'showcmd', 'showcommands'])
+    async def viewcommands(self, ctx):
+        """View your current command breeding filter settings"""
+        user_id = ctx.author.id
+        settings = await db.get_settings(user_id)
+
+        command_male = settings.get('command_male', '')
+        command_female = settings.get('command_female', '')
+        targets = settings.get('target', ['all'])
+
+        # Check if command_breeding is active
+        is_active = 'command_breeding' in targets
+        status_text = "✅ **ACTIVE**" if is_active else "⚠️ **INACTIVE** (set target to `command_breeding` to activate)"
+
+        # Build male display
+        if command_male:
+            male_display = f"```{command_male}```"
+
+            # Try to parse and show what it means
+            utils = self.bot.get_cog('Utils')
+            if utils:
+                try:
+                    parsed = utils.parse_add_flags(command_male)
+                    male_criteria = self._build_criteria_display(parsed)
+                except:
+                    male_criteria = "_Could not parse criteria_"
+            else:
+                male_criteria = "_Utils cog not loaded_"
+        else:
+            male_display = "`Not set`"
+            male_criteria = "_No filters configured_"
+
+        # Build female display
+        if command_female:
+            female_display = f"```{command_female}```"
+
+            # Try to parse and show what it means
+            utils = self.bot.get_cog('Utils')
+            if utils:
+                try:
+                    parsed = utils.parse_add_flags(command_female)
+                    female_criteria = self._build_criteria_display(parsed)
+                except:
+                    female_criteria = "_Could not parse criteria_"
+            else:
+                female_criteria = "_Utils cog not loaded_"
+        else:
+            female_display = "`Not set`"
+            female_criteria = "_No filters configured_"
+
+        class CommandView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(
+                discord.ui.TextDisplay(
+                    content=f"**⚙️ Command Breeding Settings**\n\n"
+                            f"**Status:** {status_text}\n\n"
+                            f"**{config.GENDER_MALE} Male Filter Command:**\n{male_display}\n"
+                            f"**Criteria:** {male_criteria}\n\n"
+                            f"**{config.GENDER_FEMALE} Female Filter Command:**\n{female_display}\n"
+                            f"**Criteria:** {female_criteria}\n\n"
+                            f"**How to Update:**\n"
+                            f"{config.REPLY} `{config.PREFIX[0]}setcommandmale <filters>`\n"
+                            f"{config.REPLY} `{config.PREFIX[0]}setcommandfemale <filters>`\n"
+                            f"{config.REPLY} `{config.PREFIX[0]}target command_breeding` to activate"
+                ),
+                accent_colour=config.EMBED_COLOR
+            )
+
+        await ctx.send(view=CommandView(), reference=ctx.message, mention_author=False)
+
+    def _build_criteria_display(self, parsed: dict) -> str:
+        """Helper to build a readable criteria display from parsed flags"""
+        criteria_parts = []
+
+        if 'name' in parsed:
+            criteria_parts.append(f"Names: {', '.join(f'`{n}`' for n in parsed['name'])}")
+        if 'moves' in parsed:
+            criteria_parts.append(f"Has moves: {', '.join(f'`{m}`' for m in parsed['moves'])}")
+        if 'no_moves' in parsed:
+            criteria_parts.append(f"No moves: {', '.join(f'`{m}`' for m in parsed['no_moves'])}")
+
+        # IV filters
+        iv_parts = []
+        for iv_name in ['hpiv', 'atkiv', 'defiv', 'spatkiv', 'spdefiv', 'spdiv']:
+            if iv_name in parsed:
+                iv_range = parsed[iv_name]
+                if iv_range['min'] == iv_range['max']:
+                    iv_parts.append(f"{iv_name.replace('iv', '').upper()}=`{iv_range['min']}`")
+                else:
+                    iv_parts.append(f"{iv_name.replace('iv', '').upper()}=`{iv_range['min']}-{iv_range['max']}`")
+
+        if iv_parts:
+            criteria_parts.append(f"IVs: {', '.join(iv_parts)}")
+
+        # Perfect IV counts
+        perfect_parts = []
+        if 'trip' in parsed:
+            perfect_parts.append(f"Triple `{parsed['trip']}`")
+        if 'quad' in parsed:
+            perfect_parts.append(f"Quad `{parsed['quad']}`")
+        if 'penta' in parsed:
+            perfect_parts.append(f"Penta `{parsed['penta']}`")
+        if 'hex' in parsed:
+            perfect_parts.append(f"Hex `{parsed['hex']}`")
+
+        if perfect_parts:
+            criteria_parts.append(f"Perfect IVs: {', '.join(perfect_parts)}")
+
+        # Level
+        if 'level' in parsed:
+            level = parsed['level']
+            if 'exact' in level:
+                criteria_parts.append(f"Level: `{level['exact']}`")
+            else:
+                criteria_parts.append(f"Level: `{level.get('min', 1)}-{level.get('max', 100)}`")
+
+        # Favorite
+        if 'is_favorite' in parsed:
+            criteria_parts.append(f"Favorite: `{'Yes' if parsed['is_favorite'] else 'No'}`")
+
+        # Nickname filters
+        if 'nickname' in parsed:
+            criteria_parts.append(f"Nickname contains: `{parsed['nickname']}`")
+        if 'no_nickname' in parsed:
+            criteria_parts.append(f"Nickname excludes: `{parsed['no_nickname']}`")
+
+        if criteria_parts:
+            return "\n".join(f"{config.REPLY} {part}" for part in criteria_parts)
+        else:
+            return "_No criteria set_"
+
+    @commands.hybrid_command(name='setcommandmale', aliases=['setcmdmale', 'cmdmale'])
+    @app_commands.describe(value="Set filter command for male Pokemon")
+    async def setcommandmale_command(self, ctx, *, value: str = None):
+        """
+        Set filter command for male Pokemon in command_breeding mode
+
+        Example: setcommandmale --spdiv 31 --move fake out
+        Example: setcommandmale --n ditto --atkiv >20
+        Example: setcommandmale none (to clear)
+        """
+        if not value:
+            # Show current command
+            settings = await db.get_settings(ctx.author.id)
+            command = settings.get('command_male', '')
+            command_display = f"`{command}`" if command else "Not set"
+
+            class InfoView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(
+                        content=f"**Current Male Command:** {command_display}\n\n"
+                                f"**Usage Examples:**\n"
+                                f"{config.REPLY} `{config.PREFIX[0]}setcommandmale --spdiv 31 --move fake out`\n"
+                                f"{config.REPLY} `{config.PREFIX[0]}setcommandmale --n ditto --atkiv >20`\n"
+                                f"{config.REPLY} `{config.PREFIX[0]}setcommandmale --nomove fake out --unfav`\n"
+                                f"{config.REPLY} `{config.PREFIX[0]}setcommandmale none` (clear)"
+                    ),
+                )
+            await ctx.send(view=InfoView(), reference=ctx.message, mention_author=False)
+            return
+
+        await self.set_command_male(ctx, value)
+
+    @commands.hybrid_command(name='setcommandfemale', aliases=['setcmdfemale', 'cmdfemale'])
+    @app_commands.describe(value="Set filter command for female Pokemon")
+    async def setcommandfemale_command(self, ctx, *, value: str = None):
+        """
+        Set filter command for female Pokemon in command_breeding mode
+
+        Example: setcommandfemale --n meowth --spdiv 31 --move fake out
+        Example: setcommandfemale --move fake out --fav
+        Example: setcommandfemale none (to clear)
+        """
+        if not value:
+            # Show current command
+            settings = await db.get_settings(ctx.author.id)
+            command = settings.get('command_female', '')
+            command_display = f"`{command}`" if command else "Not set"
+
+            class InfoView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(
+                        content=f"**Current Female Command:** {command_display}\n\n"
+                                f"**Usage Examples:**\n"
+                                f"{config.REPLY} `{config.PREFIX[0]}setcommandfemale --n meowth --spdiv 31 --move fake out`\n"
+                                f"{config.REPLY} `{config.PREFIX[0]}setcommandfemale --n hisuian sneasel --move fake out`\n"
+                                f"{config.REPLY} `{config.PREFIX[0]}setcommandfemale --move fake out --fav`\n"
+                                f"{config.REPLY} `{config.PREFIX[0]}setcommandfemale none` (clear)"
+                    ),
+                )
+            await ctx.send(view=InfoView(), reference=ctx.message, mention_author=False)
+            return
+
+        await self.set_command_female(ctx, value)
+
+    async def set_command_male(self, ctx, value: str):
+        """Set male filter command for command_breeding"""
+        user_id = ctx.author.id
+
+        if value.lower() == 'none':
+            await db.update_settings(user_id, {'command_male': ''})
+
+            class SuccessView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="✅ Male command cleared"),
+                )
+            await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
+            return
+
+        # Validate command by parsing it
+        utils = self.bot.get_cog('Utils')
+        if not utils:
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ Utils cog not loaded"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
+            return
+
+        try:
+            parsed = utils.parse_add_flags(value)
+
+            # Check if command has any valid criteria
+            if not parsed:
+                class ErrorView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content="❌ Invalid command - no valid filters found"),
+                    )
+                await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
+                return
+
+            # Save command
+            await db.update_settings(user_id, {'command_male': value})
+
+            # Build description of what was set
+            criteria_parts = []
+            if 'name' in parsed:
+                criteria_parts.append(f"Names: {', '.join(f'`{n}`' for n in parsed['name'])}")
+            if 'moves' in parsed:
+                criteria_parts.append(f"Moves: {', '.join(f'`{m}`' for m in parsed['moves'])}")
+            if 'no_moves' in parsed:
+                criteria_parts.append(f"No moves: {', '.join(f'`{m}`' for m in parsed['no_moves'])}")
+
+            for iv_name in ['hpiv', 'atkiv', 'defiv', 'spatkiv', 'spdefiv', 'spdiv']:
+                if iv_name in parsed:
+                    iv_range = parsed[iv_name]
+                    if iv_range['min'] == iv_range['max']:
+                        criteria_parts.append(f"{iv_name.upper()}: `{iv_range['min']}`")
+                    else:
+                        criteria_parts.append(f"{iv_name.upper()}: `{iv_range['min']}-{iv_range['max']}`")
+
+            if 'trip' in parsed:
+                criteria_parts.append(f"Triple: `{parsed['trip']}`")
+            if 'quad' in parsed:
+                criteria_parts.append(f"Quad: `{parsed['quad']}`")
+            if 'penta' in parsed:
+                criteria_parts.append(f"Penta: `{parsed['penta']}`")
+            if 'hex' in parsed:
+                criteria_parts.append(f"Hex: `{parsed['hex']}`")
+
+            if 'level' in parsed:
+                level = parsed['level']
+                if 'exact' in level:
+                    criteria_parts.append(f"Level: `{level['exact']}`")
+                else:
+                    criteria_parts.append(f"Level: `{level.get('min', 1)}-{level.get('max', 100)}`")
+
+            if 'is_favorite' in parsed:
+                criteria_parts.append(f"Favorite: `{parsed['is_favorite']}`")
+
+            if 'nickname' in parsed:
+                criteria_parts.append(f"Nickname contains: `{parsed['nickname']}`")
+            if 'no_nickname' in parsed:
+                criteria_parts.append(f"Nickname excludes: `{parsed['no_nickname']}`")
+
+            criteria_display = "\n".join(f"{config.REPLY} {part}" for part in criteria_parts)
+
+            class SuccessView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(
+                        content=f"✅ **Male Command Set**\n\n"
+                                f"**Command:** `{value}`\n\n"
+                                f"**Parsed Criteria:**\n{criteria_display}\n\n"
+                                f"_Use `{config.PREFIX[0]}target command_breeding` to activate_"
+                    ),
+                )
+            await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
+
+        except Exception as e:
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content=f"❌ Error parsing command: {str(e)}"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
+
+    async def set_command_female(self, ctx, value: str):
+        """Set female filter command for command_breeding"""
+        user_id = ctx.author.id
+
+        if value.lower() == 'none':
+            await db.update_settings(user_id, {'command_female': ''})
+
+            class SuccessView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="✅ Female command cleared"),
+                )
+            await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
+            return
+
+        # Validate command by parsing it
+        utils = self.bot.get_cog('Utils')
+        if not utils:
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="❌ Utils cog not loaded"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
+            return
+
+        try:
+            parsed = utils.parse_add_flags(value)
+
+            # Check if command has any valid criteria
+            if not parsed:
+                class ErrorView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content="❌ Invalid command - no valid filters found"),
+                    )
+                await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
+                return
+
+            # Save command
+            await db.update_settings(user_id, {'command_female': value})
+
+            # Build description of what was set
+            criteria_parts = []
+            if 'name' in parsed:
+                criteria_parts.append(f"Names: {', '.join(f'`{n}`' for n in parsed['name'])}")
+            if 'moves' in parsed:
+                criteria_parts.append(f"Moves: {', '.join(f'`{m}`' for m in parsed['moves'])}")
+            if 'no_moves' in parsed:
+                criteria_parts.append(f"No moves: {', '.join(f'`{m}`' for m in parsed['no_moves'])}")
+
+            for iv_name in ['hpiv', 'atkiv', 'defiv', 'spatkiv', 'spdefiv', 'spdiv']:
+                if iv_name in parsed:
+                    iv_range = parsed[iv_name]
+                    if iv_range['min'] == iv_range['max']:
+                        criteria_parts.append(f"{iv_name.upper()}: `{iv_range['min']}`")
+                    else:
+                        criteria_parts.append(f"{iv_name.upper()}: `{iv_range['min']}-{iv_range['max']}`")
+
+            if 'trip' in parsed:
+                criteria_parts.append(f"Triple: `{parsed['trip']}`")
+            if 'quad' in parsed:
+                criteria_parts.append(f"Quad: `{parsed['quad']}`")
+            if 'penta' in parsed:
+                criteria_parts.append(f"Penta: `{parsed['penta']}`")
+            if 'hex' in parsed:
+                criteria_parts.append(f"Hex: `{parsed['hex']}`")
+
+            if 'level' in parsed:
+                level = parsed['level']
+                if 'exact' in level:
+                    criteria_parts.append(f"Level: `{level['exact']}`")
+                else:
+                    criteria_parts.append(f"Level: `{level.get('min', 1)}-{level.get('max', 100)}`")
+
+            if 'is_favorite' in parsed:
+                criteria_parts.append(f"Favorite: `{parsed['is_favorite']}`")
+
+            if 'nickname' in parsed:
+                criteria_parts.append(f"Nickname contains: `{parsed['nickname']}`")
+            if 'no_nickname' in parsed:
+                criteria_parts.append(f"Nickname excludes: `{parsed['no_nickname']}`")
+
+            criteria_display = "\n".join(f"{config.REPLY} {part}" for part in criteria_parts)
+
+            class SuccessView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(
+                        content=f"✅ **Female Command Set**\n\n"
+                                f"**Command:** `{value}`\n\n"
+                                f"**Parsed Criteria:**\n{criteria_display}\n\n"
+                                f"_Use `{config.PREFIX[0]}target command_breeding` to activate_"
+                    ),
+                )
+            await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
+
+        except Exception as e:
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content=f"❌ Error parsing command: {str(e)}"),
+                )
+            await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
 
 async def setup(bot):
     await bot.add_cog(Settings(bot))
