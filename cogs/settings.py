@@ -660,7 +660,7 @@ class Settings(commands.Cog):
 
         # Combine related text displays to reduce component count
         basic_settings_text = (
-            f"**⚙️ Your Current Settings For Daycare**\n\n"
+            f"**__⚙️ Your Current Settings For Daycare__**\n\n"
             f"- **Current Mode:** {mode_display}"
         )
 
