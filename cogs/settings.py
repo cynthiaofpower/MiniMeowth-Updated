@@ -690,8 +690,8 @@ class Settings(commands.Cog):
         inventory_settings_text = f"- **Breeding Inventory(s):** {inv_display}{inventory_note}"
 
         mychoice_settings_text = (
-            f"- **Current Male(s):** {males_display}\n"
-            f"- **Current Female(s):** {females_display}"
+            f"- **My Choice Mode Config** \n {config.REPLY} **Current Male(s):** {males_display}\n"
+            f"{config.REPLY} **Current Female(s):** {females_display}"
         )
 
         # NEW: Build command_breeding display (only if active)
