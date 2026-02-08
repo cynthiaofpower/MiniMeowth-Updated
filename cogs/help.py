@@ -798,6 +798,381 @@ class Help(commands.Cog):
 
         return pages
 
+    @commands.hybrid_command(name='help_targets', aliases=['helptargets', 'targethelp', 'targetshelp'])
+    async def help_targets_command(self, ctx):
+        """Comprehensive guide to all breeding target options"""
+
+        pages_data = [
+            # Page 1: Overview
+            {
+                'title': '🎯 Breeding Targets Guide - Overview',
+                'content': (
+                    f"**What are Breeding Targets?**\n"
+                    f"Targets control which Pokemon the `{config.PREFIX[0]}breed` command will pair for breeding.\n\n"
+                    f"**How to Set Targets:**\n"
+                    f"{config.REPLY} `{config.PREFIX[0]}target <target_name>`\n"
+                    f"{config.REPLY} `{config.PREFIX[0]}settings` (interactive menu)\n\n"
+                    f"**Available Targets:**\n"
+                    f"{config.REPLY} `all` - Any compatible Pokemon\n"
+                    f"{config.REPLY} `mychoice` - Custom species pairing\n"
+                    f"{config.REPLY} `command_breeding` - Advanced filter-based pairing\n"
+                    f"{config.REPLY} `tripmax` - High IV breeding\n"
+                    f"{config.REPLY} `tripzero` - Low IV breeding\n"
+                    f"{config.REPLY} `gigantamax` - Gigantamax Pokemon only\n"
+                    f"{config.REPLY} `regionals` - Regional forms only\n"
+                    f"{config.REPLY} Specific Pokemon names"
+                )
+            },
+
+            # Page 2: All Target
+            {
+                'title': '🎯 Target: All',
+                'content': (
+                    f"**Description:**\n"
+                    f"Breeds any compatible Pokemon in your inventory using advanced phase-based pairing.\n\n"
+                    f"**Usage:**\n"
+                    f"`{config.PREFIX[0]}target all`\n\n"
+                    f"**How It Works:**\n"
+                    f"{config.REPLY} **Phase 1:** Pairs females with same species males\n"
+                    f"{config.REPLY} **Phase 2:** Pairs females with egg group males\n"
+                    f"{config.REPLY} **Phase 3:** Pairs female-only species\n"
+                    f"{config.REPLY} **Phase 4:** Pairs females with Ditto\n"
+                    f"{config.REPLY} **Phase 5:** Pairs males with Ditto\n"
+                    f"{config.REPLY} **Phase 6:** Special males (if enabled)\n\n"
+                    f"**Best For:**\n"
+                    f"Daily breeding, bulk breeding, general inventory management\n\n"
+                    f"**Example:**\n"
+                    f"`{config.PREFIX[0]}target all`\n"
+                    f"`{config.PREFIX[0]}breed 2`"
+                )
+            },
+
+            # Page 3: MyChoice Target
+            {
+                'title': '🎯 Target: MyChoice',
+                'content': (
+                    f"**Description:**\n"
+                    f"Breed specific Pokemon species you choose as males and females.\n\n"
+                    f"**Setup:**\n"
+                    f"1. Set male species: `{config.PREFIX[0]}setmale <pokemon>`\n"
+                    f"2. Set female species: `{config.PREFIX[0]}setfemale <pokemon>`\n"
+                    f"3. Activate: `{config.PREFIX[0]}target mychoice`\n\n"
+                    f"**Features:**\n"
+                    f"{config.REPLY} Supports multiple species (comma-separated)\n"
+                    f"{config.REPLY} Validates breeding compatibility\n"
+                    f"{config.REPLY} Shows compatible pairs preview\n"
+                    f"{config.REPLY} Pairs highest IV males with highest IV females\n\n"
+                    f"**Example:**\n"
+                    f"`{config.PREFIX[0]}setmale dreepy, drakloak, dragapult`\n"
+                    f"`{config.PREFIX[0]}setfemale ditto`\n"
+                    f"`{config.PREFIX[0]}target mychoice`\n"
+                    f"`{config.PREFIX[0]}breed`\n\n"
+                    f"**Clear Settings:**\n"
+                    f"`{config.PREFIX[0]}setmale none`\n"
+                    f"`{config.PREFIX[0]}setfemale none`"
+                )
+            },
+
+            # Page 4: Command Breeding Target (Part 1)
+            {
+                'title': '🎯 Target: Command Breeding (1/3)',
+                'content': (
+                    f"**Description:**\n"
+                    f"Advanced filter-based pairing using command-style criteria. Perfect for egg move breeding!\n\n"
+                    f"**Setup:**\n"
+                    f"0. Add Pokemons with necessary filters: `{config.PREFIX[0]}add --move fake out --spdiv 31 (optional)`\n"
+                    f"1. Set male filters: `{config.PREFIX[0]}setcommandmale <filters>`\n"
+                    f"2. Set female filters: `{config.PREFIX[0]}setcommandfemale <filters>`\n"
+                    f"3. Activate: `{config.PREFIX[0]}target command_breeding`\n\n"
+                    f"**Available Filters:**\n"
+                    f"{config.REPLY} `--n <name>` - Pokemon name (supports multiple)\n"
+                    f"{config.REPLY} `--move <move>` - Must have move\n"
+                    f"{config.REPLY} `--nomove <move>` - Must NOT have move\n"
+                    f"{config.REPLY} `--hpiv`, `--atkiv`, `--defiv`, etc. - IV filters\n"
+                    f"{config.REPLY} `--lvl <level>` - Level filter\n"
+                    f"{config.REPLY} `--fav` / `--unfav` - Favorite status\n"
+                    f"{config.REPLY} `--trip`, `--quad`, `--penta`, `--hex` - Perfect IVs\n\n"
+                    f"**View Current Settings:**\n"
+                    f"`{config.PREFIX[0]}viewcommands`"
+                )
+            },
+
+            # Page 5: Command Breeding Examples (Part 2)
+            {
+                'title': '🎯 Target: Command Breeding (2/3)',
+                'content': (
+                    f"**Example 1: Egg Move Breeding**\n"
+                    f"Breed Meowth with Fake Out to females without Fake Out:\n\n"
+                    f"`{config.PREFIX[0]}setcommandmale --n meowth --move fake out --spdiv 31`\n"
+                    f"`{config.PREFIX[0]}setcommandfemale --n hisuian sneasel --nomove fake out`\n"
+                    f"`{config.PREFIX[0]}target command_breeding`\n"
+                    f"`{config.PREFIX[0]}breed`\n\n"
+                    f"**Example 2: High IV Ditto Pairing**\n"
+                    f"Pair any Ditto with high ATK Pokemon:\n\n"
+                    f"`{config.PREFIX[0]}setcommandmale --n ditto`\n"
+                    f"`{config.PREFIX[0]}setcommandfemale --atkiv >=25`\n"
+                    f"`{config.PREFIX[0]}target command_breeding`\n\n"
+                    f"**Example 3: Perfect Speed Breeding**\n"
+                    f"Breed Pokemon with perfect speed:\n\n"
+                    f"`{config.PREFIX[0]}setcommandmale --spdiv 31`\n"
+                    f"`{config.PREFIX[0]}setcommandfemale --spdiv <31 --unfav`"
+                )
+            },
+
+            # Page 6: Command Breeding Advanced (Part 3)
+            {
+                'title': '🎯 Target: Command Breeding (3/3)',
+                'content': (
+                    f"**Advanced Filtering:**\n\n"
+                    f"**IV Operators:**\n"
+                    f"{config.REPLY} `31` - Exactly 31\n"
+                    f"{config.REPLY} `>28` - Greater than 28 (29-31)\n"
+                    f"{config.REPLY} `>=29` - Greater than or equal to 29\n"
+                    f"{config.REPLY} `<10` - Less than 10 (0-9)\n"
+                    f"{config.REPLY} `<=15` - Less than or equal to 15\n\n"
+                    f"**Perfect IV Counters:**\n"
+                    f"{config.REPLY} `--trip 31` - Triple perfect (3x 31 IVs)\n"
+                    f"{config.REPLY} `--quad 31` - Quadruple perfect (4x 31 IVs)\n"
+                    f"{config.REPLY} `--penta 31` - Pentuple perfect (5x 31 IVs)\n"
+                    f"{config.REPLY} `--hex 31` - Hextuple perfect (6x 31 IVs)\n\n"
+                    f"**Tips:**\n"
+                    f"{config.REPLY} Filters are AND logic (all must match)\n"
+                    f"{config.REPLY} Use `--n` for multiple Pokemon names\n"
+                    f"{config.REPLY} Combine move and IV filters for precision\n"
+                    f"{config.REPLY} Use `{config.PREFIX[0]}viewcommands` to check settings\n\n"
+                    f"**Clear Settings:**\n"
+                    f"`{config.PREFIX[0]}setcommandmale none`\n"
+                    f"`{config.PREFIX[0]}setcommandfemale none`"
+                )
+            },
+
+            # Page 7: TripMax Target
+            {
+                'title': '🎯 Target: TripMax',
+                'content': (
+                    f"**Description:**\n"
+                    f"Breed high IV Pokemon from your TripMax inventory.\n\n"
+                    f"**Usage:**\n"
+                    f"`{config.PREFIX[0]}target tripmax`\n\n"
+                    f"**Features:**\n"
+                    f"{config.REPLY} Uses **TripMax inventory only** (fixed)\n"
+                    f"{config.REPLY} Sorts by **highest IV first** (descending)\n"
+                    f"{config.REPLY} Prioritizes same species pairs\n"
+                    f"{config.REPLY} Falls back to egg group matching\n\n"
+                    f"**Best For:**\n"
+                    f"Breeding high IV Pokemon for competitive use or trading\n\n"
+                    f"**Example Workflow:**\n"
+                    f"1. `{config.PREFIX[0]}addtripmax` (add high IV Pokemon)\n"
+                    f"2. `{config.PREFIX[0]}target tripmax`\n"
+                    f"3. `{config.PREFIX[0]}breed 2`\n\n"
+                    f"**Note:**\n"
+                    f"Inventory setting is locked to TripMax when this target is active"
+                )
+            },
+
+            # Page 8: TripZero Target
+            {
+                'title': '🎯 Target: TripZero',
+                'content': (
+                    f"**Description:**\n"
+                    f"Breed low IV Pokemon from your TripZero inventory.\n\n"
+                    f"**Usage:**\n"
+                    f"`{config.PREFIX[0]}target tripzero`\n\n"
+                    f"**Features:**\n"
+                    f"{config.REPLY} Uses **TripZero inventory only** (fixed)\n"
+                    f"{config.REPLY} Sorts by **lowest IV first** (ascending)\n"
+                    f"{config.REPLY} Prioritizes same species pairs\n"
+                    f"{config.REPLY} Falls back to egg group matching\n\n"
+                    f"**Best For:**\n"
+                    f"Breeding low IV Pokemon for trick room strategies\n\n"
+                    f"**Example Workflow:**\n"
+                    f"1. `{config.PREFIX[0]}addtripzero` (add low IV Pokemon)\n"
+                    f"2. `{config.PREFIX[0]}target tripzero`\n"
+                    f"3. `{config.PREFIX[0]}breed 2`\n\n"
+                    f"**Note:**\n"
+                    f"Inventory setting is locked to TripZero when this target is active"
+                )
+            },
+
+            # Page 9: Gigantamax Target
+            {
+                'title': '🎯 Target: Gigantamax',
+                'content': (
+                    f"**Description:**\n"
+                    f"Breed only Gigantamax Pokemon.\n\n"
+                    f"**Usage:**\n"
+                    f"`{config.PREFIX[0]}target gigantamax`\n\n"
+                    f"**How It Works:**\n"
+                    f"{config.REPLY} **Priority 1:** Gmax females with normal males\n"
+                    f"{config.REPLY} **Priority 2:** Gmax males with Ditto\n"
+                    f"{config.REPLY} **Optional:** Gmax female × Gmax male (if enabled)\n\n"
+                    f"**Enable Gmax × Gmax Pairing:**\n"
+                    f"1. Open `{config.PREFIX[0]}settings`\n"
+                    f"2. Toggle **'Allow Male Gmax with Gmax/Normal/Regional Female'**\n\n"
+                    f"**Best For:**\n"
+                    f"Preserving Gigantamax forms, breeding for Gmax offspring\n\n"
+                    f"**Example:**\n"
+                    f"`{config.PREFIX[0]}target gigantamax`\n"
+                    f"`{config.PREFIX[0]}breed 2`\n\n"
+                    f"**Note:**\n"
+                    f"Gmax male × Gmax female is last resort (saves rare Gmax males)"
+                )
+            },
+
+            # Page 10: Regionals Target
+            {
+                'title': '🎯 Target: Regionals',
+                'content': (
+                    f"**Description:**\n"
+                    f"Breed only Regional form Pokemon (Alolan, Galarian, Hisuian, Paldean).\n\n"
+                    f"**Usage:**\n"
+                    f"`{config.PREFIX[0]}target regionals`\n\n"
+                    f"**How It Works:**\n"
+                    f"{config.REPLY} **Priority 1:** Regional females with normal males\n"
+                    f"{config.REPLY} **Priority 2:** Regional males with Ditto\n"
+                    f"{config.REPLY} **Optional:** Regional × Regional (if enabled)\n\n"
+                    f"**Enable Regional × Regional Pairing:**\n"
+                    f"1. Open `{config.PREFIX[0]}settings`\n"
+                    f"2. Toggle **'Allow Male Regional with Regional/Normal/Gmax Female'**\n\n"
+                    f"**Best For:**\n"
+                    f"Preserving regional forms, breeding for regional offspring\n\n"
+                    f"**Example:**\n"
+                    f"`{config.PREFIX[0]}target regionals`\n"
+                    f"`{config.PREFIX[0]}breed 2`\n\n"
+                    f"**Supported Forms:**\n"
+                    f"Alolan, Galarian, Hisuian, Paldean"
+                )
+            },
+
+            # Page 11: Specific Pokemon Target
+            {
+                'title': '🎯 Target: Specific Pokemon',
+                'content': (
+                    f"**Description:**\n"
+                    f"Breed only specific Pokemon species you name.\n\n"
+                    f"**Usage:**\n"
+                    f"`{config.PREFIX[0]}target <pokemon_name>`\n"
+                    f"`{config.PREFIX[0]}target <pokemon1>, <pokemon2>, ...`\n\n"
+                    f"**How It Works:**\n"
+                    f"{config.REPLY} **Priority 1:** Target females with ANY compatible males\n"
+                    f"{config.REPLY} **Priority 2:** Target males with Ditto only\n"
+                    f"{config.REPLY} Ensures target females are paired first\n\n"
+                    f"**Examples:**\n"
+                    f"`{config.PREFIX[0]}target dreepy`\n"
+                    f"`{config.PREFIX[0]}target pikachu, raichu`\n"
+                    f"`{config.PREFIX[0]}target hisuian sneasel`\n\n"
+                    f"**Important:**\n"
+                    f"{config.REPLY} Names must be **exact** (case-insensitive)\n"
+                    f"{config.REPLY} Forms matter: 'Pikachu' ≠ 'Gigantamax Pikachu'\n"
+                    f"{config.REPLY} Supports multiple species (comma-separated)\n\n"
+                    f"**Best For:**\n"
+                    f"Focused breeding, evolution line breeding"
+                )
+            },
+
+            # Page 12: Comparison & Tips
+            {
+                'title': '🎯 Target Comparison & Tips',
+                'content': (
+                    f"**Quick Comparison:**\n\n"
+                    f"**Simple Breeding:**\n"
+                    f"{config.REPLY} `all` - General daily breeding\n"
+                    f"{config.REPLY} `tripmax` - High IV focus\n"
+                    f"{config.REPLY} `tripzero` - Low IV focus\n\n"
+                    f"**Specific Breeding:**\n"
+                    f"{config.REPLY} `mychoice` - Choose species (simple)\n"
+                    f"{config.REPLY} `command_breeding` - Advanced filters\n"
+                    f"{config.REPLY} Specific names - Target one species\n\n"
+                    f"**Special Forms:**\n"
+                    f"{config.REPLY} `gigantamax` - Gmax preservation\n"
+                    f"{config.REPLY} `regionals` - Regional forms\n\n"
+                    f"**Pro Tips:**\n"
+                    f"{config.REPLY} Use `{config.PREFIX[0]}settings` for interactive setup\n"
+                    f"{config.REPLY} Combine with inventory filters for precision\n"
+                    f"{config.REPLY} Check compatibility before breeding\n"
+                    f"{config.REPLY} Use selective mode for trainer diversity\n"
+                    f"{config.REPLY} Enable special pairings for flexibility"
+                )
+            }
+        ]
+
+        current_page = [0]
+        total_pages = len(pages_data)
+        author_id = ctx.author.id
+
+        def get_page_view(page_num: int):
+            """Generate view for specific page"""
+            page = pages_data[page_num]
+
+            class PreviousButton(discord.ui.Button):
+                def __init__(self):
+                    super().__init__(
+                        style=discord.ButtonStyle.primary,
+                        label="Previous",
+                        emoji="◀️",
+                        disabled=(page_num == 0)
+                    )
+
+                async def callback(self, interaction: discord.Interaction):
+                    if interaction.user.id != author_id:
+                        class ErrorView(discord.ui.LayoutView):
+                            container1 = discord.ui.Container(
+                                discord.ui.TextDisplay(content="❌ This is not your help menu!"),
+                            )
+                        await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                        return
+
+                    if current_page[0] > 0:
+                        current_page[0] -= 1
+                        new_view = get_page_view(current_page[0])
+                        await interaction.response.edit_message(view=new_view)
+                    else:
+                        await interaction.response.defer()
+
+            class NextButton(discord.ui.Button):
+                def __init__(self):
+                    super().__init__(
+                        style=discord.ButtonStyle.primary,
+                        label="Next",
+                        emoji="▶️",
+                        disabled=(page_num >= total_pages - 1)
+                    )
+
+                async def callback(self, interaction: discord.Interaction):
+                    if interaction.user.id != author_id:
+                        class ErrorView(discord.ui.LayoutView):
+                            container1 = discord.ui.Container(
+                                discord.ui.TextDisplay(content="❌ This is not your help menu!"),
+                            )
+                        await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                        return
+
+                    if current_page[0] < total_pages - 1:
+                        current_page[0] += 1
+                        new_view = get_page_view(current_page[0])
+                        await interaction.response.edit_message(view=new_view)
+                    else:
+                        await interaction.response.defer()
+
+            class GuideView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content=f"**{page['title']}**"),
+                    discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                    discord.ui.TextDisplay(content=page['content']),
+                    discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                    discord.ui.TextDisplay(content=f"_Page {page_num + 1}/{total_pages}_"),
+                    discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                    discord.ui.ActionRow(
+                        PreviousButton(),
+                        NextButton()
+                    ),
+                )
+
+            return GuideView()
+
+        # Send initial page
+        await ctx.send(view=get_page_view(0), reference=ctx.message, mention_author=False)
+
     @commands.hybrid_command(name='help', aliases=['h'])
     @app_commands.describe(category="Category or command to get help for")
     async def help_command(self, ctx, *, category: str = None):
