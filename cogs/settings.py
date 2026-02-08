@@ -533,6 +533,7 @@ class Settings(commands.Cog):
                     f"{config.REPLY} **Selective (Old/New):** Pairs old IDs (≤271800) with new IDs (≥271900)\n"
                     f"{config.REPLY} **Not Selective:** Pairs any compatible Pokemon regardless of ID\n\n"
                     "**Target Options:**\n"
+                    f"{config.REPLY} Use `m!helptargets` to know in detailed about below targets.\n"
                     f"{config.REPLY} **All** - Breed any compatible Pokemon\n"
                     f"{config.REPLY} **MyChoice** - Use your custom male/female species settings\n"
                     f"{config.REPLY} **Command Breeding** - Filter-based pairing with advanced commands\n"  # NEW
