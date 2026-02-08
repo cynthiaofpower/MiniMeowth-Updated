@@ -160,9 +160,11 @@ class Breeding(commands.Cog):
                     discord.ui.TextDisplay(
                         content="**❌ No compatible breeding pairs found**\n\n"
                                 "**Troubleshooting:**\n"
-                                f"{config.REPLY} Check mode: `m!settings` (try `notselective`)\n"
-                                f"{config.REPLY} For egg moves: `m!settings target mychoice`\n"
-                                f"{config.REPLY} Help: `m!help settings`"
+                                f"{config.REPLY} Check your mode using `m!settings` (try `notselective`)\n"
+                                f"{config.REPLY} For egg moves (custom male & female), use `m!target mychoice`\n"
+                                f"{config.REPLY} To pair a **Gmax female with a Gmax male**, enable **Allow Male Gmax with Gmax/Normal/Regional Female** in `m!settings`\n"
+                                f"{config.REPLY} To pair **Regional × Regional**, enable the **Regional pairing** setting in `m!settings`\n\n"
+                                f"{config.REPLY} Need help? Use `m!help settings`"
                     ),
                 )
             await ctx.send(view=ErrorView(), reference=ctx.message, mention_author=False)
