@@ -297,83 +297,126 @@ class Help(commands.Cog):
                 'commands': [
                     {
                         'name': 'settings',
-                        'aliases': [],
-                        'usage': 'settings [type] [value]',
-                        'description': 'View or change bot settings interactively',
-                        'filters': 'mode, target, setmale, setfemale, inventory, info',
-                        'examples': [
-                            'settings',
-                            'settings mode selective',
-                            'settings target tripmax',
-                            'settings setmale dreepy, drakloak',
-                            'settings inventory normal, duel',
-                            'settings info detailed'
-                        ]
+                        'aliases': ['gear', 'sg', 'sgs'],
+                        'usage': 'settings',
+                        'description': 'View interactive settings menu with all breeding configurations',
+                        'filters': None,
+                        'examples': ['settings']
                     },
                     {
-                        'name': 'settings mode',
+                        'name': 'mode',
                         'aliases': [],
-                        'usage': 'settings mode <selective|notselective>',
+                        'usage': 'mode [selective|notselective]',
                         'description': 'Set breeding mode. Selective pairs old IDs (≤271800) with new IDs (≥271900)',
-                        'filters': None
+                        'filters': None,
+                        'examples': ['mode', 'mode selective', 'mode notselective']
                     },
                     {
-                        'name': 'settings target',
+                        'name': 'target',
                         'aliases': [],
-                        'usage': 'settings target <value>',
-                        'description': 'Set breeding target. Options: all, mychoice, tripmax, tripzero, gigantamax, regionals, or Pokemon names',
+                        'usage': 'target [value]',
+                        'description': 'Set breeding target. Options: all, mychoice, command_breeding, tripmax, tripzero, gigantamax, regionals, or Pokemon names',
                         'filters': None,
                         'examples': [
-                            'settings target all',
-                            'settings target gigantamax',
-                            'settings target pikachu, eevee'
+                            'target',
+                            'target all',
+                            'target mychoice',
+                            'target command_breeding',
+                            'target gigantamax',
+                            'target pikachu, eevee'
                         ]
                     },
                     {
-                        'name': 'settings setmale',
+                        'name': 'setmale',
                         'aliases': [],
-                        'usage': 'settings setmale <pokemon names>',
+                        'usage': 'setmale [pokemon names]',
                         'description': 'Set specific males for MyChoice target. Then set target to mychoice to use',
                         'filters': None,
-                        'examples': ['settings setmale pikachu, eevee', 'settings setmale none']
+                        'examples': ['setmale', 'setmale pikachu, eevee', 'setmale none']
                     },
                     {
-                        'name': 'settings setfemale',
+                        'name': 'setfemale',
                         'aliases': [],
-                        'usage': 'settings setfemale <pokemon names>',
+                        'usage': 'setfemale [pokemon names]',
                         'description': 'Set specific females for MyChoice target. Then set target to mychoice to use',
                         'filters': None,
-                        'examples': ['settings setfemale ditto', 'settings setfemale none']
+                        'examples': ['setfemale', 'setfemale ditto', 'setfemale none']
                     },
                     {
-                        'name': 'settings inventory',
-                        'aliases': ['settings inv'],
-                        'usage': 'settings inventory <inventories>',
+                        'name': 'setcommandmale',
+                        'aliases': ['setcmdmale', 'cmdmale', 'malecmd'],
+                        'usage': 'setcommandmale [filters]',
+                        'description': 'Set filter command for male Pokemon in command_breeding mode',
+                        'filters': None,
+                        'examples': [
+                            'setcommandmale',
+                            'setcommandmale --spdiv 31 --move fake out',
+                            'setcommandmale --n ditto --atkiv >20',
+                            'setcommandmale none'
+                        ]
+                    },
+                    {
+                        'name': 'setcommandfemale',
+                        'aliases': ['setcmdfemale', 'cmdfemale', 'femalecmd'],
+                        'usage': 'setcommandfemale [filters]',
+                        'description': 'Set filter command for female Pokemon in command_breeding mode',
+                        'filters': None,
+                        'examples': [
+                            'setcommandfemale',
+                            'setcommandfemale --n meowth --spdiv 31 --move fake out',
+                            'setcommandfemale --move fake out --fav',
+                            'setcommandfemale none'
+                        ]
+                    },
+                    {
+                        'name': 'viewcommands',
+                        'aliases': ['viewcmd', 'showcmd', 'cmd', 'cmdview'],
+                        'usage': 'viewcommands',
+                        'description': 'View your current command breeding filter settings with swap and clear options',
+                        'filters': None,
+                        'examples': ['viewcommands']
+                    },
+                    {
+                        'name': 'targetinventory',
+                        'aliases': ['setinventory', 'targetinv', 'setinv'],
+                        'usage': 'targetinventory [inventories]',
                         'description': 'Set which inventories to search for breeding',
                         'filters': 'normal, tripmax, tripzero, duel, all',
-                        'examples': ['settings inventory normal, duel', 'settings inventory all']
+                        'examples': [
+                            'targetinventory',
+                            'targetinventory normal',
+                            'targetinventory normal, duel',
+                            'targetinventory all'
+                        ]
                     },
                     {
-                        'name': 'settings info',
-                        'aliases': [],
-                        'usage': 'settings info <mode>',
+                        'name': 'breed_output',
+                        'aliases': ['dc_output', 'breedoutput', 'dcoutput'],
+                        'usage': 'breed_output [mode]',
                         'description': 'Customize how breeding pairs are displayed',
                         'filters': 'detailed, simple, off',
-                        'examples': ['settings info detailed', 'settings info off']
+                        'examples': [
+                            'breed_output',
+                            'breed_output detailed',
+                            'breed_output simple',
+                            'breed_output off'
+                        ]
                     },
                     {
                         'name': 'reset-settings',
                         'aliases': ['resetsettings'],
                         'usage': 'reset-settings',
                         'description': 'Reset all settings to default values',
-                        'filters': None
+                        'filters': None,
+                        'examples': ['reset-settings']
                     },
                     {
                         'name': 'setid',
                         'aliases': [],
                         'usage': 'setid <pokemon_id> <old/new>',
-                        'description': 'Override ID categorization for selective breeding mode',
-                        'filters': None
+                        'description': 'Override ID categorization for selective breeding mode (single ID)',
+                        'filters': None,
+                        'examples': ['setid 444 new', 'setid 12345 old']
                     },
                     {
                         'name': 'setnew',
@@ -381,7 +424,7 @@ class Help(commands.Cog):
                         'usage': 'setnew <ids>',
                         'description': 'Set multiple Pokemon IDs as NEW for selective mode',
                         'filters': None,
-                        'examples': ['setnew 444 555 666', 'setnew 1-10']
+                        'examples': ['setnew 444 555 666', 'setnew 1-10', 'setnew 1-5 100 200-205']
                     },
                     {
                         'name': 'setold',
@@ -389,35 +432,39 @@ class Help(commands.Cog):
                         'usage': 'setold <ids>',
                         'description': 'Set multiple Pokemon IDs as OLD for selective mode',
                         'filters': None,
-                        'examples': ['setold 444 555 666', 'setold 1-10']
+                        'examples': ['setold 444 555 666', 'setold 1-10', 'setold 1-5 100 200-205']
                     },
                     {
                         'name': 'removeid',
                         'aliases': ['removeids'],
                         'usage': 'removeid <ids>',
                         'description': 'Remove ID overrides from selective mode',
-                        'filters': None
+                        'filters': None,
+                        'examples': ['removeid 444', 'removeid 444 555 666', 'removeid 1-10']
                     },
                     {
                         'name': 'listids',
                         'aliases': ['listoverrides'],
                         'usage': 'listids',
                         'description': 'List all ID overrides for selective mode',
-                        'filters': None
+                        'filters': None,
+                        'examples': ['listids']
                     },
                     {
                         'name': 'clearids',
                         'aliases': ['clearoverrides'],
                         'usage': 'clearids',
                         'description': 'Clear all ID overrides',
-                        'filters': None
+                        'filters': None,
+                        'examples': ['clearids']
                     },
                     {
                         'name': 'checkid',
                         'aliases': [],
                         'usage': 'checkid <pokemon_id>',
                         'description': 'Check if a Pokemon ID is categorized as old or new',
-                        'filters': None
+                        'filters': None,
+                        'examples': ['checkid 444', 'checkid 12345']
                     }
                 ]
             },
