@@ -242,6 +242,46 @@ class Fuse(commands.Cog):
 
         return found_urls
 
+    # ---------- Sprite Variants Generator ----------
+    def generate_sprite_suffixes(self) -> List[str]:
+        """Generate all possible sprite suffixes: '', 'a'-'z', 'aa'-'az'"""
+        suffixes = ['']  # Base sprite with no suffix
+
+        # Single letters: a-z
+        for letter in string.ascii_lowercase:
+            suffixes.append(letter)
+
+        # Double letters: aa-az
+        for letter in string.ascii_lowercase:
+            suffixes.append(f'a{letter}')
+
+        return suffixes
+
+    async def find_sprite_images(self, pokemon_num: str) -> List[str]:
+        """Find all sprite variants for a single Pokémon"""
+        found_urls = []
+        suffixes = self.generate_sprite_suffixes()
+
+        # Check all variants concurrently with rate limiting
+        semaphore = asyncio.Semaphore(5)
+
+        async def check_sprite(suffix: str) -> tuple[str, str, bool]:
+            async with semaphore:
+                name = f"{pokemon_num}{suffix}"
+                url = BASE_URL.format(name)
+                exists = await self.image_exists(url)
+                return (suffix, url, exists)
+
+        tasks = [check_sprite(suffix) for suffix in suffixes]
+        results = await asyncio.gather(*tasks)
+
+        # Collect all existing sprites
+        for suffix, url, exists in results:
+            if exists:
+                found_urls.append(url)
+
+        return found_urls
+
     # ---------- Slash Command ----------
     @app_commands.command(
         name="fuse",
@@ -322,6 +362,193 @@ class Fuse(commands.Cog):
         # Create view using factory function
         try:
             ViewClass = create_fusion_view(interaction.user.id, found_urls, head, body, current_page=0)
+            view = ViewClass()
+
+            await interaction.edit_original_response(view=view)
+        except Exception as e:
+            print(f"Error creating/sending view: {e}")
+            import traceback
+            traceback.print_exc()
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content=f"❌ Error displaying results: {str(e)}"),
+                )
+            await interaction.edit_original_response(view=ErrorView())
+
+    # ---------- Sprite Command ----------
+    @app_commands.command(
+        name="sprite",
+        description="View all sprite variants for a Pokémon (note: not all Pokémon have sprites)"
+    )
+    @app_commands.describe(
+        pokemon="Pokémon name"
+    )
+    async def sprite(
+        self,
+        interaction: discord.Interaction,
+        pokemon: str
+    ):
+        # Respond immediately with a loading message
+        class LoadingView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(
+                discord.ui.TextDisplay(content="🔍 **Searching for sprite variants...**"),
+            )
+
+        await interaction.response.send_message(view=LoadingView())
+
+        pokemon_key = pokemon.lower().strip()
+
+        # Validate Pokémon name
+        if pokemon_key not in self.pokemon_map:
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content=f"❌ **{pokemon.title()}** not found in the Pokédex."),
+                )
+            await interaction.edit_original_response(view=ErrorView())
+            return
+
+        pokemon_num = self.pokemon_map[pokemon_key]
+
+        # Find all sprite images
+        try:
+            found_urls = await asyncio.wait_for(
+                self.find_sprite_images(pokemon_num),
+                timeout=30.0
+            )
+        except asyncio.TimeoutError:
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content="⏱️ Request timed out. The server might be slow. Please try again."),
+                )
+            await interaction.edit_original_response(view=ErrorView())
+            return
+        except Exception as e:
+            print(f"Error finding sprites: {e}")
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content=f"❌ An error occurred while searching for sprites."),
+                )
+            await interaction.edit_original_response(view=ErrorView())
+            return
+
+        # Handle no results
+        if not found_urls:
+            class ErrorView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(content=f"❌ No sprite variants found for **{pokemon.title()}**.\n_Note: Not all Pokémon have sprite variants available._"),
+                )
+            await interaction.edit_original_response(view=ErrorView())
+            return
+
+        # Create sprite view (reuse the fusion view factory with modified title)
+        try:
+            # Create a modified version of the view for sprites
+            def create_sprite_view(user_id: int, urls: List[str], pokemon_name: str, current_page: int = 0):
+                start_idx = current_page * IMAGES_PER_PAGE
+                end_idx = min(start_idx + IMAGES_PER_PAGE, len(urls))
+                page_urls = urls[start_idx:end_idx]
+                max_page = (len(urls) - 1) // IMAGES_PER_PAGE
+
+                galleries = []
+                for url in page_urls:
+                    galleries.append(
+                        discord.ui.MediaGallery(
+                            discord.MediaGalleryItem(media=url)
+                        )
+                    )
+
+                title = f"🎨 **Sprite Variants:** {pokemon_name.title()}"
+                page_info = f"Page {current_page + 1}/{max_page + 1} • {len(urls)} variant{'s' if len(urls) != 1 else ''}"
+
+                class PrevButton(discord.ui.Button):
+                    def __init__(self):
+                        super().__init__(
+                            style=discord.ButtonStyle.secondary,
+                            label="◀ Prev",
+                            custom_id="prev_page",
+                            disabled=(current_page == 0)
+                        )
+
+                    async def callback(self, interaction: discord.Interaction):
+                        if interaction.user.id != user_id:
+                            class ErrorView(discord.ui.LayoutView):
+                                container1 = discord.ui.Container(
+                                    discord.ui.TextDisplay(content="❌ This is not your sprite result!"),
+                                )
+                            await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                            return
+
+                        new_page = current_page - 1
+                        ViewClass = create_sprite_view(user_id, urls, pokemon_name, new_page)
+                        new_view = ViewClass()
+                        await interaction.response.edit_message(view=new_view)
+
+                class NextButton(discord.ui.Button):
+                    def __init__(self):
+                        super().__init__(
+                            style=discord.ButtonStyle.secondary,
+                            label="Next ▶",
+                            custom_id="next_page",
+                            disabled=(current_page >= max_page)
+                        )
+
+                    async def callback(self, interaction: discord.Interaction):
+                        if interaction.user.id != user_id:
+                            class ErrorView(discord.ui.LayoutView):
+                                container1 = discord.ui.Container(
+                                    discord.ui.TextDisplay(content="❌ This is not your sprite result!"),
+                                )
+                            await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                            return
+
+                        new_page = current_page + 1
+                        ViewClass = create_sprite_view(user_id, urls, pokemon_name, new_page)
+                        new_view = ViewClass()
+                        await interaction.response.edit_message(view=new_view)
+
+                container_components = [
+                    discord.ui.TextDisplay(content=title),
+                    discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                ]
+
+                container_components.extend(galleries)
+
+                if len(urls) > IMAGES_PER_PAGE:
+                    container_components.append(
+                        discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small)
+                    )
+                    container_components.append(
+                        discord.ui.TextDisplay(content=f"_{page_info}_")
+                    )
+                    container_components.append(
+                        discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small)
+                    )
+                    container_components.append(
+                        discord.ui.ActionRow(
+                            PrevButton(),
+                            NextButton()
+                        )
+                    )
+                else:
+                    container_components.append(
+                        discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small)
+                    )
+                    container_components.append(
+                        discord.ui.TextDisplay(content=f"_{page_info}_")
+                    )
+
+                class SpriteView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        *container_components,
+                        accent_colour=config.EMBED_COLOR  
+                    )
+
+                    def __init__(self):
+                        super().__init__(timeout=180)
+
+                return SpriteView
+
+            ViewClass = create_sprite_view(interaction.user.id, found_urls, pokemon, current_page=0)
             view = ViewClass()
 
             await interaction.edit_original_response(view=view)
