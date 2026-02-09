@@ -134,6 +134,7 @@ async def on_ready():
         'cogs.cooldown',
         'cogs.pokemonlisttools',
         'cogs.help',
+        'cogs.fusion',
         'cogs.customdex',
         'cogs.utility_commands',
         'cogs.inventory',
