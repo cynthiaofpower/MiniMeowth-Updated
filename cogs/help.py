@@ -577,6 +577,14 @@ class Help(commands.Cog):
                         'examples': ['track p!select (id)']
                     },
                     {
+                        'name': 'fuse',
+                        'aliases': [],
+                        'usage': 'fuse head and body of pokemons',
+                        'description': 'Fuse Pokemons, only slash command ',
+                        'filters': None,
+                        'examples': ['/fuse)']
+                    },
+                    {
                         'name': 'rarecandylevel',
                         'aliases': [],
                         'usage': 'rarecandylevel <target_level>',
@@ -711,6 +719,9 @@ class Help(commands.Cog):
                         '`--type <type>` - Filter by type (max 2)\n'
                         '`--region <region>` - Filter by region\n'
                         '`--g <gender>` - Filter by gender'
+                        '`--level <number>` - Filter by level'
+                        '`--iv <iv>` - Filter by iv, also available individually for atk, def, spatk, spdef, spd (if stored by user)'
+                        '`--move <move>` - Filter by move (if stored by user)'
                     )
                 },
                 {
