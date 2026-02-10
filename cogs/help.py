@@ -718,9 +718,9 @@ class Help(commands.Cog):
                         '`--evo <name>` - Filter by evolution line\n'
                         '`--type <type>` - Filter by type (max 2)\n'
                         '`--region <region>` - Filter by region\n'
-                        '`--g <gender>` - Filter by gender'
-                        '`--level <number>` - Filter by level'
-                        '`--iv <iv>` - Filter by iv, also available individually for atk, def, spatk, spdef, spd (if stored by user)'
+                        '`--g <gender>` - Filter by gender\n'
+                        '`--level <number>` - Filter by level\n'
+                        '`--iv <iv>` - Filter by iv, also available individually for atk, def, spatk, spdef, spd (if stored by user)\n'
                         '`--move <move>` - Filter by move (if stored by user)'
                     )
                 },
