@@ -591,7 +591,7 @@ class ShinyDexManagement(commands.Cog):
         view = ConfirmView()
         await ctx.send(view=view, reference=ctx.message, mention_author=False)
 
-    @commands.hybrid_command(name='shinystats')
+    @commands.hybrid_command(name='shinystats', aliases=['ss'])
     async def shiny_stats(self, ctx):
         """View statistics about your shiny collection"""
         user_id = ctx.author.id
