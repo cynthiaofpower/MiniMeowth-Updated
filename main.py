@@ -8,6 +8,7 @@ import sys
 import config
 from database import db
 import re
+from did_you_mean import suggest_commands
 
 load_dotenv()
 
@@ -48,7 +49,7 @@ def get_prefix(bot, message):
 bot = commands.Bot(
     command_prefix=get_prefix,
     intents=intents,
-    help_command=None,  
+    help_command=None,
     case_insensitive=True
 )
 
@@ -77,7 +78,7 @@ async def log_command_usage(interaction_or_ctx, command_name: str, command_type:
     # Determine location
     if guild is None:
         location = "DM"
-        location_detail = f"Direct Message"
+        location_detail = "Direct Message"
     else:
         location = f"Server: {guild.name}"
         location_detail = f"{guild.name} (ID: {guild.id}) in #{channel.name}"
@@ -89,12 +90,12 @@ async def log_command_usage(interaction_or_ctx, command_name: str, command_type:
         timestamp=discord.utils.utcnow()
     )
 
-    embed.add_field(name="User", value=f"{user.mention} ({user.name})", inline=True)
-    embed.add_field(name="User ID", value=f"`{user.id}`", inline=True)
-    embed.add_field(name="Command Type", value=f"`{command_type}`", inline=True)
-    embed.add_field(name="Command", value=f"`{command_name}`", inline=True)
-    embed.add_field(name="Location", value=location, inline=True)
-    embed.add_field(name="Details", value=location_detail, inline=False)
+    embed.add_field(name="User",         value=f"{user.mention} ({user.name})", inline=True)
+    embed.add_field(name="User ID",      value=f"`{user.id}`",                  inline=True)
+    embed.add_field(name="Command Type", value=f"`{command_type}`",             inline=True)
+    embed.add_field(name="Command",      value=f"`{command_name}`",             inline=True)
+    embed.add_field(name="Location",     value=location,                        inline=True)
+    embed.add_field(name="Details",      value=location_detail,                 inline=False)
 
     embed.set_footer(text="Command Logger")
 
@@ -102,6 +103,7 @@ async def log_command_usage(interaction_or_ctx, command_name: str, command_type:
         await log_channel.send(embed=embed)
     except Exception as e:
         print(f"❌ Error sending command log: {e}")
+
 
 @bot.event
 async def on_ready():
@@ -176,13 +178,13 @@ async def on_ready():
 
     print('🚀 Bot is ready!')
 
+
 @bot.event
 async def on_message(message):
     """Process commands from messages with space handling"""
     if message.author.bot:
         return
 
-    # Custom processing to handle spaces after prefix
     content = message.content
 
     # Check for bot mention prefix
@@ -192,7 +194,6 @@ async def on_message(message):
             # Remove mention and strip spaces
             remaining = content[len(pattern):].lstrip()
             if remaining:
-                # Reconstruct message content with single space after mention
                 message.content = f'{pattern} {remaining}'
             break
     else:
@@ -202,11 +203,11 @@ async def on_message(message):
                 # Remove prefix and strip spaces
                 remaining = content[len(prefix):].lstrip()
                 if remaining:
-                    # Reconstruct message content with no space after prefix
                     message.content = f'{prefix}{remaining}'
                 break
 
     await bot.process_commands(message)
+
 
 @bot.event
 async def on_message_edit(before, after):
@@ -216,7 +217,6 @@ async def on_message_edit(before, after):
 
     # Only process if the content actually changed
     if before.content != after.content:
-        # Apply same space handling as on_message
         content = after.content
 
         mention_patterns = [f'<@{bot.user.id}>', f'<@!{bot.user.id}>']
@@ -236,44 +236,60 @@ async def on_message_edit(before, after):
 
         await bot.process_commands(after)
 
-# Command logging listeners
+
+# ── Command logging listeners ────────────────────────────────────────────────
+
 @bot.event
 async def on_command_completion(ctx):
     """Log prefix/hybrid commands"""
     await log_command_usage(ctx, ctx.command.name, "Prefix Command")
+
 
 @bot.event
 async def on_app_command_completion(interaction: discord.Interaction, command):
     """Log slash commands"""
     await log_command_usage(interaction, command.name, "Slash Command")
 
+
 @bot.tree.error
 async def on_app_command_error(interaction: discord.Interaction, error):
     """Handle slash command errors (still log the attempt)"""
-    # Log the command even if it errored
     if interaction.command:
         await log_command_usage(interaction, interaction.command.name, "Slash Command (Error)")
+
+
+# ── Connection events ────────────────────────────────────────────────────────
 
 @bot.event
 async def on_disconnect():
     """Handle Discord disconnections - DO NOT close database here!"""
     print("⚠️ Discord disconnected (will attempt to reconnect...)")
-    # Database stays open - Discord will reconnect automatically
 
 @bot.event
 async def on_resumed():
     """Handle Discord reconnection"""
     print("✅ Discord connection resumed")
 
+
+# ── Command error handler (with Did You Mean?) ───────────────────────────────
+
 @bot.event
 async def on_command_error(ctx, error):
-    """Handle command errors"""
+    """Handle command errors — unknown commands get a 'Did you mean?' suggestion."""
+
     if isinstance(error, commands.CommandNotFound):
+        # Extract what the user typed after the prefix and suggest similar commands
+        attempted = ctx.invoked_with or ""
+        used_prefix = ctx.prefix or config.PREFIX[0]
+        await suggest_commands(ctx, bot, attempted, used_prefix)
         return
+
     elif isinstance(error, commands.MissingRequiredArgument):
         await ctx.send(f"❌ Missing required argument: `{error.param.name}`")
+
     elif isinstance(error, commands.BadArgument):
         await ctx.send(f"❌ Invalid argument provided")
+
     elif isinstance(error, commands.HybridCommandError):
         # Unwrap the original error
         original = error.original if hasattr(error, 'original') else error
@@ -281,11 +297,15 @@ async def on_command_error(ctx, error):
         print(f"Hybrid command error: {original}")
         import traceback
         traceback.print_exception(type(original), original, original.__traceback__)
+
     else:
         await ctx.send(f"❌ An error occurred: {str(error)}")
         print(f"Error: {error}")
         import traceback
         traceback.print_exception(type(error), error, error.__traceback__)
+
+
+# ── Graceful shutdown ────────────────────────────────────────────────────────
 
 async def shutdown():
     """Properly shutdown bot and database"""
@@ -297,14 +317,16 @@ async def shutdown():
     except Exception as e:
         print(f"❌ Error during shutdown: {e}")
 
+
 def signal_handler(signum, frame):
     """Handle shutdown signals (Ctrl+C, kill, etc.)"""
     print(f"\n⚠️ Received signal {signum}")
-    # Create a task to shutdown gracefully
     asyncio.create_task(shutdown())
     sys.exit(0)
 
-# Run bot
+
+# ── Entry point ──────────────────────────────────────────────────────────────
+
 if __name__ == "__main__":
     TOKEN = os.getenv("DISCORD_TOKEN")
 
@@ -316,9 +338,9 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
     signal.signal(signal.SIGTERM, signal_handler)  # Kill command
 
-    # Set Jishaku environment variables (optional customization)
+    # Jishaku environment variables
     os.environ["JISHAKU_NO_UNDERSCORE"] = "True"  # Disables underscore prefix requirement
-    os.environ["JISHAKU_HIDE"] = "True"  # Hides jishaku from help command
+    os.environ["JISHAKU_HIDE"] = "True"            # Hides jishaku from help command
 
     try:
         print("🚀 Starting bot...")
