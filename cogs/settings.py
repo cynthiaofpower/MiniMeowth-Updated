@@ -1374,7 +1374,7 @@ class Settings(commands.Cog):
             'command_male': '',  # NEW
             'command_female': '',  # NEW
             'target_inventories': [config.NORMAL_CATEGORY],
-            'show_info': 'detailed',
+            'show_info': 'simple',
             'priority_system': 'same_dex_first',
             'iv_sort_order': 'descending',
             'allow_gmax_male_with_female': False,
