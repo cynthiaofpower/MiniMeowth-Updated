@@ -47,7 +47,7 @@ def _score(query: str, candidate: str) -> float:
     return min(ratio, 1.0)   # cap at 1.0
 
 
-def get_suggestions(bot, attempted: str, max_results: int = 5, threshold: float = 0.45) -> list[str]:
+def get_suggestions(bot, attempted: str, max_results: int = 9, threshold: float = 0.45) -> list[str]:
     """
     Return up to `max_results` command trigger-words that are similar to `attempted`.
     Deduplication: if two triggers belong to the same command, only the canonical
