@@ -645,7 +645,7 @@ class Settings(commands.Cog):
                     'mychoice_male': [],
                     'mychoice_female': [],
                     'target_inventories': [config.NORMAL_CATEGORY],
-                    'show_info': 'detailed',
+                    'show_info': 'simple',
                     'priority_system': 'same_dex_first',
                     'iv_sort_order': 'descending',
                     'allow_gmax_male_with_female': False,
@@ -660,7 +660,7 @@ class Settings(commands.Cog):
                                     f"{config.REPLY} Target: `All Pokemon`\n"
                                     f"{config.REPLY} MyChoice: `Cleared`\n"
                                     f"{config.REPLY} Inventories: `Normal`\n"
-                                    f"{config.REPLY} Info Mode: `Detailed`\n"
+                                    f"{config.REPLY} Info Mode: `Simple`\n"
                                     f"{config.REPLY} Priority: `Same Dex First`\n"
                                     f"{config.REPLY} IV Sort: `High IV First`\n"
                                     f"{config.REPLY} Gmax/Regional Toggles: `Disabled`\n\n"
@@ -1390,7 +1390,7 @@ class Settings(commands.Cog):
                             f"{config.REPLY} MyChoice: `Cleared`\n"
                             f"{config.REPLY} Command Breeding: `Cleared`\n"  # NEW
                             f"{config.REPLY} Inventories: `Normal`\n"
-                            f"{config.REPLY} Info Mode: `Detailed`\n"
+                            f"{config.REPLY} Info Mode: `Simple`\n"
                             f"{config.REPLY} Priority: `Same Dex First`\n"
                             f"{config.REPLY} IV Sort: `High IV First`\n"
                             f"{config.REPLY} Gmax/Regional Toggles: `Disabled`"
