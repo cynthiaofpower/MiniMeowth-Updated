@@ -163,7 +163,7 @@ class Settings(commands.Cog):
                     discord.SelectOption(
                         label="Simple",
                         value="simple",
-                        description="Basic info with compatibility only",
+                        description="Basic info with male x female only",
                         default=(current_info == "simple")
                     ),
                     discord.SelectOption(
@@ -543,7 +543,7 @@ class Settings(commands.Cog):
                     f"{config.REPLY} **Regionals** - Regional forms only\n\n"
                     "**Info Display Modes:**\n"
                     f"{config.REPLY} **Detailed** - Full info with IVs, names, compatibility, reasons\n"
-                    f"{config.REPLY} **Simple** - Basic info with names and compatibility only\n"
+                    f"{config.REPLY} **Simple** - Basic info with male x female only\n"
                     f"{config.REPLY} **Off** - Command only, no extra info\n\n"
                     "**Priority System:**\n"
                     f"{config.REPLY} **Same Dex First** - Prioritizes same species pairs\n"
@@ -857,7 +857,7 @@ class Settings(commands.Cog):
 
         await self.set_target_inventories(ctx, value)
 
-    @commands.hybrid_command(name='breed_output', aliases=['dc_output', 'breedoutput', 'dcoutput'])
+    @commands.hybrid_command(name='breed_output', aliases=['dc_output', 'breedoutput','output', 'dcoutput'])
     @app_commands.describe(value="Set breed info display mode")
     async def breed_output_command(self, ctx, value: str = None):
         """Set breed info display mode"""
@@ -1233,9 +1233,8 @@ class Settings(commands.Cog):
             ),
             'simple': (
                 "**Simple Mode**\n\n"
-                f"{config.REPLY} Shows command with compatibility only\n"
+                f"{config.REPLY} Shows command with male x female only\n"
                 f"{config.REPLY} Breeding command in code block\n"
-                f"{config.REPLY} Expected compatibility per pair\n"
                 f"{config.REPLY} No extra details"
             ),
             'off': (
@@ -1895,7 +1894,7 @@ class Settings(commands.Cog):
                         content=f"✅ **Female Command Set**\n\n"
                                 f"**Command:** `{value}`\n\n"
                                 f"**Parsed Criteria:**\n{criteria_display}\n\n"
-                                f"_Use `{config.PREFIX[0]}target command_breeding` to activate_"
+                                f"Use `{config.PREFIX[0]}target command_breeding` to activate"
                     ),
                 )
             await ctx.send(view=SuccessView(), reference=ctx.message, mention_author=False)
