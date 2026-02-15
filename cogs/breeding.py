@@ -2007,47 +2007,27 @@ class Breeding(commands.Cog):
 
     def get_pairing_reason(self, female, male, utils, selective, overrides=None):
         """
-        Get human-readable reason for pairing
+        Get human-readable reason for pairing (FIXED - no Gmax/Regional female mentions)
 
         Returns reasons like:
         - "Same dex #25"
         - "Matching egg group"
-        - "Gmax female with normal male"
-        - "Old+New IDs"
+        - "Different trainers"
+        - "High IV pair"
         """
         is_ditto_female = female.get('is_ditto', False)
         is_ditto_male = male.get('is_ditto', False)
         female_dex = female.get('dex_number', 0)
         male_dex = male.get('dex_number', 0)
-        is_gmax_female = female.get('is_gmax', False)
-        is_gmax_male = male.get('is_gmax', False)
-        is_regional_female = female.get('is_regional', False)
-        is_regional_male = male.get('is_regional', False)
         is_female_only = female.get('is_female_only', False)
 
         reasons = []
-
-        # Gigantamax reasons
-        if is_gmax_female and not is_gmax_male and not is_ditto_male:
-            reasons.append("Gmax female with normal male")
-        elif is_gmax_female and is_gmax_male:
-            reasons.append("Gmax female with Gmax male")
-        elif is_gmax_male and is_ditto_female:
-            reasons.append("Gmax male with Ditto")
-
-        # Regional reasons
-        if is_regional_female and not is_regional_male and not is_ditto_male:
-            reasons.append("Regional female with normal male")
-        elif is_regional_female and is_regional_male:
-            reasons.append("Regional female with Regional male")
-        elif is_regional_male and is_ditto_female:
-            reasons.append("Regional male with Ditto")
 
         # Female-only species
         if is_female_only:
             reasons.append("Female-only species")
 
-        # Same dex number
+        # Same dex number (most important)
         if female_dex == male_dex and female_dex > 0 and not is_ditto_female and not is_ditto_male:
             reasons.append(f"Same dex #{female_dex}")
         # Matching egg group (if not same dex)
@@ -2056,7 +2036,7 @@ class Breeding(commands.Cog):
             male_groups = set(male.get('egg_groups', []))
             shared = female_groups & male_groups
             if shared:
-                reasons.append(f"Matching egg group")
+                reasons.append("Matching egg group")
 
         # Ditto pairing
         if is_ditto_female or is_ditto_male:
@@ -2066,8 +2046,8 @@ class Breeding(commands.Cog):
         if female['iv_percent'] >= 80 and male['iv_percent'] >= 80:
             reasons.append("High IV pair")
 
-        # Selective mode (old/new IDs)
-        if selective and utils.can_pair_ids(female['pokemon_id'], male['pokemon_id'], overrides):
+        # Different trainers (old/new pairing)
+        if utils.can_pair_ids(female['pokemon_id'], male['pokemon_id'], overrides):
             female_override = overrides.get(female['pokemon_id']) if overrides else None
             male_override = overrides.get(male['pokemon_id']) if overrides else None
 
@@ -2077,6 +2057,65 @@ class Breeding(commands.Cog):
                 reasons.append("Different trainers")
 
         return ", ".join(reasons) if reasons else None
+
+    def get_compatibility(self, female, male, selective, overrides, utils):
+        """
+        Calculate expected compatibility based on correct rules
+
+        Compatibility depends on:
+        1. Same dex vs different dex (egg group only)
+        2. Same trainer vs different trainers
+
+        Same Dex:
+        - Different trainers = High
+        - Same trainer = Medium
+        
+        Different Dex (egg group only):
+        - Different trainers = Medium
+        - Same trainer = Low
+
+        Selective Mode:
+        - Always pairs old×new (different trainers)
+        - Same dex = High
+        - Different dex = Medium
+        - Never Low
+        
+        Not Selective Mode:
+        - Same dex = High/Medium (never Low)
+        - Different dex = Medium/Low (never High)
+        """
+        is_ditto_female = female.get('is_ditto', False)
+        is_ditto_male = male.get('is_ditto', False)
+        female_dex = female.get('dex_number', 0)
+        male_dex = male.get('dex_number', 0)
+
+        # Check if different trainers (old×new pairing via can_pair_ids)
+        different_trainers = utils.can_pair_ids(female['pokemon_id'], male['pokemon_id'], overrides)
+
+        # Selective mode: always different trainers (old×new), never Low
+        if selective:
+            # Same dex
+            if (female_dex == male_dex and female_dex > 0) and not is_ditto_female and not is_ditto_male:
+                return "High"
+            # Different dex (egg group only) or Ditto
+            else:
+                return "Medium"
+        
+        # Not selective mode: can be any combination
+        else:
+            # Same dex
+            if (female_dex == male_dex and female_dex > 0) and not is_ditto_female and not is_ditto_male:
+                if different_trainers:
+                    return "High"
+                else:
+                    return "Medium"
+            
+            # Different dex (egg group only) or Ditto
+            else:
+                if different_trainers:
+                    return "Medium"
+                else:
+                    return "Low"
 
     # ========================================
     # RESULT DISPLAY
@@ -2217,7 +2256,7 @@ class Breeding(commands.Cog):
         if show_info == 'off':
             class SimpleView(discord.ui.LayoutView):
                 container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content=f"**📝 Breeding Command**"),
+                    discord.ui.TextDisplay(content=f"**📝 Daycare Command**"),
                     discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
                     discord.ui.TextDisplay(content=f"`{command}`"),
                     discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
@@ -2236,14 +2275,21 @@ class Breeding(commands.Cog):
             for i, pair in enumerate(pairs, 1):
                 female = pair['female']
                 male = pair['male']
-                comp = self.get_compatibility(female, male, selective, overrides, utils)
-                content_lines.append(f"{config.REPLY}**Pair {i}/{len(pairs)}:** Compatibility - {comp}")
+                
+                female_icon = config.GENDER_FEMALE if female['gender'] == 'female' else config.GENDER_UNKNOWN
+                male_icon = config.GENDER_MALE if male['gender'] == 'male' else config.GENDER_UNKNOWN
+                
+                content_lines.append(
+                    f"{config.REPLY}**Pair {i}/{len(pairs)}:** "
+                    f"`{female['pokemon_id']}` {female['name']} {female_icon} × "
+                    f"`{male['pokemon_id']}` {male['name']} {male_icon}"
+                )
 
             content = "\n".join(content_lines)
 
             class SimpleView(discord.ui.LayoutView):
                 container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content=f"**📝 Breeding Command**"),
+                    discord.ui.TextDisplay(content=f"**📝 Daycare Command**"),
                     discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
                     discord.ui.TextDisplay(content=f"```{command}```"),
                     discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.large),
@@ -2264,7 +2310,7 @@ class Breeding(commands.Cog):
 
         # Detailed mode (default)
         components = [
-            discord.ui.TextDisplay(content=f"**📝 Next Breeding Command**"),
+            discord.ui.TextDisplay(content=f"**📝 Next Daycare Command**"),
             discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
             discord.ui.TextDisplay(content=f"```{command}```"),
             discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.large),
@@ -2318,52 +2364,6 @@ class Breeding(commands.Cog):
             container1 = discord.ui.Container(*components)
 
         await ctx.send(view=DetailedView(), reference=ctx.message, mention_author=False)
-
-    def get_compatibility(self, female, male, selective, overrides, utils):
-        """
-        Calculate expected compatibility based on new rules
-
-        Selective Mode (different trainers):
-        - Same dex: High
-        - Matching egg group: High  
-        - Ditto: Medium
-
-        Not Selective Mode (can be same/different trainers):
-        - Same dex: Medium or High
-        - Matching egg group: Low or Medium
-        - Ditto: Low or Medium
-
-        Rule: If different trainers (selective), never Low
-        """
-        is_ditto_female = female.get('is_ditto', False)
-        is_ditto_male = male.get('is_ditto', False)
-        female_dex = female.get('dex_number', 0)
-        male_dex = male.get('dex_number', 0)
-
-        # Check if different trainers (selective mode OR old/new pairing)
-        different_trainers = False
-        if selective:
-            different_trainers = utils.can_pair_ids(female['pokemon_id'], male['pokemon_id'], overrides)
-
-        # Ditto pairing
-        if is_ditto_female or is_ditto_male:
-            if different_trainers:
-                return "Medium"
-            else:
-                return "Low/Medium"
-
-        # Same dex number
-        if female_dex == male_dex and female_dex > 0:
-            if different_trainers:
-                return "High"
-            else:
-                return "Medium/High"
-
-        # Different dex, matching egg group
-        if different_trainers:
-            return "High"
-        else:
-            return "Low/Medium"
 
 
 async def setup(bot):
