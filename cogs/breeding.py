@@ -73,7 +73,7 @@ class Breeding(commands.Cog):
         mode = settings.get('mode', 'notselective')
         targets = settings.get('target', ['all'])
         selective = mode == 'selective'
-        show_info = settings.get('show_info', 'detailed')
+        show_info = settings.get('show_info', 'simple')
 
         # Get priority system setting (default: same-dex-first)
         priority_system = settings.get('priority_system', 'same_dex_first')
