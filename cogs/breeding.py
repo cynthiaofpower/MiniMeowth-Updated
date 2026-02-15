@@ -44,8 +44,8 @@ class Breeding(commands.Cog):
     async def breed_command(self, ctx, count: int = 1):
         """
         Generate optimal breeding pairs using advanced phase-based pairing
-        Usage: ?breed [count] or /breed [count]
-        Max 2 pairs at a time
+        Usage: m!breed [count] or /breed [count]
+        Max 5 pairs at a time
         """
         if count < 1 or count > config.MAX_BREED_PAIRS:
             class ErrorView(discord.ui.LayoutView):
@@ -2007,54 +2007,37 @@ class Breeding(commands.Cog):
 
     def get_pairing_reason(self, female, male, utils, selective, overrides=None):
         """
-        Get human-readable reason for pairing (FIXED - no Gmax/Regional female mentions)
+        Get human-readable reason for pairing
+
+        ONLY shows factors that affect compatibility:
+        1. Same dex or not (Ditto = different dex)
+        2. Same trainers or not
 
         Returns reasons like:
-        - "Same dex #25"
-        - "Matching egg group"
-        - "Different trainers"
-        - "High IV pair"
+        - "Same dex #25, Different trainers"
+        - "Matching egg group, Same trainer"
         """
         is_ditto_female = female.get('is_ditto', False)
         is_ditto_male = male.get('is_ditto', False)
         female_dex = female.get('dex_number', 0)
         male_dex = male.get('dex_number', 0)
-        is_female_only = female.get('is_female_only', False)
 
         reasons = []
 
-        # Female-only species
-        if is_female_only:
-            reasons.append("Female-only species")
-
-        # Same dex number (most important)
+        # FACTOR 1: Same dex or different dex (egg group/Ditto)
         if female_dex == male_dex and female_dex > 0 and not is_ditto_female and not is_ditto_male:
             reasons.append(f"Same dex #{female_dex}")
-        # Matching egg group (if not same dex)
-        elif not is_ditto_female and not is_ditto_male:
-            female_groups = set(female.get('egg_groups', []))
-            male_groups = set(male.get('egg_groups', []))
-            shared = female_groups & male_groups
-            if shared:
-                reasons.append("Matching egg group")
+        else:
+            # Different dex - could be egg group matching OR Ditto pairing
+            reasons.append("Matching egg group")
 
-        # Ditto pairing
-        if is_ditto_female or is_ditto_male:
-            reasons.append("Ditto pairing")
+        # FACTOR 2: Same trainer or different trainers
+        different_trainers = utils.can_pair_ids(female['pokemon_id'], male['pokemon_id'], overrides)
 
-        # High IV pair
-        if female['iv_percent'] >= 80 and male['iv_percent'] >= 80:
-            reasons.append("High IV pair")
-
-        # Different trainers (old/new pairing)
-        if utils.can_pair_ids(female['pokemon_id'], male['pokemon_id'], overrides):
-            female_override = overrides.get(female['pokemon_id']) if overrides else None
-            male_override = overrides.get(male['pokemon_id']) if overrides else None
-
-            if female_override or male_override:
-                reasons.append("Different trainers (override)")
-            else:
-                reasons.append("Different trainers")
+        if different_trainers:
+            reasons.append("Different trainers")
+        else:
+            reasons.append("Same/different trainer")
 
         return ", ".join(reasons) if reasons else None
 
@@ -2069,7 +2052,7 @@ class Breeding(commands.Cog):
         Same Dex:
         - Different trainers = High
         - Same trainer = Medium
-        
+
         Different Dex (egg group only):
         - Different trainers = Medium
         - Same trainer = Low
@@ -2079,10 +2062,10 @@ class Breeding(commands.Cog):
         - Same dex = High
         - Different dex = Medium
         - Never Low
-        
-        Not Selective Mode:
-        - Same dex = High/Medium (never Low)
-        - Different dex = Medium/Low (never High)
+
+        Not Selective Mode (CAN'T PINPOINT):
+        - Same dex = Medium/High (could be either)
+        - Different dex = Medium/Low (could be either)
         """
         is_ditto_female = female.get('is_ditto', False)
         is_ditto_male = male.get('is_ditto', False)
@@ -2100,22 +2083,16 @@ class Breeding(commands.Cog):
             # Different dex (egg group only) or Ditto
             else:
                 return "Medium"
-        
-        # Not selective mode: can be any combination
+
+        # Not selective mode: CAN'T PINPOINT, show range
         else:
             # Same dex
             if (female_dex == male_dex and female_dex > 0) and not is_ditto_female and not is_ditto_male:
-                if different_trainers:
-                    return "High"
-                else:
-                    return "Medium"
-            
+                return "Medium/High"
+
             # Different dex (egg group only) or Ditto
             else:
-                if different_trainers:
-                    return "Medium"
-                else:
-                    return "Low"
+                return "Medium/Low"
 
     # ========================================
     # RESULT DISPLAY
@@ -2275,10 +2252,10 @@ class Breeding(commands.Cog):
             for i, pair in enumerate(pairs, 1):
                 female = pair['female']
                 male = pair['male']
-                
+
                 female_icon = config.GENDER_FEMALE if female['gender'] == 'female' else config.GENDER_UNKNOWN
                 male_icon = config.GENDER_MALE if male['gender'] == 'male' else config.GENDER_UNKNOWN
-                
+
                 content_lines.append(
                     f"{config.REPLY}**Pair {i}/{len(pairs)}:** "
                     f"`{female['pokemon_id']}` {female['name']} {female_icon} × "
