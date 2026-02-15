@@ -35,7 +35,7 @@ OLD_ID_MAX = 271800
 NEW_ID_MIN = 271900
 
 # Pairing Constants
-MAX_BREED_PAIRS = 5  # Maximum pairs per breed command
+MAX_BREED_PAIRS = 20  # Maximum pairs per breed command
 
 # Gender display and other usefull emojis
 GENDER_MALE = "<:male_sign:1449750028536250420>"
