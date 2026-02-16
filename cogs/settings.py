@@ -118,7 +118,7 @@ class Settings(commands.Cog):
                     discord.SelectOption(
                         label="Selective (Old/New)",
                         value="selective",
-                        description="Pair old IDs (≤271800) with new IDs (≥271900)",
+                        description="Pair old IDs (≤271800) with new IDs (≥271900). Owner only currently",
                         default=(current_mode == "selective")
                     ),
                 ]
