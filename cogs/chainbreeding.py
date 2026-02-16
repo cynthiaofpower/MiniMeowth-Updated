@@ -557,6 +557,11 @@ class ChainBreeding(commands.Cog):
             await ctx.send(view=ErrorView(), reference=ctx.message, allowed_mentions=discord.AllowedMentions(replied_user=False))
             return
 
+        # Resolve nickname/alternate/foreign name → canonical English name
+        utils = self.bot.get_cog('Utils')
+        if utils:
+            pokemon = utils.resolve_pokemon_name(pokemon)
+
         # Case-insensitive species lookup
         target_species = None
         for pkmn_name in self.pokemon_list:
