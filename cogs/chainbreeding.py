@@ -405,21 +405,21 @@ class ChainBreeding(commands.Cog):
                 female_spawn = f"1/{female_spawn}"
 
             if "(from Step" in male:
-                step_desc = f"**♂️ Male:** {male_pokemon} ({male_groups_str}) [from Step {male.split('from Step')[1].strip().rstrip(')')}]"
+                step_desc = f"{config.REPLY}**♂️ Male:** {male_pokemon} ({male_groups_str}) [from Step {male.split('from Step')[1].strip().rstrip(')')}]"
             else:
-                step_desc = f"**♂️ Male:** {male_pokemon} ({male_groups_str})"
+                step_desc = f"{config.REPLY}**♂️ Male:** {male_pokemon} ({male_groups_str})"
             if male_spawn != "Offspring":
                 step_desc += f" - Spawn: {male_spawn}"
 
             if "(from Step" in female:
-                step_desc += f"\n**♀️ Female:** {female_pokemon} ({female_groups_str}) [from Step {female.split('from Step')[1].strip().rstrip(')')}]"
+                step_desc += f"\n{config.REPLY}**♀️ Female:** {female_pokemon} ({female_groups_str}) [from Step {female.split('from Step')[1].strip().rstrip(')')}]"
             else:
-                step_desc += f"\n**♀️ Female:** {female_pokemon} ({female_groups_str})"
+                step_desc += f"\n{config.REPLY}**♀️ Female:** {female_pokemon} ({female_groups_str})"
             if female_spawn != "Offspring":
                 step_desc += f" - Spawn: {female_spawn}"
 
-            step_desc += f"\n**Moves Taught:** {', '.join(moves)}"
-            step_desc += f"\n**Offspring:** {offspring} ({offspring_groups_str})"
+            step_desc += f"\n{config.REPLY}**Moves Taught:** {', '.join(moves)}"
+            step_desc += f"\n{config.REPLY}**Offspring:** {offspring} ({offspring_groups_str})"
             if len(accumulated_moves) > len(moves):
                 step_desc += f"\n**Total Moves on Offspring:** {', '.join(sorted(accumulated_moves))}"
 
@@ -435,7 +435,7 @@ class ChainBreeding(commands.Cog):
             footer_text = "✅ Two-step breeding! Each offspring accumulates moves from previous generations."
         else:
             footer_text = "✅ Multi-step breeding! Each offspring accumulates moves from previous generations."
-        components.append(discord.ui.TextDisplay(content=f"_{footer_text}_"))
+        components.append(discord.ui.TextDisplay(content=f"_{footer_text}_"),)
 
         # Female evolution tip — single-step only
         if is_single_step:
