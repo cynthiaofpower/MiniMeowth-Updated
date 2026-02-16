@@ -17,6 +17,7 @@ class BreedingChain:
         self.total_cost = 0  # Cost based on spawn rates and steps
         self.moves_achieved = set()  # Moves obtained so far
         self.search_log = []  # Log of search attempts for debugging
+        self.alternative_males_step1 = []  # [(pokemon_name, spawn_cost, move_entries), ...]
 
     def add_step(self, male: str, female: str, moves: List[str], offspring: str, cost: float):
         """Add a breeding step to the chain"""
@@ -40,6 +41,7 @@ class BreedingChain:
         new_chain.total_cost = self.total_cost
         new_chain.moves_achieved = self.moves_achieved.copy()
         new_chain.search_log = self.search_log.copy()
+        new_chain.alternative_males_step1 = self.alternative_males_step1.copy()
         return new_chain
 
 
@@ -162,7 +164,6 @@ class ChainBreeding(commands.Cog):
     def can_be_male_parent(self, pokemon_name: str) -> bool:
         """Check if Pokemon can be used as male parent"""
         gender_lock = self.is_gender_locked(pokemon_name)
-        # Can be male parent if: male-only, or not gender-locked (can be male), or is Ditto
         if pokemon_name == 'Ditto':
             return True
         return gender_lock in [None, 'male']
@@ -170,7 +171,6 @@ class ChainBreeding(commands.Cog):
     def can_be_female_parent(self, pokemon_name: str) -> bool:
         """Check if Pokemon can be used as female parent"""
         gender_lock = self.is_gender_locked(pokemon_name)
-        # Can be female parent if: female-only, or not gender-locked (can be female), or is Ditto
         if pokemon_name == 'Ditto':
             return True
         return gender_lock in [None, 'female']
@@ -188,6 +188,59 @@ class ChainBreeding(commands.Cog):
         moveset = self.movesets.get(pokemon, {})
         breeding_moves = moveset.get('breeding', [])
         return any(move.lower() == bm.lower() for bm in breeding_moves)
+
+    def get_move_level_entry(self, pokemon: str, move: str) -> Optional[str]:
+        """
+        Get the full level-up entry string for a move, e.g. 'Sucker Punch (Level 12)'
+        Returns None if the pokemon doesn't learn the move naturally.
+        """
+        moveset = self.movesets.get(pokemon, {})
+        for move_entry in moveset.get('level_up', []):
+            if move.lower() in move_entry.lower():
+                return move_entry
+        return None
+
+    def find_alternative_males_for_step1(
+        self,
+        target_species: str,
+        moves: List[str],
+        chosen_male: str
+    ) -> List[Tuple[str, int, List[str]]]:
+        """
+        Find all alternative males (excluding the chosen one) that:
+        - Can breed with target_species (or the female used in step 1 for bridge chains)
+        - Learn ALL of the given moves naturally
+        - Can be male parent
+
+        Returns list of (pokemon_name, spawn_cost, [move_entry_strings]) sorted by spawn_cost asc.
+        """
+        alternatives = []
+
+        for pokemon in self.pokemon_list:
+            if pokemon == chosen_male:
+                continue
+            if not self.can_be_male_parent(pokemon):
+                continue
+            if not self.can_breed(pokemon, target_species):
+                continue
+
+            # Must naturally learn ALL moves in the list
+            move_entries = []
+            can_teach_all = True
+            for move in moves:
+                entry = self.get_move_level_entry(pokemon, move)
+                if entry is None:
+                    can_teach_all = False
+                    break
+                move_entries.append(entry)
+
+            if can_teach_all:
+                spawn_cost = self.get_spawn_cost(pokemon)
+                alternatives.append((pokemon, spawn_cost, move_entries))
+
+        # Sort by spawn cost (easier to find first)
+        alternatives.sort(key=lambda x: x[1])
+        return alternatives
 
     def find_male_parents_for_move(self, target_species: str, move: str) -> List[Tuple[str, int]]:
         """
@@ -223,22 +276,6 @@ class ChainBreeding(commands.Cog):
     def find_intermediate_bridge(self, target_species: str, move: str, max_depth: int = 5) -> Optional[Dict]:
         """
         Find intermediate breeding chain using BFS
-
-        CORRECT LOGIC:
-        We need to trace from a male that knows the move naturally, through intermediates, to the target.
-
-        Example for Abra + Psycho Shift:
-        - Natu learns Psycho Shift naturally
-        - Woobat can learn it as egg move and breeds with both Natu and Abra
-        - Chain: Natu (M) × Woobat (F) → Woobat with move, then Woobat (M) × Abra (F) → Abra with move
-
-        Returns: {
-            'steps': [
-                {'male': str, 'female': str, 'offspring': str, 'cost': float},
-                ...
-            ],
-            'total_cost': float
-        } or None
         """
         from collections import deque
 
@@ -253,24 +290,17 @@ class ChainBreeding(commands.Cog):
         if not source_males:
             return None
 
-        # For each source male, try to find a path to target
         best_solution = None
         best_cost = float('inf')
 
         for source_male in source_males:
-            # BFS from this male to target
-            # State: (current_species_that_can_pass_move, chain_to_get_here, depth)
-            # current_species has the move and can be used as male parent
-
             queue = deque()
             visited = set()
 
-            # Start with all species that can learn the move from source_male
             source_groups = self.egg_groups.get(source_male, [])
 
             for first_female in self.pokemon_list:
                 if first_female == target_species:
-                    # Direct breeding possible!
                     if self.can_breed(source_male, target_species):
                         male_cost = self.get_spawn_cost(source_male)
                         return {
@@ -284,19 +314,13 @@ class ChainBreeding(commands.Cog):
                         }
                     continue
 
-                # Must be able to learn move as egg move
                 if not self.learns_move_breeding(first_female, move):
                     continue
-
-                # Must be able to be female parent
                 if not self.can_be_female_parent(first_female):
                     continue
-
-                # Must be able to breed with source_male
                 if not self.can_breed(source_male, first_female):
                     continue
 
-                # This is a valid first step
                 male_cost = self.get_spawn_cost(source_male)
                 female_cost = self.get_spawn_cost(first_female)
 
@@ -307,25 +331,21 @@ class ChainBreeding(commands.Cog):
                     'cost': male_cost + female_cost
                 }
 
-                # Now first_female has the move and can be male parent for next breeding
                 queue.append((first_female, [first_step], male_cost + female_cost, 1))
                 visited.add(first_female)
 
-            # BFS expansion
             while queue:
                 current_species, chain, cost, depth = queue.popleft()
 
                 if depth >= max_depth:
                     continue
 
-                # Can current_species (with the move) breed with target?
                 if self.can_breed(current_species, target_species):
-                    # Yes! Complete the chain
                     final_step = {
                         'male': f"{current_species} (from Step {len(chain)})",
                         'female': target_species,
                         'offspring': target_species,
-                        'cost': 0  # Cost already included
+                        'cost': 0
                     }
 
                     complete_chain = chain + [final_step]
@@ -337,33 +357,24 @@ class ChainBreeding(commands.Cog):
                         }
                         best_cost = cost
 
-                    # Don't continue searching from this path
                     continue
 
-                # Try to breed current_species with other intermediates
                 current_groups = self.egg_groups.get(current_species, [])
 
                 for next_female in self.pokemon_list:
                     if next_female in visited:
                         continue
-
                     if next_female == target_species:
-                        continue  # Already checked above
-
-                    # Must be able to learn move as egg move
+                        continue
                     if not self.learns_move_breeding(next_female, move):
                         continue
-
-                    # Must be able to be female parent
                     if not self.can_be_female_parent(next_female):
                         continue
 
-                    # Must share egg group with current_species
                     next_groups = self.egg_groups.get(next_female, [])
                     if not any(g in current_groups for g in next_groups):
                         continue
 
-                    # Valid next step
                     next_cost = self.get_spawn_cost(next_female)
 
                     next_step = {
@@ -380,39 +391,25 @@ class ChainBreeding(commands.Cog):
 
     def find_breeding_chain(self, target_species: str, target_moves: List[str]) -> Optional[BreedingChain]:
         """
-        Find optimal breeding chain using correct egg move inheritance rules
-
-        Key Rules:
-        1. Male parent must learn moves naturally (level-up)
-        2. Female parent determines the offspring species
-        3. Offspring inherits egg moves from male if female's species can learn them as egg moves
-        4. Once offspring has a move, breeding it again (as female) passes moves to next offspring
-
-        OPTIMIZATION: Prioritize males that can teach multiple moves at once!
+        Find optimal breeding chain using correct egg move inheritance rules.
+        Also populates chain.alternative_males_step1 with alternatives for step 1's male.
         """
-        # Normalize inputs
         target_species = target_species.strip()
         target_moves = [m.strip() for m in target_moves]
 
-        # Validate target Pokemon exists
         if target_species not in self.movesets:
             return None
-
-        # Check if target species can be female parent
         if not self.can_be_female_parent(target_species):
             return None
 
-        # Validate all moves are egg moves for target
         target_breeding_moves = self.movesets[target_species].get('breeding', [])
         target_breeding_moves_lower = [m.lower() for m in target_breeding_moves]
 
         for move in target_moves:
             if move.lower() not in target_breeding_moves_lower:
-                return None  # Not an egg move
+                return None
 
-        # OPTIMIZATION: Find all males that can breed with target_species and which moves they know
-        males_with_moves = {}  # {male_name: [moves_it_can_teach]}
-
+        males_with_moves = {}
         for male_candidate in self.pokemon_list:
             if not self.can_be_male_parent(male_candidate):
                 continue
@@ -427,7 +424,6 @@ class ChainBreeding(commands.Cog):
             if moves_known:
                 males_with_moves[male_candidate] = moves_known
 
-        # Sort males by: number of moves (desc), then spawn cost (asc)
         males_sorted = sorted(
             males_with_moves.items(),
             key=lambda x: (-len(x[1]), self.get_spawn_cost(x[0]))
@@ -445,35 +441,34 @@ class ChainBreeding(commands.Cog):
                 offspring=target_species,
                 cost=cost
             )
+            # Find alternatives for this single male
+            chain.alternative_males_step1 = self.find_alternative_males_for_step1(
+                target_species, target_moves, male_name
+            )
             return chain
 
-        # Strategy 2: Greedy approach - use males that teach the MOST moves at once
+        # Strategy 2: Greedy approach
         remaining_moves = set(target_moves)
         breeding_steps = []
 
         while remaining_moves:
-            # Find the best male for remaining moves
             best_male = None
             best_moves = []
             best_cost = float('inf')
 
-            # Check direct males that can teach multiple remaining moves
             for male_name, all_moves_list in males_sorted:
-                # Which remaining moves can this male teach?
                 teachable = [m for m in all_moves_list if m in remaining_moves]
                 if not teachable:
                     continue
 
                 cost = self.get_spawn_cost(male_name)
 
-                # Prefer males that teach MORE moves, then lower cost
                 if len(teachable) > len(best_moves) or (len(teachable) == len(best_moves) and cost < best_cost):
                     best_male = male_name
                     best_moves = teachable
                     best_cost = cost
 
             if best_male:
-                # Found a direct male that can teach one or more moves
                 breeding_steps.append({
                     'type': 'direct',
                     'male': best_male,
@@ -482,8 +477,6 @@ class ChainBreeding(commands.Cog):
                 })
                 remaining_moves -= set(best_moves)
             else:
-                # No direct male found for any remaining moves - try intermediate breeding
-                # Pick one move to try
                 move_to_try = list(remaining_moves)[0]
                 bridge_result = self.find_intermediate_bridge(target_species, move_to_try, max_depth=5)
 
@@ -495,59 +488,49 @@ class ChainBreeding(commands.Cog):
                     })
                     remaining_moves.remove(move_to_try)
                 else:
-                    # Cannot find this move at all
                     return None
 
-        # Build the final chain from breeding steps
         chain = BreedingChain()
         current_female = target_species
 
         for i, step_data in enumerate(breeding_steps):
             if step_data['type'] == 'direct':
-                # Direct breeding step
                 offspring = target_species
 
                 chain.add_step(
                     male=step_data['male'],
                     female=current_female,
-                    moves=step_data['moves'],  # Can be multiple moves!
+                    moves=step_data['moves'],
                     offspring=offspring,
                     cost=step_data['cost']
                 )
 
-                # Next step uses the offspring
                 if i < len(breeding_steps) - 1:
                     current_female = f"{target_species} (from Step {len(chain.steps)})"
 
-            else:  # bridge - intermediate breeding
+            else:  # bridge
                 bridge_steps = step_data['bridge_data']['steps']
                 move = step_data['moves'][0]
 
-                # Add all bridge steps
-                bridge_start_step = len(chain.steps)  # Remember where bridge starts in main chain
+                bridge_start_step = len(chain.steps)
 
                 for j, step in enumerate(bridge_steps):
                     is_last_bridge_step = (j == len(bridge_steps) - 1)
                     is_last_overall_step = (i == len(breeding_steps) - 1 and is_last_bridge_step)
 
-                    # Adjust male name if it references a previous step
                     male_name = step['male']
                     if '(from Step' in male_name:
                         import re
                         match = re.search(r'\(from Step (\d+)\)', male_name)
                         if match:
                             bridge_step_num = int(match.group(1))
-                            # Map bridge step number to actual main chain step number
-                            # Bridge step 1 maps to (bridge_start_step + 1), step 2 to (bridge_start_step + 2), etc.
                             actual_step_num = bridge_start_step + bridge_step_num
                             male_name = re.sub(r'\(from Step \d+\)', f'(from Step {actual_step_num})', male_name)
 
-                    # Adjust female name if this is the last bridge step
                     female_name = step['female']
                     if is_last_bridge_step and len(chain.steps) > 0:
                         female_name = current_female
 
-                    # Offspring is target_species only on the very last step
                     offspring = target_species if is_last_overall_step else step['offspring']
 
                     chain.add_step(
@@ -558,17 +541,50 @@ class ChainBreeding(commands.Cog):
                         cost=step['cost']
                     )
 
-                # Update current female
                 if i < len(breeding_steps) - 1:
                     current_female = f"{target_species} (from Step {len(chain.steps)})"
 
+        # Populate alternatives for step 1 male (only if step 1 has a real male, not "from Step X")
+        if chain.steps:
+            first_step = chain.steps[0]
+            first_male = first_step['male']
+            first_moves = first_step['moves']
+
+            # Only find alternatives if the male in step 1 is a real Pokemon (not an offspring reference)
+            if '(from Step' not in first_male:
+                # For bridge chains the female in step 1 might not be target_species
+                female_in_step1 = first_step['female']
+                actual_female = female_in_step1.split('(')[0].strip() if '(from Step' in female_in_step1 else female_in_step1
+
+                chain.alternative_males_step1 = self.find_alternative_males_for_step1(
+                    actual_female, first_moves, first_male
+                )
+
         return chain
 
-    def create_chain_view(self, target_species: str, target_moves: List[str], chain: BreedingChain) -> discord.ui.LayoutView:
-        """Create Components V2 view showing breeding chain"""
-        # Track accumulated moves across steps
-        accumulated_moves = set()
+    def get_base_evolution(self, pokemon_name: str) -> str:
+        """
+        Get the base evolution of a Pokemon.
+        This is a simple heuristic — if you have an evolution chain table, plug it in.
+        For now returns the name unchanged (data-driven lookup should replace this).
+        """
+        # If you have an evo chain dict, look it up here.
+        # Placeholder: return as-is (base species same as given when using pre-evos correctly)
+        return pokemon_name
 
+    def create_chain_view(
+        self,
+        target_species: str,
+        target_moves: List[str],
+        chain: BreedingChain
+    ) -> discord.ui.LayoutView:
+        """Create Components V2 view showing breeding chain"""
+
+        accumulated_moves = set()
+        is_single_step = len(chain.steps) == 1
+        alternatives = chain.alternative_males_step1  # [(name, cost, [move_entries]), ...]
+
+        # ── Header ──────────────────────────────────────────────────────────────
         components = [
             discord.ui.TextDisplay(content=f"**🧬 Breeding Chain for {target_species}**"),
             discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
@@ -579,16 +595,15 @@ class ChainBreeding(commands.Cog):
             discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
         ]
 
+        # ── Steps ────────────────────────────────────────────────────────────────
         for i, step in enumerate(chain.steps, 1):
             male = step['male']
             female = step['female']
             moves = step['moves']
             offspring = step['offspring']
 
-            # Update accumulated moves
             accumulated_moves.update(moves)
 
-            # Extract actual Pokemon name from strings like "Woobat (from Step 1)"
             def extract_pokemon_name(name_str):
                 if '(' in name_str and 'from Step' in name_str:
                     return name_str.split('(')[0].strip()
@@ -597,29 +612,23 @@ class ChainBreeding(commands.Cog):
             male_pokemon = extract_pokemon_name(male)
             female_pokemon = extract_pokemon_name(female)
 
-            # Get egg groups
             male_groups = self.egg_groups.get(male_pokemon, ['Unknown'])
             female_groups = self.egg_groups.get(female_pokemon, ['Unknown'])
             offspring_groups = self.egg_groups.get(offspring, ['Unknown'])
 
-            # Format egg groups compactly
             male_groups_str = '/'.join(male_groups)
             female_groups_str = '/'.join(female_groups)
             offspring_groups_str = '/'.join(offspring_groups)
 
-            # Get spawn rates
             male_spawn = "Offspring" if "(from Step" in male else self.spawn_rates.get(male_pokemon, "Unknown")
             if isinstance(male_spawn, int):
                 male_spawn = f"1/{male_spawn}"
 
-            # For female, check if it's offspring from previous step
             female_spawn = "Offspring" if "(from Step" in female else self.spawn_rates.get(female_pokemon, "Unknown")
             if isinstance(female_spawn, int):
                 female_spawn = f"1/{female_spawn}"
 
-            # Build step description with egg groups in brackets
             if "(from Step" in male:
-                # Keep the "from Step X" notation
                 step_desc = f"**♂️ Male:** {male_pokemon} ({male_groups_str}) [from Step {male.split('from Step')[1].strip().rstrip(')')}]"
             else:
                 step_desc = f"**♂️ Male:** {male_pokemon} ({male_groups_str})"
@@ -638,7 +647,6 @@ class ChainBreeding(commands.Cog):
             step_desc += f"\n**Moves Taught:** {', '.join(moves)}"
             step_desc += f"\n**Offspring:** {offspring} ({offspring_groups_str})"
 
-            # Show accumulated moves for offspring
             if len(accumulated_moves) > len(moves):
                 step_desc += f"\n**Total Moves on Offspring:** {', '.join(sorted(accumulated_moves))}"
 
@@ -647,8 +655,8 @@ class ChainBreeding(commands.Cog):
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
             ])
 
-        # Add explanation
-        if len(chain.steps) == 1:
+        # ── Footer text ───────────────────────────────────────────────────────────
+        if is_single_step:
             footer_text = "✅ Single-step breeding! The male learns all moves naturally."
         elif len(chain.steps) == 2:
             footer_text = "✅ Two-step breeding! Each offspring accumulates moves from previous generations."
@@ -657,8 +665,97 @@ class ChainBreeding(commands.Cog):
 
         components.append(discord.ui.TextDisplay(content=f"_{footer_text}_"))
 
+        # ── Female evolution note (single-step only) ──────────────────────────────
+        if is_single_step:
+            female_name = chain.steps[0]['female'].split('(')[0].strip()
+            components.append(discord.ui.TextDisplay(
+                content=(
+                    f"💡 **Tip:** You can use any evolution of **{female_name}** as the female — "
+                    f"the egg will always hatch as the base species and inherit the egg move."
+                )
+            ))
+
+        # ── Alternative males note ────────────────────────────────────────────────
+        if alternatives:
+            first_male = chain.steps[0]['male']
+            first_moves = chain.steps[0]['moves']
+
+            alt_intro = (
+                f"🔄 **{first_male}** was chosen as the male due to its higher spawn rate. "
+                f"You may also use the following alternatives:"
+            )
+            components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
+            components.append(discord.ui.TextDisplay(content=alt_intro))
+
+        # ── Build the view ────────────────────────────────────────────────────────
+        # We need alternatives accessible inside the nested class; capture snapshot
+        alt_snapshot = list(alternatives)  # list of (name, cost, [move_entries])
+        first_moves_snapshot = list(chain.steps[0]['moves']) if chain.steps else []
+
         class ChainView(discord.ui.LayoutView):
             container1 = discord.ui.Container(*components)
+
+        # Attach a button only if there are alternatives
+        if alt_snapshot:
+            # Build the alternatives text up-front
+            lines = ["**🔄 Alternative Males for Step 1:**\n"]
+            for alt_name, alt_cost, alt_move_entries in alt_snapshot:
+                spawn_display = f"1/{alt_cost}" if alt_cost != 9999 else "Unknown"
+                # Show each move and the level it's learned at
+                moves_str = ", ".join(alt_move_entries)
+                lines.append(f"• **{alt_name}** (Spawn: {spawn_display}) — {moves_str}")
+            alt_text = "\n".join(lines)
+
+            # We rebuild the view with an interactive button
+            # Store alt_text so the callback can reference it
+            _alt_text = alt_text
+
+            class ChainViewWithButton(discord.ui.LayoutView):
+                container1 = discord.ui.Container(*components)
+
+                @discord.ui.button(
+                    label="Show Alternative Males",
+                    style=discord.ButtonStyle.secondary,
+                    emoji="🔄",
+                    custom_id="show_alt_males"
+                )
+                async def show_alternatives(
+                    self,
+                    interaction: discord.Interaction,
+                    button: discord.ui.Button
+                ):
+                    # Toggle: if already showing, hide; if hidden, show
+                    if button.label == "Show Alternative Males":
+                        button.label = "Hide Alternative Males"
+                        button.style = discord.ButtonStyle.primary
+
+                        # Append the alternatives block to the view's container
+                        new_components = list(components) + [
+                            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                            discord.ui.TextDisplay(content=_alt_text),
+                        ]
+
+                        class UpdatedView(discord.ui.LayoutView):
+                            container1 = discord.ui.Container(*new_components)
+
+                            @discord.ui.button(
+                                label="Hide Alternative Males",
+                                style=discord.ButtonStyle.primary,
+                                emoji="🔄",
+                                custom_id="hide_alt_males"
+                            )
+                            async def hide_alternatives(
+                                self_inner,
+                                interaction_inner: discord.Interaction,
+                                button_inner: discord.ui.Button
+                            ):
+                                await interaction_inner.response.edit_message(view=ChainViewWithButton())
+
+                        await interaction.response.edit_message(view=UpdatedView())
+                    else:
+                        await interaction.response.edit_message(view=ChainViewWithButton())
+
+            return ChainViewWithButton()
 
         return ChainView()
 
@@ -674,7 +771,6 @@ class ChainBreeding(commands.Cog):
         Example: m!iwant "ralts" shadow sneak, mystical fire
         Example: m!iwant "absol" play rough, double edge, zen headbutt, megahorn
         """
-        # If pokemon is None, entire command might be in one string
         if pokemon is None:
             class ErrorView(discord.ui.LayoutView):
                 container1 = discord.ui.Container(
@@ -684,23 +780,19 @@ class ChainBreeding(commands.Cog):
                     ),
                 )
             await ctx.send(
-                view=ErrorView(), 
-                reference=ctx.message, 
+                view=ErrorView(),
+                reference=ctx.message,
                 allowed_mentions=discord.AllowedMentions(replied_user=False)
             )
             return
 
-        # If moves is None, check if pokemon contains the full command
         if moves is None:
-            # Try to parse quoted Pokemon name from the full string
             import re
-            # Match quoted strings: "pokemon name" or 'pokemon name'
             quote_match = re.match(r'^["\'](.+?)["\'](.+)$', pokemon)
             if quote_match:
                 pokemon = quote_match.group(1).strip()
                 moves = quote_match.group(2).strip()
             else:
-                # No quotes found - assume first word is Pokemon, rest are moves
                 parts = pokemon.split(maxsplit=1)
                 if len(parts) == 2:
                     pokemon = parts[0].strip()
@@ -714,16 +806,14 @@ class ChainBreeding(commands.Cog):
                             ),
                         )
                     await ctx.send(
-                        view=ErrorView(), 
-                        reference=ctx.message, 
+                        view=ErrorView(),
+                        reference=ctx.message,
                         allowed_mentions=discord.AllowedMentions(replied_user=False)
                     )
                     return
 
-        # Clean up pokemon name (remove quotes if still present)
         pokemon = pokemon.strip().strip('"').strip("'")
 
-        # Validate we have both pokemon and moves
         if not pokemon or not moves:
             class ErrorView(discord.ui.LayoutView):
                 container1 = discord.ui.Container(
@@ -733,13 +823,12 @@ class ChainBreeding(commands.Cog):
                     ),
                 )
             await ctx.send(
-                view=ErrorView(), 
-                reference=ctx.message, 
+                view=ErrorView(),
+                reference=ctx.message,
                 allowed_mentions=discord.AllowedMentions(replied_user=False)
             )
             return
 
-        # Split moves
         target_moves = [m.strip() for m in moves.split(',') if m.strip()]
 
         if not target_moves:
@@ -751,13 +840,12 @@ class ChainBreeding(commands.Cog):
                     ),
                 )
             await ctx.send(
-                view=ErrorView(), 
-                reference=ctx.message, 
+                view=ErrorView(),
+                reference=ctx.message,
                 allowed_mentions=discord.AllowedMentions(replied_user=False)
             )
             return
 
-        # Find in movesets (case-insensitive, exact match)
         target_species = None
         pokemon_lower = pokemon.lower()
 
@@ -772,13 +860,12 @@ class ChainBreeding(commands.Cog):
                     discord.ui.TextDisplay(content=f"❌ Pokemon `{pokemon}` not found in database!"),
                 )
             await ctx.send(
-                view=ErrorView(), 
-                reference=ctx.message, 
+                view=ErrorView(),
+                reference=ctx.message,
                 allowed_mentions=discord.AllowedMentions(replied_user=False)
             )
             return
 
-        # Validate moves
         target_breeding_moves = self.movesets[target_species].get('breeding', [])
         invalid_moves = []
         valid_moves = []
@@ -798,8 +885,8 @@ class ChainBreeding(commands.Cog):
                     discord.ui.TextDisplay(content=error_msg),
                 )
             await ctx.send(
-                view=ErrorView(), 
-                reference=ctx.message, 
+                view=ErrorView(),
+                reference=ctx.message,
                 allowed_mentions=discord.AllowedMentions(replied_user=False)
             )
             return
@@ -810,13 +897,12 @@ class ChainBreeding(commands.Cog):
                     discord.ui.TextDisplay(content="❌ No valid egg moves specified!"),
                 )
             await ctx.send(
-                view=ErrorView(), 
-                reference=ctx.message, 
+                view=ErrorView(),
+                reference=ctx.message,
                 allowed_mentions=discord.AllowedMentions(replied_user=False)
             )
             return
 
-        # Send "searching" message WITHOUT reference
         class SearchView(discord.ui.LayoutView):
             container1 = discord.ui.Container(
                 discord.ui.TextDisplay(
@@ -826,11 +912,9 @@ class ChainBreeding(commands.Cog):
 
         search_msg = await ctx.send(view=SearchView())
 
-        # Find breeding chain
         chain = self.find_breeding_chain(target_species, valid_moves)
 
         if not chain:
-            # Create helpful error message with tips
             error_msg = f"❌ **No breeding chain found for {target_species}**\n\n"
             error_msg += "This might be impossible or require complex chains beyond current search depth.\n\n"
             error_msg += "**💡 Common Issues & Solutions:**\n"
@@ -848,27 +932,22 @@ class ChainBreeding(commands.Cog):
                     discord.ui.TextDisplay(content=error_msg),
                 )
 
-            # Delete the searching message
             await search_msg.delete()
 
-            # Send error as NEW message with reference and no ping
             await ctx.send(
-                view=ErrorView(), 
-                reference=ctx.message, 
+                view=ErrorView(),
+                reference=ctx.message,
                 allowed_mentions=discord.AllowedMentions(replied_user=False)
             )
             return
 
-        # Create result view
         view = self.create_chain_view(target_species, valid_moves, chain)
 
-        # Delete the searching message
         await search_msg.delete()
 
-        # Send result as NEW message with reference and no ping
         await ctx.send(
-            view=view, 
-            reference=ctx.message, 
+            view=view,
+            reference=ctx.message,
             allowed_mentions=discord.AllowedMentions(replied_user=False)
         )
 
@@ -881,26 +960,20 @@ class ChainBreeding(commands.Cog):
         Example: m!canlearn play rough, zen headbutt, double edge
         With egg group filters: m!canlearn tackle --eg field --eg amorphous
         """
-        # Parse egg group filters
         egg_group_filters = []
         moves_clean = moves
 
-        # Extract --eg flags
         import re
         eg_pattern = r'--eg\s+([\w-]+)'
         eg_matches = re.findall(eg_pattern, moves, re.IGNORECASE)
 
         if eg_matches:
-            # Normalize egg group names (capitalize first letter)
             egg_group_filters = [eg.capitalize() for eg in eg_matches]
-            # Remove --eg flags from moves string
             moves_clean = re.sub(eg_pattern, '', moves, flags=re.IGNORECASE).strip()
 
-        # Parse moves - handle both comma and space separated
         if ',' in moves_clean:
             search_moves = [m.strip() for m in moves_clean.split(',') if m.strip()]
         else:
-            # If no commas, treat as single move (allows multi-word move names)
             search_moves = [moves_clean.strip()]
 
         if not search_moves:
@@ -911,62 +984,34 @@ class ChainBreeding(commands.Cog):
             await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
             return
 
-        # Build comprehensive results with egg group filtering
         results = self.find_decremental_learners(search_moves, egg_group_filters)
 
-        # Create detailed txt file
         txt_content = self.create_canlearn_txt(search_moves, results, egg_group_filters)
 
-        # Create file using BytesIO
         import io
         txt_file = io.BytesIO(txt_content.encode('utf-8'))
         txt_file.seek(0)
         discord_file = discord.File(txt_file, filename="canlearn_full_results.txt")
 
-        # Create embed for summary
         embed = self.create_canlearn_embed(search_moves, results, egg_group_filters)
-        
-        # Send embed and file
+
         await ctx.send(
             embed=embed,
             file=discord_file,
-            reference=ctx.message, 
+            reference=ctx.message,
             mention_author=False
         )
 
     def pokemon_has_egg_groups(self, pokemon: str, required_groups: List[str]) -> Tuple[bool, List[str]]:
-        """
-        Check if Pokemon has the required egg groups.
-        Returns: (has_all_groups, pokemon_groups)
-        """
+        """Check if Pokemon has the required egg groups."""
         pokemon_groups = self.egg_groups.get(pokemon, [])
-
         if not required_groups:
             return True, pokemon_groups
-
-        # Check if Pokemon has all required egg groups
         has_all = all(group in pokemon_groups for group in required_groups)
         return has_all, pokemon_groups
 
     def find_decremental_learners(self, search_moves: List[str], egg_group_filters: List[str] = None) -> Dict:
-        """
-        Find Pokemon that learn moves in decremental order
-        With optional egg group filtering
-        Returns: {
-            'all': [(pokemon, spawn_cost, learned_moves_with_levels, egg_groups), ...],
-            'all_with_all_groups': [...],  # Has all required egg groups
-            'all_with_any_group': [...],   # Has at least one required egg group
-            'any_3': [...],
-            'any_3_with_all_groups': [...],
-            'any_3_with_any_group': [...],
-            'any_2': [...],
-            'any_2_with_all_groups': [...],
-            'any_2_with_any_group': [...],
-            'any_1': [...],
-            'any_1_with_all_groups': [...],
-            'any_1_with_any_group': [...]
-        }
-        """
+        """Find Pokemon that learn moves in decremental order with optional egg group filtering"""
         if egg_group_filters is None:
             egg_group_filters = []
 
@@ -991,7 +1036,6 @@ class ChainBreeding(commands.Cog):
             moveset = self.movesets.get(pokemon, {})
             learned_moves = []
 
-            # Check which moves this Pokemon learns naturally
             for move in search_moves:
                 for move_entry in moveset.get('level_up', []):
                     if move.lower() in move_entry.lower():
@@ -1004,34 +1048,29 @@ class ChainBreeding(commands.Cog):
 
             spawn_cost = self.get_spawn_cost(pokemon)
 
-            # Get egg groups
             has_all_groups, pokemon_groups = self.pokemon_has_egg_groups(pokemon, egg_group_filters)
             has_any_group = any(group in pokemon_groups for group in egg_group_filters) if egg_group_filters else False
 
             entry = (pokemon, spawn_cost, learned_moves, pokemon_groups)
 
-            # Categorize by number of moves learned
             if num_learned == num_moves:
                 results['all'].append(entry)
                 if has_all_groups:
                     results['all_with_all_groups'].append(entry)
                 elif has_any_group:
                     results['all_with_any_group'].append(entry)
-
             elif num_learned == 3 and num_moves >= 3:
                 results['any_3'].append(entry)
                 if has_all_groups:
                     results['any_3_with_all_groups'].append(entry)
                 elif has_any_group:
                     results['any_3_with_any_group'].append(entry)
-
             elif num_learned == 2 and num_moves >= 2:
                 results['any_2'].append(entry)
                 if has_all_groups:
                     results['any_2_with_all_groups'].append(entry)
                 elif has_any_group:
                     results['any_2_with_any_group'].append(entry)
-
             elif num_learned == 1:
                 results['any_1'].append(entry)
                 if has_all_groups:
@@ -1039,7 +1078,6 @@ class ChainBreeding(commands.Cog):
                 elif has_any_group:
                     results['any_1_with_any_group'].append(entry)
 
-        # Sort each category by spawn cost (easier to obtain first)
         for key in results:
             results[key].sort(key=lambda x: x[1])
 
@@ -1052,58 +1090,49 @@ class ChainBreeding(commands.Cog):
         if egg_group_filters is None:
             egg_group_filters = []
 
-        # Create embed
         embed = discord.Embed(
             title="🎓 Pokemon That Can Learn These Moves",
             color=config.EMBED_COLOR
         )
 
-        # Add search info
         search_info = f"**Searching for:** {', '.join(search_moves)}\n**Total moves:** {num_moves}"
         if egg_group_filters:
             search_info += f"\n**Egg Group Filters:** {', '.join(egg_group_filters)}"
         embed.description = search_info
 
-        # Helper function to format Pokemon entry
         def format_entry(pokemon, spawn_cost, learned_moves, egg_groups):
             spawn_display = f"1/{spawn_cost}" if spawn_cost != 9999 else "Unknown"
             egg_groups_str = '/'.join(egg_groups) if egg_groups else "Unknown"
             return f"**{pokemon}** ({egg_groups_str}) - Spawn: {spawn_display}"
 
-        # Show results with ALL required egg groups first (if filters provided)
         if egg_group_filters:
             if results['all_with_all_groups']:
                 top_all = results['all_with_all_groups'][:5]
                 text = "\n".join([format_entry(*entry) for entry in top_all])
                 if len(results['all_with_all_groups']) > 5:
                     text += f"\n*...and {len(results['all_with_all_groups']) - 5} more*"
-                
                 embed.add_field(
                     name=f"✅ ALL {num_moves} Moves + ALL Egg Groups ({len(results['all_with_all_groups'])} found)",
                     value=text,
                     inline=False
                 )
 
-            # Show results with ANY required egg group
             if results['all_with_any_group']:
                 top_all = results['all_with_any_group'][:3]
                 text = "\n".join([format_entry(*entry) for entry in top_all])
                 if len(results['all_with_any_group']) > 3:
                     text += f"\n*...and {len(results['all_with_any_group']) - 3} more*"
-                
                 embed.add_field(
                     name=f"⚠️ ALL {num_moves} Moves + ANY Egg Group ({len(results['all_with_any_group'])} found)",
                     value=text,
                     inline=False
                 )
 
-        # Show ALL moves learners (no egg group filter or no matches with filters)
         if results['all'] and (not egg_group_filters or (not results['all_with_all_groups'] and not results['all_with_any_group'])):
             top_all = results['all'][:5]
             text = "\n".join([format_entry(*entry) for entry in top_all])
             if len(results['all']) > 5:
                 text += f"\n*...and {len(results['all']) - 5} more*"
-
             title_suffix = " (No Egg Group Filter)" if egg_group_filters else ""
             embed.add_field(
                 name=f"✅ Learn ALL {num_moves} Moves{title_suffix} ({len(results['all'])} found)",
@@ -1117,7 +1146,6 @@ class ChainBreeding(commands.Cog):
                 inline=False
             )
 
-        # Show ANY 3 learners with egg group filtering
         if num_moves >= 4:
             if egg_group_filters and results['any_3_with_all_groups']:
                 top_3 = results['any_3_with_all_groups'][:3]
@@ -1128,7 +1156,6 @@ class ChainBreeding(commands.Cog):
                     text += f"**{pokemon}** ({egg_groups_str}): {moves_str}\n"
                 if len(results['any_3_with_all_groups']) > 3:
                     text += f"*...and {len(results['any_3_with_all_groups']) - 3} more*"
-
                 embed.add_field(
                     name=f"📊 ANY 3 Moves + ALL Egg Groups ({len(results['any_3_with_all_groups'])} found)",
                     value=text,
@@ -1143,14 +1170,12 @@ class ChainBreeding(commands.Cog):
                     text += f"**{pokemon}** ({egg_groups_str}): {moves_str}\n"
                 if len(results['any_3']) > 3:
                     text += f"*...and {len(results['any_3']) - 3} more*"
-
                 embed.add_field(
                     name=f"⚠️ Learn ANY 3 Moves ({len(results['any_3'])} found)",
                     value=text,
                     inline=False
                 )
 
-        # Show ANY 2 learners with egg group filtering
         if num_moves >= 3:
             if egg_group_filters and results['any_2_with_all_groups']:
                 top_2 = results['any_2_with_all_groups'][:3]
@@ -1161,7 +1186,6 @@ class ChainBreeding(commands.Cog):
                     text += f"**{pokemon}** ({egg_groups_str}): {moves_str}\n"
                 if len(results['any_2_with_all_groups']) > 3:
                     text += f"*...and {len(results['any_2_with_all_groups']) - 3} more*"
-
                 embed.add_field(
                     name=f"📊 ANY 2 Moves + ALL Egg Groups ({len(results['any_2_with_all_groups'])} found)",
                     value=text,
@@ -1176,14 +1200,12 @@ class ChainBreeding(commands.Cog):
                     text += f"**{pokemon}** ({egg_groups_str}): {moves_str}\n"
                 if len(results['any_2']) > 3:
                     text += f"*...and {len(results['any_2']) - 3} more*"
-
                 embed.add_field(
                     name=f"📊 Learn ANY 2 Moves ({len(results['any_2'])} found)",
                     value=text,
                     inline=False
                 )
 
-        # Add footer
         footer_text = "Full detailed results in attached TXT file"
         if egg_group_filters:
             footer_text += f" | Filtering by: {', '.join(egg_group_filters)}"
@@ -1207,7 +1229,6 @@ class ChainBreeding(commands.Cog):
             lines.append(f"Egg Group Filters: {', '.join(egg_group_filters)}")
         lines.append("")
 
-        # Helper function to format Pokemon entry
         def format_pokemon(pokemon, spawn_cost, learned_moves, egg_groups):
             spawn_display = f"1/{spawn_cost}" if spawn_cost != 9999 else "Unknown"
             egg_groups_str = '/'.join(egg_groups) if egg_groups else "Unknown"
@@ -1215,7 +1236,6 @@ class ChainBreeding(commands.Cog):
             for move in learned_moves:
                 lines.append(f"  - {move}")
 
-        # Results with ALL required egg groups
         if egg_group_filters:
             lines.append("=" * 80)
             lines.append(f"POKEMON WITH ALL EGG GROUPS ({', '.join(egg_group_filters)})")
@@ -1241,7 +1261,6 @@ class ChainBreeding(commands.Cog):
                 for entry in results['any_1_with_all_groups']:
                     format_pokemon(*entry)
 
-            # Results with ANY required egg group
             lines.append("\n" + "=" * 80)
             lines.append(f"POKEMON WITH ANY EGG GROUP ({', '.join(egg_group_filters)})")
             lines.append("=" * 80)
@@ -1266,12 +1285,10 @@ class ChainBreeding(commands.Cog):
                 for entry in results['any_1_with_any_group']:
                     format_pokemon(*entry)
 
-        # ALL POKEMON (no egg group filter)
         lines.append("\n" + "=" * 80)
         lines.append(f"ALL POKEMON (NO EGG GROUP FILTER)")
         lines.append("=" * 80)
 
-        # ALL moves section
         lines.append(f"\n--- Learn ALL {len(search_moves)} Moves ({len(results['all'])} found) ---")
         if results['all']:
             for entry in results['all']:
@@ -1279,7 +1296,6 @@ class ChainBreeding(commands.Cog):
         else:
             lines.append("\nNone found.\n")
 
-        # ANY 3 moves section
         if len(search_moves) >= 4:
             lines.append(f"\n--- Learn ANY 3 Moves ({len(results['any_3'])} found) ---")
             if results['any_3']:
@@ -1288,7 +1304,6 @@ class ChainBreeding(commands.Cog):
             else:
                 lines.append("\nNone found.\n")
 
-        # ANY 2 moves section
         if len(search_moves) >= 3:
             lines.append(f"\n--- Learn ANY 2 Moves ({len(results['any_2'])} found) ---")
             if results['any_2']:
@@ -1297,7 +1312,6 @@ class ChainBreeding(commands.Cog):
             else:
                 lines.append("\nNone found.\n")
 
-        # Individual move learners
         lines.append("\n" + "=" * 80)
         lines.append("POKEMON THAT LEARN EACH MOVE INDIVIDUALLY")
         lines.append("=" * 80)
@@ -1307,14 +1321,12 @@ class ChainBreeding(commands.Cog):
             lines.append(f"MOVE: {move}")
             lines.append('─' * 80)
 
-            # Find all Pokemon that learn this specific move
             learners = []
             for pokemon in self.pokemon_list:
                 if self.learns_move_naturally(pokemon, move):
                     spawn_cost = self.get_spawn_cost(pokemon)
                     _, egg_groups = self.pokemon_has_egg_groups(pokemon, [])
 
-                    # Get the exact move entry with level
                     moveset = self.movesets.get(pokemon, {})
                     move_entry = None
                     for entry in moveset.get('level_up', []):
@@ -1323,10 +1335,8 @@ class ChainBreeding(commands.Cog):
                             break
                     learners.append((pokemon, spawn_cost, move_entry, egg_groups))
 
-            # Sort by spawn cost
             learners.sort(key=lambda x: x[1])
 
-            # Separate by egg group filters if provided
             if egg_group_filters:
                 with_all = [l for l in learners if all(g in l[3] for g in egg_group_filters)]
                 with_any = [l for l in learners if any(g in l[3] for g in egg_group_filters) and not all(g in l[3] for g in egg_group_filters)]
