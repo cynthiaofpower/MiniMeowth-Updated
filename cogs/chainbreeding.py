@@ -442,7 +442,7 @@ class ChainBreeding(commands.Cog):
             female_name = chain.steps[0]['female'].split('(')[0].strip()
             components.append(discord.ui.TextDisplay(
                 content=f"💡 **Tip:** You can use any evolution of **{female_name}** as the female — "
-                        f"the egg will always hatch as the base species and inherit the egg move."
+                        f"the egg will always hatch as the base species (20% chance if female is regional) and inherit the egg move."
             ))
 
         # ── Pre-build the alternatives text ──────────────────────────────────────
