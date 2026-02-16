@@ -441,7 +441,7 @@ class ChainBreeding(commands.Cog):
         if is_single_step:
             female_name = chain.steps[0]['female'].split('(')[0].strip()
             components.append(discord.ui.TextDisplay(
-                content=f"💡 **Tip:** You can use any evolution of **{female_name}** as the female — "
+                content=f"💡 **Tip:** You can use evolution of **{female_name}** as the female — "
                         f"The egg always hatches as the base species (guaranteed for non-regional/non-Gmax), with a 20% chance if regional and 1% if Gmax, and will inherit the egg move."
             ))
 
