@@ -435,7 +435,10 @@ class ChainBreeding(commands.Cog):
             footer_text = "✅ Two-step breeding! Each offspring accumulates moves from previous generations."
         else:
             footer_text = "✅ Multi-step breeding! Each offspring accumulates moves from previous generations."
-        components.append(discord.ui.TextDisplay(content=f"_{footer_text}_"),)
+        components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
+        components.append(discord.ui.TextDisplay(content=f"_{footer_text}_"))
+        components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
+
 
         # Female evolution tip — single-step only
         if is_single_step:
