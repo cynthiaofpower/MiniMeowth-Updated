@@ -482,6 +482,7 @@ class ChainBreeding(commands.Cog):
         class ChainView(discord.ui.LayoutView):
             container1 = discord.ui.Container(
                 *components,
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
                 discord.ui.ActionRow(ShowAlternativesButton()),
             )
 
