@@ -7,6 +7,12 @@ import config
 from collections import defaultdict, deque
 from typing import List, Dict, Tuple, Optional, Set
 import heapq
+import unicodedata
+
+
+def normalize_string(s):
+    """Remove accents from string for comparison"""
+    return ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
 
 
 class BreedingChain:
@@ -356,16 +362,21 @@ class ChainBreeding(commands.Cog):
 
         return chain
 
-    def create_chain_view(self, target_species: str, target_moves: List[str], chain: BreedingChain) -> discord.ui.LayoutView:
+    def create_chain_view(self, target_species: str, target_moves: List[str], chain: BreedingChain, page: int = 1) -> discord.ui.LayoutView:
         """
-        Build the Components V2 view for a breeding chain result.
-        Uses the same button pattern as settings.py:
-          - Define inner class inheriting discord.ui.Button
-          - callback sends ephemeral follow-up message
+        Build the Components V2 view for a breeding chain result with pagination.
         """
         accumulated_moves = set()
         is_single_step = len(chain.steps) == 1
-        alternatives = chain.alternative_males_step1  # [(name, cost, [move_entries]), ...]
+        alternatives = chain.alternative_males_step1
+
+        # Calculate pagination
+        STEPS_PER_PAGE = 3  # Show 3 steps per page
+        total_pages = (len(chain.steps) + STEPS_PER_PAGE - 1) // STEPS_PER_PAGE
+        page = max(1, min(page, total_pages))  # Clamp page number
+
+        start_step = (page - 1) * STEPS_PER_PAGE
+        end_step = min(start_step + STEPS_PER_PAGE, len(chain.steps))
 
         # ── Build main component list ─────────────────────────────────────────────
         components = [
@@ -378,7 +389,15 @@ class ChainBreeding(commands.Cog):
             discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
         ]
 
-        for i, step in enumerate(chain.steps, 1):
+        # Calculate accumulated moves up to start_step
+        for i in range(start_step):
+            accumulated_moves.update(chain.steps[i]['moves'])
+
+        # Display steps for current page
+        for i in range(start_step, end_step):
+            step = chain.steps[i]
+            step_num = i + 1
+
             male = step['male']
             female = step['female']
             moves = step['moves']
@@ -423,33 +442,29 @@ class ChainBreeding(commands.Cog):
             if len(accumulated_moves) > len(moves):
                 step_desc += f"\n**Total Moves on Offspring:** {', '.join(sorted(accumulated_moves))}"
 
-            components.extend([
-                discord.ui.TextDisplay(content=f"**Step {i}/{len(chain.steps)}**\n{step_desc}"),
-                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-            ])
+            components.append(discord.ui.TextDisplay(content=f"**Step {step_num}/{len(chain.steps)}**\n{step_desc}"))
 
-        # Footer
-        if is_single_step:
-            footer_text = "✅ Single-step breeding! The male learns all moves naturally."
-        elif len(chain.steps) == 2:
-            footer_text = "✅ Two-step breeding! Each offspring accumulates moves from previous generations."
-        else:
-            footer_text = "✅ Multi-step breeding! Each offspring accumulates moves from previous generations."
-        components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
-        components.append(discord.ui.TextDisplay(content=f"_{footer_text}_"))
-        components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
+            # Only add separator if not the last step on this page
+            if i < end_step - 1:
+                components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
 
+        # Add pagination info if multiple pages
+        if total_pages > 1:
+            components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
+            components.append(discord.ui.TextDisplay(content=f"_Page {page}/{total_pages}_"))
 
-        # Female evolution tip — single-step only
-        if is_single_step:
-            female_name = chain.steps[0]['female'].split('(')[0].strip()
-            components.append(discord.ui.TextDisplay(
-                content=f"💡 **Tip:** You can use evolution of **{female_name}** as the female — "
-                        f"The egg always hatches as the base species (guaranteed for non-regional/non-Gmax), with a 20% chance into regional if female is regional and 1% into Gmax if female is gigantamax, and will inherit the egg move."
-            ))
+        # Footer (only on last page)
+        if page == total_pages:
+            components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
+            if is_single_step:
+                footer_text = "✅ Single-step breeding! The male learns all moves naturally."
+            elif len(chain.steps) == 2:
+                footer_text = "✅ Two-step breeding! Each offspring accumulates moves from previous generations."
+            else:
+                footer_text = "✅ Multi-step breeding! Each offspring accumulates moves from previous generations."
+            components.append(discord.ui.TextDisplay(content=f"_{footer_text}_"))
 
         # ── Pre-build the alternatives text ──────────────────────────────────────
-        # Done here (outside the class) so the button callback can close over it.
         if alternatives:
             first_male = chain.steps[0]['male']
             lines = [f"**🔄 Alternative Males for Step 1**\n_{first_male} was chosen due to best spawn rate. You can use the following males as well_\n"]
@@ -461,10 +476,31 @@ class ChainBreeding(commands.Cog):
         else:
             _alt_text = "_(No alternative males found for this breeding step)_"
 
+        # ── Pre-build the tips text ──────────────────────────────────────────────
+        if is_single_step:
+            female_name = chain.steps[0]['female'].split('(')[0].strip()
+            _tips_text = (
+                f"💡 **Tips:**\n\n"
+                f"• You can use evolution of **{female_name}** as the female — "
+                f"The egg always hatches as the base species (guaranteed for non-regional/non-Gmax), "
+                f"with a 20% chance into regional if female is regional and 1% into Gmax if female is gigantamax, "
+                f"and will inherit the egg move.\n\n"
+                f"• ALWAYS use base form while searching. For example - `m!iwant tepig hammer arm` "
+                f"and not `m!iwant emboar hammer arm` to get accurate results Because the base form MUST have that move as egg move. "
+                f"It Does Not matter if the evolved form has it or not."
+            )
+        else:
+            _tips_text = (
+                f"💡 **Tips:**\n\n"
+                f"• ALWAYS use base form while searching. For example - `m!iwant tepig hammer arm` "
+                f"and not `m!iwant emboar hammer arm` to get accurate results Because the base form MUST have that move as egg move. "
+                f"It Does Not matter if the evolved form has it or not.\n\n"
+                f"• Each offspring accumulates moves from previous breeding steps."
+            )
+
         has_alts = len(alternatives) > 0
 
-        # ── Button class — mirrors the settings.py pattern exactly ───────────────
-        # Inner class inherits discord.ui.Button; callback sends ephemeral followup.
+        # ── Button classes ─────────────────────────────────────────────────────────
         class ShowAlternativesButton(discord.ui.Button):
             def __init__(self):
                 super().__init__(
@@ -481,13 +517,73 @@ class ChainBreeding(commands.Cog):
                     )
                 await interaction.response.send_message(view=AltView(), ephemeral=False)
 
-        # ── Final view with button in ActionRow ───────────────────────────────────
+        class ShowTipsButton(discord.ui.Button):
+            def __init__(self):
+                super().__init__(
+                    style=discord.ButtonStyle.secondary,
+                    label="Tips",
+                    emoji="💡"
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                class TipsView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content=_tips_text),
+                    )
+                await interaction.response.send_message(view=TipsView(), ephemeral=False)
+
+        # Pagination buttons
+        class PreviousPageButton(discord.ui.Button):
+            def __init__(self, current_page):
+                super().__init__(
+                    style=discord.ButtonStyle.primary,
+                    label="Previous",
+                    emoji="◀️",
+                    disabled=(current_page <= 1)
+                )
+                self.current_page = current_page
+
+            async def callback(self, interaction: discord.Interaction):
+                # Get the cog instance
+                cog = interaction.client.get_cog('ChainBreeding')
+                new_view = cog.create_chain_view(target_species, target_moves, chain, self.current_page - 1)
+                await interaction.response.edit_message(view=new_view)
+
+        class NextPageButton(discord.ui.Button):
+            def __init__(self, current_page, max_pages):
+                super().__init__(
+                    style=discord.ButtonStyle.primary,
+                    label="Next",
+                    emoji="▶️",
+                    disabled=(current_page >= max_pages)
+                )
+                self.current_page = current_page
+
+            async def callback(self, interaction: discord.Interaction):
+                # Get the cog instance
+                cog = interaction.client.get_cog('ChainBreeding')
+                new_view = cog.create_chain_view(target_species, target_moves, chain, self.current_page + 1)
+                await interaction.response.edit_message(view=new_view)
+
+        # ── Final view with buttons ───────────────────────────────────────────────
+        components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
+
+        # Create action row with appropriate buttons
+        action_row_buttons = []
+
+        # Add pagination buttons if needed
+        if total_pages > 1:
+            action_row_buttons.append(PreviousPageButton(page))
+            action_row_buttons.append(NextPageButton(page, total_pages))
+
+        # Always add alternatives and tips buttons
+        action_row_buttons.append(ShowAlternativesButton())
+        action_row_buttons.append(ShowTipsButton())
+
+        components.append(discord.ui.ActionRow(*action_row_buttons))
+
         class ChainView(discord.ui.LayoutView):
-            container1 = discord.ui.Container(
-                *components,
-                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                discord.ui.ActionRow(ShowAlternativesButton()),
-            )
+            container1 = discord.ui.Container(*components)
 
         return ChainView()
 
@@ -566,10 +662,11 @@ class ChainBreeding(commands.Cog):
         if utils:
             pokemon = utils.resolve_pokemon_name(pokemon)
 
-        # Case-insensitive species lookup
+        # Case-insensitive species lookup with accent normalization
         target_species = None
+        pokemon_normalized = normalize_string(pokemon.lower())
         for pkmn_name in self.pokemon_list:
-            if pkmn_name.lower() == pokemon.lower():
+            if normalize_string(pkmn_name.lower()) == pokemon_normalized:
                 target_species = pkmn_name
                 break
 
@@ -635,7 +732,7 @@ class ChainBreeding(commands.Cog):
             await ctx.send(view=ErrorView(), reference=ctx.message, allowed_mentions=discord.AllowedMentions(replied_user=False))
             return
 
-        view = self.create_chain_view(target_species, valid_moves, chain)
+        view = self.create_chain_view(target_species, valid_moves, chain, page=1)
         await ctx.send(view=view, reference=ctx.message, allowed_mentions=discord.AllowedMentions(replied_user=False))
 
     @commands.hybrid_command(name='canlearn', aliases=['wholearns', 'wl'])
