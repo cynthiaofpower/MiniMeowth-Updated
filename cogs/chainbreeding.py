@@ -479,7 +479,7 @@ class ChainBreeding(commands.Cog):
                     container1 = discord.ui.Container(
                         discord.ui.TextDisplay(content=_alt_text),
                     )
-                await interaction.response.send_message(view=AltView(), ephemeral=True)
+                await interaction.response.send_message(view=AltView(), ephemeral=False)
 
         # ── Final view with button in ActionRow ───────────────────────────────────
         class ChainView(discord.ui.LayoutView):
