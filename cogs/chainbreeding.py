@@ -449,7 +449,7 @@ class ChainBreeding(commands.Cog):
         # Done here (outside the class) so the button callback can close over it.
         if alternatives:
             first_male = chain.steps[0]['male']
-            lines = [f"**🔄 Alternative Males for Step 1**\n_{first_male} was chosen due to best spawn rate_\n"]
+            lines = [f"**🔄 Alternative Males for Step 1**\n_{first_male} was chosen due to best spawn rate. You can use the following males as well_\n"]
             for alt_name, alt_cost, alt_move_entries in alternatives:
                 spawn_display = f"1/{alt_cost}" if alt_cost != 9999 else "Unknown"
                 moves_str = ", ".join(alt_move_entries)
