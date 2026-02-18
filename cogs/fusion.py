@@ -7,36 +7,136 @@ import csv
 import string
 import config
 import os
+import re
+import unicodedata
 from typing import Dict, List, Optional
 
 BASE_URL = "https://ifd-spaces.sfo2.cdn.digitaloceanspaces.com/custom/{}.png"
 CSV_FILE = "fusion.csv"
-IMAGES_PER_PAGE = 10  # Number of images per page
+IMAGES_PER_PAGE = 10
 
 
-def create_fusion_view(user_id: int, urls: List[str], head: str, body: str, current_page: int = 0):
-    """Factory function to create pagination view for fusion images"""
+# ─── Name normalization helpers (mirrors Utils cog) ──────────────────────────
 
-    # Calculate which images to show on this page
+def normalize_string(s: str) -> str:
+    """Remove accents from string for comparison"""
+    return ''.join(c for c in unicodedata.normalize('NFD', s)
+                   if unicodedata.category(c) != 'Mn')
+
+
+def parse_two_pokemon(text: str):
+    """
+    Parse two Pokémon names from a string separated by ' and ' or ','.
+    Returns (name1, name2) or raises ValueError.
+    """
+    text = text.strip()
+
+    and_match = re.split(r'\s+and\s+', text, maxsplit=1, flags=re.IGNORECASE)
+    if len(and_match) == 2:
+        return and_match[0].strip(), and_match[1].strip()
+
+    comma_match = text.split(',', 1)
+    if len(comma_match) == 2:
+        return comma_match[0].strip(), comma_match[1].strip()
+
+    raise ValueError(
+        "Please separate the two Pokémon names with **and** or a **comma**.\n"
+        "Example: `m!fuse pikachu and meowth` or `m!fuse pikachu, meowth`"
+    )
+
+
+# ─── Standalone image-search helpers (module-level, usable in button callbacks) ─
+
+async def _image_exists(session: aiohttp.ClientSession, url: str) -> bool:
+    try:
+        async with session.head(url) as resp:
+            if resp.status != 200:
+                return False
+            return resp.headers.get("Content-Type", "").startswith("image/")
+    except (asyncio.TimeoutError, aiohttp.ClientError):
+        return False
+    except Exception as e:
+        print(f"Unexpected error checking {url}: {e}")
+        return False
+
+
+async def _find_fusion_images(session: aiohttp.ClientSession,
+                               head_num: str, body_num: str) -> List[str]:
+    found_urls = []
+    base_url = BASE_URL.format(f"{head_num}.{body_num}")
+    if not await _image_exists(session, base_url):
+        return []
+    found_urls.append(base_url)
+
+    semaphore = asyncio.Semaphore(5)
+
+    async def check_variant(letter):
+        async with semaphore:
+            url = BASE_URL.format(f"{head_num}.{body_num}{letter}")
+            exists = await _image_exists(session, url)
+            return (url, exists)
+
+    results = await asyncio.gather(*[check_variant(l) for l in string.ascii_lowercase])
+
+    consecutive_misses = 0
+    for url, exists in results:
+        if exists:
+            found_urls.append(url)
+            consecutive_misses = 0
+        else:
+            consecutive_misses += 1
+            if consecutive_misses >= 3:
+                break
+
+    return found_urls
+
+
+# ─── Tiny shared helpers ──────────────────────────────────────────────────────
+
+def _make_error_view(text: str):
+    class ErrorView(discord.ui.LayoutView):
+        container1 = discord.ui.Container(
+            discord.ui.TextDisplay(content=text),
+        )
+    return ErrorView
+
+
+def _make_loading_view(text: str):
+    class LoadingView(discord.ui.LayoutView):
+        container1 = discord.ui.Container(
+            discord.ui.TextDisplay(content=text),
+        )
+    return LoadingView
+
+
+# ─── View factory ────────────────────────────────────────────────────────────
+
+def create_fusion_view(user_id: int, urls: List[str], head: str, body: str,
+                       current_page: int = 0,
+                       show_reverse_button: bool = False,
+                       reverse_head: str = "", reverse_body: str = "",
+                       reverse_head_num: str = "", reverse_body_num: str = "",
+                       session=None):
+    """
+    Factory: creates a paginated fusion view.
+    If show_reverse_button=True, a '🔄 Show Reversed Fusion' button is shown.
+    Clicking it fetches the reversed fusion and sends it as a new message.
+    """
     start_idx = current_page * IMAGES_PER_PAGE
     end_idx = min(start_idx + IMAGES_PER_PAGE, len(urls))
     page_urls = urls[start_idx:end_idx]
     max_page = (len(urls) - 1) // IMAGES_PER_PAGE
 
-    # Create media galleries for each image
-    galleries = []
-    for url in page_urls:
-        galleries.append(
-            discord.ui.MediaGallery(
-                discord.MediaGalleryItem(media=url)
-            )
-        )
+    galleries = [
+        discord.ui.MediaGallery(discord.MediaGalleryItem(media=url))
+        for url in page_urls
+    ]
 
-    # Title and footer
     title = f"🧬 **Fusion:** {head.title()} (head) + {body.title()} (body)"
-    page_info = f"Page {current_page + 1}/{max_page + 1} • {len(urls)} variant{'s' if len(urls) != 1 else ''}"
+    page_info = (f"Page {current_page + 1}/{max_page + 1} "
+                 f"• {len(urls)} variant{'s' if len(urls) != 1 else ''}")
 
-    # Create button instances with callbacks
+    # ── Pagination buttons ──
     class PrevButton(discord.ui.Button):
         def __init__(self):
             super().__init__(
@@ -48,19 +148,17 @@ def create_fusion_view(user_id: int, urls: List[str], head: str, body: str, curr
 
         async def callback(self, interaction: discord.Interaction):
             if interaction.user.id != user_id:
-                class ErrorView(discord.ui.LayoutView):
-                    container1 = discord.ui.Container(
-                        discord.ui.TextDisplay(content="❌ This is not your fusion result!"),
-                    )
-                await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                await interaction.response.send_message(
+                    view=_make_error_view("❌ This is not your fusion result!")(),
+                    ephemeral=True
+                )
                 return
-
-            # Create new view for previous page
-            new_page = current_page - 1
-            ViewClass = create_fusion_view(user_id, urls, head, body, new_page)
-            new_view = ViewClass()
-
-            await interaction.response.edit_message(view=new_view)
+            ViewClass = create_fusion_view(
+                user_id, urls, head, body, current_page - 1,
+                show_reverse_button, reverse_head, reverse_body,
+                reverse_head_num, reverse_body_num, session
+            )
+            await interaction.response.edit_message(view=ViewClass())
 
     class NextButton(discord.ui.Button):
         def __init__(self):
@@ -73,68 +171,187 @@ def create_fusion_view(user_id: int, urls: List[str], head: str, body: str, curr
 
         async def callback(self, interaction: discord.Interaction):
             if interaction.user.id != user_id:
-                class ErrorView(discord.ui.LayoutView):
-                    container1 = discord.ui.Container(
-                        discord.ui.TextDisplay(content="❌ This is not your fusion result!"),
-                    )
-                await interaction.response.send_message(view=ErrorView(), ephemeral=True)
+                await interaction.response.send_message(
+                    view=_make_error_view("❌ This is not your fusion result!")(),
+                    ephemeral=True
+                )
+                return
+            ViewClass = create_fusion_view(
+                user_id, urls, head, body, current_page + 1,
+                show_reverse_button, reverse_head, reverse_body,
+                reverse_head_num, reverse_body_num, session
+            )
+            await interaction.response.edit_message(view=ViewClass())
+
+    # ── Reverse button ──
+    class ReverseButton(discord.ui.Button):
+        def __init__(self):
+            super().__init__(
+                style=discord.ButtonStyle.primary,
+                label="🔄 Show Reversed Fusion",
+                custom_id="reverse_fusion"
+            )
+
+        async def callback(self, interaction: discord.Interaction):
+            if interaction.user.id != user_id:
+                await interaction.response.send_message(
+                    view=_make_error_view("❌ This is not your fusion result!")(),
+                    ephemeral=True
+                )
                 return
 
-            # Create new view for next page
-            new_page = current_page + 1
-            ViewClass = create_fusion_view(user_id, urls, head, body, new_page)
-            new_view = ViewClass()
+            await interaction.response.defer()
 
-            await interaction.response.edit_message(view=new_view)
+            try:
+                rev_urls = await asyncio.wait_for(
+                    _find_fusion_images(session, reverse_head_num, reverse_body_num),
+                    timeout=20.0
+                )
+            except asyncio.TimeoutError:
+                rev_urls = []
+            except Exception as e:
+                print(f"Error fetching reverse fusion: {e}")
+                rev_urls = []
 
-    # Build container components list
+            if not rev_urls:
+                await interaction.followup.send(
+                    view=_make_error_view(
+                        f"❌ No fusion images found for the reversed combination: "
+                        f"**{reverse_head.title()}** (head) + **{reverse_body.title()}** (body)."
+                    )(),
+                    ephemeral=True
+                )
+                return
+
+            # Reversed result gets no reverse button (to avoid infinite loops)
+            RevViewClass = create_fusion_view(
+                user_id=user_id,
+                urls=rev_urls,
+                head=reverse_head,
+                body=reverse_body,
+                current_page=0,
+                show_reverse_button=False
+            )
+            await interaction.followup.send(view=RevViewClass())
+
+    # ── Assemble container components ──
     container_components = [
         discord.ui.TextDisplay(content=title),
         discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
     ]
-
-    # Add all galleries
     container_components.extend(galleries)
+    container_components.append(
+        discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small)
+    )
+    container_components.append(discord.ui.TextDisplay(content=f"_{page_info}_"))
 
-    # Add pagination buttons if needed
-    if len(urls) > IMAGES_PER_PAGE:
+    has_pagination = len(urls) > IMAGES_PER_PAGE
+
+    if has_pagination or show_reverse_button:
         container_components.append(
             discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small)
-        )
-        container_components.append(
-            discord.ui.TextDisplay(content=f"_{page_info}_")
-        )
-        container_components.append(
-            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small)
-        )
-        container_components.append(
-            discord.ui.ActionRow(
-                PrevButton(),
-                NextButton()
-            )
-        )
-    else:
-        # No pagination needed, just show the page info
-        container_components.append(
-            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small)
-        )
-        container_components.append(
-            discord.ui.TextDisplay(content=f"_{page_info}_")
         )
 
-    # Create the view class dynamically
+    if has_pagination and show_reverse_button:
+        # Two separate action rows
+        container_components.append(discord.ui.ActionRow(PrevButton(), NextButton()))
+        container_components.append(discord.ui.ActionRow(ReverseButton()))
+    elif has_pagination:
+        container_components.append(discord.ui.ActionRow(PrevButton(), NextButton()))
+    elif show_reverse_button:
+        container_components.append(discord.ui.ActionRow(ReverseButton()))
+
     class FusionView(discord.ui.LayoutView):
-        # Create container at class level with all components
         container1 = discord.ui.Container(
             *container_components,
-            accent_colour=config.EMBED_COLOR  
+            accent_colour=config.EMBED_COLOR
         )
-
         def __init__(self):
             super().__init__(timeout=180)
 
     return FusionView
 
+
+def create_sprite_view(user_id: int, urls: List[str], pokemon_name: str,
+                       current_page: int = 0):
+    start_idx = current_page * IMAGES_PER_PAGE
+    end_idx = min(start_idx + IMAGES_PER_PAGE, len(urls))
+    page_urls = urls[start_idx:end_idx]
+    max_page = (len(urls) - 1) // IMAGES_PER_PAGE
+
+    galleries = [
+        discord.ui.MediaGallery(discord.MediaGalleryItem(media=url))
+        for url in page_urls
+    ]
+
+    title = f"🎨 **Sprite Variants:** {pokemon_name.title()}"
+    page_info = (f"Page {current_page + 1}/{max_page + 1} "
+                 f"• {len(urls)} variant{'s' if len(urls) != 1 else ''}")
+
+    class PrevButton(discord.ui.Button):
+        def __init__(self):
+            super().__init__(
+                style=discord.ButtonStyle.secondary,
+                label="◀ Prev",
+                custom_id="prev_page",
+                disabled=(current_page == 0)
+            )
+        async def callback(self, interaction: discord.Interaction):
+            if interaction.user.id != user_id:
+                await interaction.response.send_message(
+                    view=_make_error_view("❌ This is not your sprite result!")(),
+                    ephemeral=True
+                )
+                return
+            ViewClass = create_sprite_view(user_id, urls, pokemon_name, current_page - 1)
+            await interaction.response.edit_message(view=ViewClass())
+
+    class NextButton(discord.ui.Button):
+        def __init__(self):
+            super().__init__(
+                style=discord.ButtonStyle.secondary,
+                label="Next ▶",
+                custom_id="next_page",
+                disabled=(current_page >= max_page)
+            )
+        async def callback(self, interaction: discord.Interaction):
+            if interaction.user.id != user_id:
+                await interaction.response.send_message(
+                    view=_make_error_view("❌ This is not your sprite result!")(),
+                    ephemeral=True
+                )
+                return
+            ViewClass = create_sprite_view(user_id, urls, pokemon_name, current_page + 1)
+            await interaction.response.edit_message(view=ViewClass())
+
+    container_components = [
+        discord.ui.TextDisplay(content=title),
+        discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+    ]
+    container_components.extend(galleries)
+    container_components.append(
+        discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small)
+    )
+    container_components.append(discord.ui.TextDisplay(content=f"_{page_info}_"))
+
+    if len(urls) > IMAGES_PER_PAGE:
+        container_components.append(
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small)
+        )
+        container_components.append(discord.ui.ActionRow(PrevButton(), NextButton()))
+
+    class SpriteView(discord.ui.LayoutView):
+        container1 = discord.ui.Container(
+            *container_components,
+            accent_colour=config.EMBED_COLOR
+        )
+        def __init__(self):
+            super().__init__(timeout=180)
+
+    return SpriteView
+
+
+# ─── Cog ─────────────────────────────────────────────────────────────────────
 
 class Fuse(commands.Cog):
     """Pokémon fusion image finder with Components V2"""
@@ -145,423 +362,285 @@ class Fuse(commands.Cog):
         self.session: Optional[aiohttp.ClientSession] = None
 
     async def cog_load(self):
-        """Create persistent session when cog loads"""
         timeout = aiohttp.ClientTimeout(total=30, connect=5)
         self.session = aiohttp.ClientSession(timeout=timeout)
 
     async def cog_unload(self):
-        """Close session when cog unloads"""
         if self.session:
             await self.session.close()
 
     # ---------- CSV Loader ----------
     def load_pokemon_map(self) -> Dict[str, str]:
-        """Load Pokémon name->number mapping from CSV"""
+        """
+        Returns {canonical_name_lowercase_stripped: number}.
+        Also builds self._normalized_map = {normalize(name): canonical_name}
+        for fallback lookups that handle special characters.
+        """
         data = {}
-        if not os.path.exists(CSV_FILE):
-            return data
+        normalized_map: Dict[str, str] = {}
 
+        if not os.path.exists(CSV_FILE):
+            self._normalized_map = normalized_map
+            return data
         try:
             with open(CSV_FILE, newline="", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    data[row["name"].lower()] = row["number"]
+                    # Strip ALL surrounding whitespace from both fields
+                    raw_name = row["name"].strip()
+                    number   = row["number"].strip()
+                    if not raw_name:
+                        continue
+
+                    canonical = raw_name.lower()           # e.g. "snowy castform"
+                    data[canonical] = number
+
+                    # Also store accent/symbol-stripped version for fuzzy fallback
+                    norm = normalize_string(canonical)     # e.g. "snowy castform"
+                    normalized_map[norm] = canonical       # points back to canonical key
         except Exception as e:
             print(f"Error loading CSV: {e}")
 
+        self._normalized_map = normalized_map
         return data
 
-    # ---------- Image Check ----------
-    async def image_exists(self, url: str) -> bool:
-        """Check if an image exists at the given URL"""
-        try:
-            async with self.session.head(url) as resp:
-                if resp.status != 200:
-                    return False
-                content_type = resp.headers.get("Content-Type", "")
-                return content_type.startswith("image/")
-        except asyncio.TimeoutError:
-            return False
-        except aiohttp.ClientError:
-            return False
-        except Exception as e:
-            print(f"Unexpected error checking {url}: {e}")
-            return False
+    # ---------- Name Resolution ----------
+    def resolve_name(self, raw: str) -> str:
+        """
+        Resolve raw user input to a canonical key used in pokemon_map.
 
-    # ---------- Concurrent Image Checker ----------
-    async def check_variant(
-        self, 
-        semaphore: asyncio.Semaphore, 
-        letter: str, 
-        head_num: str, 
-        body_num: str
-    ) -> tuple[str, str, bool]:
-        """Check a single variant with rate limiting"""
-        async with semaphore:
-            name = f"{head_num}.{body_num}{letter}"
-            url = BASE_URL.format(name)
-            exists = await self.image_exists(url)
-            return (letter, url, exists)
+        Priority:
+          1. Utils cog  (multi-language, accent-insensitive)
+          2. Direct lowercase+stripped match in pokemon_map
+          3. Accent/symbol-stripped match via _normalized_map
+          4. Return lowercased input as-is (will fail availability check gracefully)
+        """
+        cleaned = raw.strip()
 
-    async def find_fusion_images(
-        self, 
-        head_num: str, 
-        body_num: str
-    ) -> List[str]:
-        """Find all fusion images for a head+body combination"""
-        found_urls = []
+        # 1. Defer to Utils when available
+        utils = self.bot.cogs.get("Utils")
+        if utils:
+            resolved = utils.resolve_pokemon_name(cleaned)
+            # resolve_pokemon_name returns the canonical English name (title-cased).
+            # Lower-case it so it matches our pokemon_map keys.
+            return resolved.lower().strip()
 
-        # Check base image first
-        base_name = f"{head_num}.{body_num}"
-        base_url = BASE_URL.format(base_name)
+        # 2. Direct match
+        lowered = cleaned.lower()
+        if lowered in self.pokemon_map:
+            return lowered
 
-        if not await self.image_exists(base_url):
-            return []
+        # 3. Normalize (strip accents/symbols) and match
+        norm = normalize_string(lowered)
+        if norm in self._normalized_map:
+            return self._normalized_map[norm]   # returns the canonical lowercase key
 
-        found_urls.append(base_url)
+        # 4. Give up — availability check will produce a friendly error
+        return lowered
 
-        # Check lettered variants concurrently with rate limiting
-        semaphore = asyncio.Semaphore(5)
-        tasks = [
-            self.check_variant(semaphore, letter, head_num, body_num)
-            for letter in string.ascii_lowercase
-        ]
+    # ---------- Core fusion logic (shared by prefix + slash) ----------
+    async def _run_fuse(self, head_raw: str, body_raw: str, user_id: int,
+                        send_result):
+        """
+        Resolve names → check availability → fetch images → send result.
+        send_result(view=...) sends a NEW message (loading message is left alone).
+        """
+        head_resolved = self.resolve_name(head_raw)
+        body_resolved = self.resolve_name(body_raw)
 
-        results = await asyncio.gather(*tasks)
+        head_key = head_resolved.lower().strip()
+        body_key = body_resolved.lower().strip()
 
-        # Process results in order, stopping after 3 consecutive misses
-        consecutive_misses = 0
-        for letter, url, exists in results:
-            if exists:
-                found_urls.append(url)
-                consecutive_misses = 0
+        # ── Availability check ─────────────────────────────────────────────
+        head_available = head_key in self.pokemon_map
+        body_available = body_key in self.pokemon_map
+
+        if not head_available or not body_available:
+            if not head_available and not body_available:
+                msg = (
+                    f"❌ Fusion data for **{head_raw.title()}** and "
+                    f"**{body_raw.title()}** is not yet available."
+                )
+            elif not head_available:
+                msg = f"❌ Fusion data for **{head_raw.title()}** is not yet available."
             else:
-                consecutive_misses += 1
-                if consecutive_misses >= 3:
-                    break
+                msg = f"❌ Fusion data for **{body_raw.title()}** is not yet available."
 
-        return found_urls
+            await send_result(view=_make_error_view(msg)())
+            return
 
-    # ---------- Sprite Variants Generator ----------
-    def generate_sprite_suffixes(self) -> List[str]:
-        """Generate all possible sprite suffixes: '', 'a'-'z', 'aa'-'az'"""
-        suffixes = ['']  # Base sprite with no suffix
+        head_num = self.pokemon_map[head_key]
+        body_num = self.pokemon_map[body_key]
 
-        # Single letters: a-z
-        for letter in string.ascii_lowercase:
-            suffixes.append(letter)
+        # Same Pokémon on both sides → no reverse button needed
+        is_same = (head_key == body_key)
 
-        # Double letters: aa-az
-        for letter in string.ascii_lowercase:
-            suffixes.append(f'a{letter}')
+        # ── Fetch images ───────────────────────────────────────────────────
+        try:
+            found_urls = await asyncio.wait_for(
+                _find_fusion_images(self.session, head_num, body_num),
+                timeout=20.0
+            )
+        except asyncio.TimeoutError:
+            await send_result(
+                view=_make_error_view(
+                    "⏱️ The request timed out. The server might be slow — please try again."
+                )()
+            )
+            return
+        except Exception as e:
+            print(f"Error finding fusions: {e}")
+            await send_result(
+                view=_make_error_view("❌ An error occurred while searching for fusions.")()
+            )
+            return
 
-        return suffixes
+        if not found_urls:
+            await send_result(
+                view=_make_error_view(
+                    f"❌ No fusion images found for "
+                    f"**{head_resolved.title()}** (head) + **{body_resolved.title()}** (body)."
+                )()
+            )
+            return
 
-    async def find_sprite_images(self, pokemon_num: str) -> List[str]:
-        """Find all sprite variants for a single Pokémon"""
-        found_urls = []
-        suffixes = self.generate_sprite_suffixes()
+        # ── Build and send view ────────────────────────────────────────────
+        ViewClass = create_fusion_view(
+            user_id=user_id,
+            urls=found_urls,
+            head=head_resolved,
+            body=body_resolved,
+            current_page=0,
+            show_reverse_button=(not is_same),
+            reverse_head=body_resolved,   # swapped
+            reverse_body=head_resolved,   # swapped
+            reverse_head_num=body_num,    # swapped
+            reverse_body_num=head_num,    # swapped
+            session=self.session
+        )
+        await send_result(view=ViewClass())
 
-        # Check all variants concurrently with rate limiting
-        semaphore = asyncio.Semaphore(5)
+    # ---------- Prefix Command ----------
+    @commands.command(name="fuse", aliases=["fusion"])
+    async def fuse_prefix(self, ctx: commands.Context, *, args: str = ""):
+        """
+        Fuse two Pokémon by name.
+        Usage:  m!fuse <head> and <body>
+                m!fuse <head>, <body>
+        """
+        if not args:
+            await ctx.reply(
+                "Please provide two Pokémon names.\n"
+                "**Usage:** `m!fuse pikachu and meowth` or `m!fuse pikachu, meowth`",
+                mention_author=False
+            )
+            return
 
-        async def check_sprite(suffix: str) -> tuple[str, str, bool]:
-            async with semaphore:
-                name = f"{pokemon_num}{suffix}"
-                url = BASE_URL.format(name)
-                exists = await self.image_exists(url)
-                return (suffix, url, exists)
+        try:
+            head_raw, body_raw = parse_two_pokemon(args)
+        except ValueError as e:
+            await ctx.reply(str(e), mention_author=False)
+            return
 
-        tasks = [check_sprite(suffix) for suffix in suffixes]
-        results = await asyncio.gather(*tasks)
+        # Send loading — never touched again
+        await ctx.reply(
+            view=_make_loading_view("🔍 **Searching for fusion images…**")(),
+            mention_author=False
+        )
 
-        # Collect all existing sprites
-        for suffix, url, exists in results:
-            if exists:
-                found_urls.append(url)
+        async def send_result(view):
+            await ctx.send(view=view)
 
-        return found_urls
+        await self._run_fuse(head_raw, body_raw, ctx.author.id, send_result)
 
     # ---------- Slash Command ----------
     @app_commands.command(
         name="fuse",
         description="Fuse two Pokémon (head + body) and show fusion images"
     )
-    @app_commands.describe(
-        head="Head Pokémon name",
-        body="Body Pokémon name"
-    )
-    async def fuse(
-        self,
-        interaction: discord.Interaction,
-        head: str,
-        body: str
-    ):
-        # Don't defer - respond immediately with a loading message
-        class LoadingView(discord.ui.LayoutView):
-            container1 = discord.ui.Container(
-                discord.ui.TextDisplay(content="🔍 **Searching for fusion images...**"),
-            )
+    @app_commands.describe(head="Head Pokémon name", body="Body Pokémon name")
+    async def fuse_slash(self, interaction: discord.Interaction, head: str, body: str):
+        # Send loading — never edited
+        await interaction.response.send_message(
+            view=_make_loading_view("🔍 **Searching for fusion images…**")()
+        )
 
-        await interaction.response.send_message(view=LoadingView())
+        # Results go as a followup (separate message)
+        async def send_result(view):
+            await interaction.followup.send(view=view)
 
-        head_key = head.lower().strip()
-        body_key = body.lower().strip()
+        await self._run_fuse(head, body, interaction.user.id, send_result)
 
-        # Validate Pokémon names
-        if head_key not in self.pokemon_map:
-            class ErrorView(discord.ui.LayoutView):
-                container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content=f"❌ **{head.title()}** not found in the Pokédex."),
-                )
-            await interaction.edit_original_response(view=ErrorView())
-            return
-
-        if body_key not in self.pokemon_map:
-            class ErrorView(discord.ui.LayoutView):
-                container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content=f"❌ **{body.title()}** not found in the Pokédex."),
-                )
-            await interaction.edit_original_response(view=ErrorView())
-            return
-
-        head_num = self.pokemon_map[head_key]
-        body_num = self.pokemon_map[body_key]
-
-        # Find all fusion images
-        try:
-            found_urls = await asyncio.wait_for(
-                self.find_fusion_images(head_num, body_num),
-                timeout=20.0
-            )
-        except asyncio.TimeoutError:
-            class ErrorView(discord.ui.LayoutView):
-                container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content="⏱️ Request timed out. The server might be slow. Please try again."),
-                )
-            await interaction.edit_original_response(view=ErrorView())
-            return
-        except Exception as e:
-            print(f"Error finding fusions: {e}")
-            class ErrorView(discord.ui.LayoutView):
-                container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content=f"❌ An error occurred while searching for fusions."),
-                )
-            await interaction.edit_original_response(view=ErrorView())
-            return
-
-        # Handle no results
-        if not found_urls:
-            class ErrorView(discord.ui.LayoutView):
-                container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content=f"❌ No fusion images found for **{head.title()}** + **{body.title()}**."),
-                )
-            await interaction.edit_original_response(view=ErrorView())
-            return
-
-        # Create view using factory function
-        try:
-            ViewClass = create_fusion_view(interaction.user.id, found_urls, head, body, current_page=0)
-            view = ViewClass()
-
-            await interaction.edit_original_response(view=view)
-        except Exception as e:
-            print(f"Error creating/sending view: {e}")
-            import traceback
-            traceback.print_exc()
-            class ErrorView(discord.ui.LayoutView):
-                container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content=f"❌ Error displaying results: {str(e)}"),
-                )
-            await interaction.edit_original_response(view=ErrorView())
-
-    # ---------- Sprite Command ----------
+    # ---------- Sprite Slash Command ----------
     @app_commands.command(
         name="sprite",
-        description="View all sprite variants for a Pokémon (note: not all Pokémon have sprites)"
+        description="View all sprite variants for a Pokémon"
     )
-    @app_commands.describe(
-        pokemon="Pokémon name"
-    )
-    async def sprite(
-        self,
-        interaction: discord.Interaction,
-        pokemon: str
-    ):
-        # Respond immediately with a loading message
-        class LoadingView(discord.ui.LayoutView):
-            container1 = discord.ui.Container(
-                discord.ui.TextDisplay(content="🔍 **Searching for sprite variants...**"),
-            )
-
-        await interaction.response.send_message(view=LoadingView())
+    @app_commands.describe(pokemon="Pokémon name")
+    async def sprite(self, interaction: discord.Interaction, pokemon: str):
+        await interaction.response.send_message(
+            view=_make_loading_view("🔍 **Searching for sprite variants…**")()
+        )
 
         pokemon_key = pokemon.lower().strip()
 
-        # Validate Pokémon name
         if pokemon_key not in self.pokemon_map:
-            class ErrorView(discord.ui.LayoutView):
-                container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content=f"❌ **{pokemon.title()}** not found in the Pokédex."),
-                )
-            await interaction.edit_original_response(view=ErrorView())
+            await interaction.followup.send(
+                view=_make_error_view(
+                    f"❌ Fusion data for **{pokemon.title()}** is not yet available."
+                )()
+            )
             return
 
         pokemon_num = self.pokemon_map[pokemon_key]
 
-        # Find all sprite images
+        async def find_sprites(num: str) -> List[str]:
+            suffixes = [''] + list(string.ascii_lowercase) + [f'a{l}' for l in string.ascii_lowercase]
+            semaphore = asyncio.Semaphore(5)
+
+            async def check(suffix):
+                async with semaphore:
+                    url = BASE_URL.format(f"{num}{suffix}")
+                    exists = await _image_exists(self.session, url)
+                    return (url, exists)
+
+            results = await asyncio.gather(*[check(s) for s in suffixes])
+            return [url for url, exists in results if exists]
+
         try:
-            found_urls = await asyncio.wait_for(
-                self.find_sprite_images(pokemon_num),
-                timeout=30.0
-            )
+            found_urls = await asyncio.wait_for(find_sprites(pokemon_num), timeout=30.0)
         except asyncio.TimeoutError:
-            class ErrorView(discord.ui.LayoutView):
-                container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content="⏱️ Request timed out. The server might be slow. Please try again."),
-                )
-            await interaction.edit_original_response(view=ErrorView())
+            await interaction.followup.send(
+                view=_make_error_view("⏱️ The request timed out. Please try again.")()
+            )
             return
         except Exception as e:
             print(f"Error finding sprites: {e}")
-            class ErrorView(discord.ui.LayoutView):
-                container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content=f"❌ An error occurred while searching for sprites."),
-                )
-            await interaction.edit_original_response(view=ErrorView())
+            await interaction.followup.send(
+                view=_make_error_view("❌ An error occurred while searching for sprites.")()
+            )
             return
 
-        # Handle no results
         if not found_urls:
-            class ErrorView(discord.ui.LayoutView):
-                container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content=f"❌ No sprite variants found for **{pokemon.title()}**.\n_Note: Not all Pokémon have sprite variants available._"),
-                )
-            await interaction.edit_original_response(view=ErrorView())
+            await interaction.followup.send(
+                view=_make_error_view(
+                    f"❌ No sprite variants found for **{pokemon.title()}**.\n"
+                    "_Note: Not all Pokémon have sprite variants available._"
+                )()
+            )
             return
 
-        # Create sprite view (reuse the fusion view factory with modified title)
         try:
-            # Create a modified version of the view for sprites
-            def create_sprite_view(user_id: int, urls: List[str], pokemon_name: str, current_page: int = 0):
-                start_idx = current_page * IMAGES_PER_PAGE
-                end_idx = min(start_idx + IMAGES_PER_PAGE, len(urls))
-                page_urls = urls[start_idx:end_idx]
-                max_page = (len(urls) - 1) // IMAGES_PER_PAGE
-
-                galleries = []
-                for url in page_urls:
-                    galleries.append(
-                        discord.ui.MediaGallery(
-                            discord.MediaGalleryItem(media=url)
-                        )
-                    )
-
-                title = f"🎨 **Sprite Variants:** {pokemon_name.title()}"
-                page_info = f"Page {current_page + 1}/{max_page + 1} • {len(urls)} variant{'s' if len(urls) != 1 else ''}"
-
-                class PrevButton(discord.ui.Button):
-                    def __init__(self):
-                        super().__init__(
-                            style=discord.ButtonStyle.secondary,
-                            label="◀ Prev",
-                            custom_id="prev_page",
-                            disabled=(current_page == 0)
-                        )
-
-                    async def callback(self, interaction: discord.Interaction):
-                        if interaction.user.id != user_id:
-                            class ErrorView(discord.ui.LayoutView):
-                                container1 = discord.ui.Container(
-                                    discord.ui.TextDisplay(content="❌ This is not your sprite result!"),
-                                )
-                            await interaction.response.send_message(view=ErrorView(), ephemeral=True)
-                            return
-
-                        new_page = current_page - 1
-                        ViewClass = create_sprite_view(user_id, urls, pokemon_name, new_page)
-                        new_view = ViewClass()
-                        await interaction.response.edit_message(view=new_view)
-
-                class NextButton(discord.ui.Button):
-                    def __init__(self):
-                        super().__init__(
-                            style=discord.ButtonStyle.secondary,
-                            label="Next ▶",
-                            custom_id="next_page",
-                            disabled=(current_page >= max_page)
-                        )
-
-                    async def callback(self, interaction: discord.Interaction):
-                        if interaction.user.id != user_id:
-                            class ErrorView(discord.ui.LayoutView):
-                                container1 = discord.ui.Container(
-                                    discord.ui.TextDisplay(content="❌ This is not your sprite result!"),
-                                )
-                            await interaction.response.send_message(view=ErrorView(), ephemeral=True)
-                            return
-
-                        new_page = current_page + 1
-                        ViewClass = create_sprite_view(user_id, urls, pokemon_name, new_page)
-                        new_view = ViewClass()
-                        await interaction.response.edit_message(view=new_view)
-
-                container_components = [
-                    discord.ui.TextDisplay(content=title),
-                    discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                ]
-
-                container_components.extend(galleries)
-
-                if len(urls) > IMAGES_PER_PAGE:
-                    container_components.append(
-                        discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small)
-                    )
-                    container_components.append(
-                        discord.ui.TextDisplay(content=f"_{page_info}_")
-                    )
-                    container_components.append(
-                        discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small)
-                    )
-                    container_components.append(
-                        discord.ui.ActionRow(
-                            PrevButton(),
-                            NextButton()
-                        )
-                    )
-                else:
-                    container_components.append(
-                        discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small)
-                    )
-                    container_components.append(
-                        discord.ui.TextDisplay(content=f"_{page_info}_")
-                    )
-
-                class SpriteView(discord.ui.LayoutView):
-                    container1 = discord.ui.Container(
-                        *container_components,
-                        accent_colour=config.EMBED_COLOR  
-                    )
-
-                    def __init__(self):
-                        super().__init__(timeout=180)
-
-                return SpriteView
-
-            ViewClass = create_sprite_view(interaction.user.id, found_urls, pokemon, current_page=0)
-            view = ViewClass()
-
-            await interaction.edit_original_response(view=view)
+            ViewClass = create_sprite_view(interaction.user.id, found_urls, pokemon)
+            await interaction.followup.send(view=ViewClass())
         except Exception as e:
-            print(f"Error creating/sending view: {e}")
-            import traceback
-            traceback.print_exc()
-            class ErrorView(discord.ui.LayoutView):
-                container1 = discord.ui.Container(
-                    discord.ui.TextDisplay(content=f"❌ Error displaying results: {str(e)}"),
-                )
-            await interaction.edit_original_response(view=ErrorView())
+            print(f"Error creating sprite view: {e}")
+            await interaction.followup.send(
+                view=_make_error_view(f"❌ Error displaying results: {e}")()
+            )
 
+
+# ─── Setup ───────────────────────────────────────────────────────────────────
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Fuse(bot))
