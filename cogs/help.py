@@ -580,9 +580,9 @@ class Help(commands.Cog):
                         'name': 'fuse',
                         'aliases': [],
                         'usage': 'fuse head and body of pokemons',
-                        'description': 'Fuse Pokemons, only slash command ',
+                        'description': 'Fuse Pokemons, also slash command ',
                         'filters': None,
-                        'examples': ['/fuse)']
+                        'examples': ['fuse mauzi and lokhlass)']
                     },
                     {
                         'name': 'rarecandylevel',
