@@ -459,12 +459,12 @@ class Fuse(commands.Cog):
             if not head_available and not body_available:
                 msg = (
                     f"❌ Fusion data for **{head_raw.title()}** and "
-                    f"**{body_raw.title()}** is not yet available."
+                    f"**{body_raw.title()}** is not yet available. Try Pokemons From Early Gens."
                 )
             elif not head_available:
-                msg = f"❌ Fusion data for **{head_raw.title()}** is not yet available."
+                msg = f"❌ Fusion data for **{head_raw.title()}** is not yet available.Try Pokemons From Early Gens."
             else:
-                msg = f"❌ Fusion data for **{body_raw.title()}** is not yet available."
+                msg = f"❌ Fusion data for **{body_raw.title()}** is not yet available.Try Pokemons From Early Gens."
 
             await send_result(view=_make_error_view(msg)())
             return
