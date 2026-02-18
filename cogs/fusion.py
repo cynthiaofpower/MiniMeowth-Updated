@@ -626,6 +626,72 @@ class Fuse(commands.Cog):
 
         await ctx.send(view=RandomFusionView())
 
+    # ---------- Random Fusion Slash Command ----------
+    @app_commands.command(
+        name="fuserandom",
+        description="Randomly picks two Pokémon and shows one fusion image"
+    )
+    async def fuse_random_slash(self, interaction: discord.Interaction):
+        import random
+
+        if not self.pokemon_map:
+            await interaction.response.send_message(
+                view=_make_error_view("❌ No Pokémon data loaded. Please check the fusion CSV.")()
+            )
+            return
+
+        await interaction.response.send_message(
+            view=_make_loading_view("🎲 **Rolling the dice…** picking two random Pokémon!")()
+        )
+
+        all_names = list(self.pokemon_map.keys())
+
+        MAX_ATTEMPTS = 10
+        head_key = body_key = base_url = None
+
+        for _ in range(MAX_ATTEMPTS):
+            h, b = random.sample(all_names, 2)
+            h_num = self.pokemon_map[h]
+            b_num = self.pokemon_map[b]
+            url = BASE_URL.format(f"{h_num}.{b_num}")
+            if await _image_exists(self.session, url):
+                head_key, body_key, base_url = h, b, url
+                break
+
+        if base_url is None:
+            await interaction.followup.send(
+                view=_make_error_view(
+                    f"❌ Couldn't find a valid fusion after {MAX_ATTEMPTS} attempts. "
+                    "Please try again!"
+                )()
+            )
+            return
+
+        container_components = [
+            discord.ui.TextDisplay(
+                content=(
+                    f"🎲 **Random Fusion:** {head_key.title()} (head) "
+                    f"+ {body_key.title()} (body)"
+                )
+            ),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+            discord.ui.MediaGallery(discord.MediaGalleryItem(media=base_url)),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+            discord.ui.TextDisplay(
+                content=f"_Use `/fuse` with `{head_key}` and `{body_key}` to see all variants_"
+            ),
+        ]
+
+        class RandomFusionView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(
+                *container_components,
+                accent_colour=config.EMBED_COLOR
+            )
+            def __init__(self):
+                super().__init__(timeout=180)
+
+        await interaction.followup.send(view=RandomFusionView())
+
     # ---------- Slash Command ----------
     @app_commands.command(
         name="fuse",
