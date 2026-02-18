@@ -499,7 +499,7 @@ class Fuse(commands.Cog):
             await send_result(
                 view=_make_error_view(
                     f"❌ No fusion images found for "
-                    f"**{head_resolved.title()}** (head) + **{body_resolved.title()}** (body)."
+                    f"**{head_resolved.title()}** (head) + **{body_resolved.title()}** (body). Try **{body_resolved.title()}** (head) + **{body_resolved.title()}** (body)."
                 )()
             )
             return
