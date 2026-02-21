@@ -57,6 +57,9 @@ class UtilityCommands(commands.Cog):
         if message.content and "Now redirecting spawns to" in message.content:
             return
 
+        if message.content and "Time's up. Aborted." in message.content:
+            return
+
         if message.content and "Your pokémon has already" in message.content:
             return
 
