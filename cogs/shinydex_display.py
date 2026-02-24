@@ -240,7 +240,7 @@ class ShinyDexDisplay(commands.Cog):
 
     def parse_filters(self, filter_string: str):
         """Parse filter string to extract options
-        Returns: (show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters)
+        Returns: (show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flag)
         """
         show_caught = True
         show_uncaught = True
@@ -257,9 +257,10 @@ class ShinyDexDisplay(commands.Cog):
         ignore_male = False
         ignore_female = False
         evo_filters = []
+        filter_name_flag = None  # NEW: --f filter
 
         if not filter_string:
-            return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters
+            return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flag
 
         args = filter_string.lower().split()
 
@@ -303,6 +304,13 @@ class ShinyDexDisplay(commands.Cog):
             elif arg in ['--ignorefemale', '--if']:
                 ignore_female = True
                 i += 1
+            # NEW: --f / --filter flag
+            elif arg in ['--f', '--filter']:
+                if i + 1 < len(args):
+                    filter_name_flag = args[i + 1]
+                    i += 2
+                else:
+                    i += 1
             elif arg in ['--evo', '--evolution']:
                 if i + 1 < len(args):
                     evo_parts = []
@@ -392,7 +400,7 @@ class ShinyDexDisplay(commands.Cog):
             else:
                 i += 1
 
-        return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters
+        return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flag
 
     def matches_filters(self, pokemon_name: str, utils, region_filter: str, type_filters: list):
         """Check if a Pokemon matches region and type filters"""
@@ -664,7 +672,7 @@ class ShinyDexDisplay(commands.Cog):
             print(f"Error in dex image generation: {e}")
 
     @commands.hybrid_command(name='shinydex', aliases=['sd','basicdex','bd'])
-    @app_commands.describe(filters="Filters: --caught, --uncaught, --orderd, --ordera, --region, --type, --name, --exclude, --evo, --page, --list, --smartlist, --image, --ignoremale, --ignorefemale")
+    @app_commands.describe(filters="Filters: --caught, --uncaught, --orderd, --ordera, --region, --type, --name, --exclude, --evo, --f, --page, --list, --smartlist, --image, --ignoremale, --ignorefemale")
     async def shiny_dex(self, ctx, *, filters: str = None):
         """View your basic shiny dex (one Pokemon per dex number, counts all forms)"""
         utils = self.bot.get_cog('Utils')
@@ -674,7 +682,7 @@ class ShinyDexDisplay(commands.Cog):
 
         user_id = ctx.author.id
 
-        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters = self.parse_filters(filters)
+        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flag = self.parse_filters(filters)
 
         if show_image and (show_list or show_smartlist):
             await ctx.send("❌ Cannot use --image with --list or --smartlist!", reference=ctx.message, mention_author=False)
@@ -686,6 +694,15 @@ class ShinyDexDisplay(commands.Cog):
             if evo_family_set is None:
                 await ctx.send(f"❌ Evolution family not found for one of: {', '.join(evo_filters)}!", reference=ctx.message, mention_author=False)
                 return
+
+        # NEW: resolve --f filter into a set of pokemon names
+        filter_pokemon_set = None
+        if filter_name_flag:
+            filter_data = get_filter(filter_name_flag)
+            if not filter_data:
+                await ctx.send(f"❌ Filter `{filter_name_flag}` not found!", reference=ctx.message, mention_author=False)
+                return
+            filter_pokemon_set = set(filter_data['pokemon'])
 
         user_shinies = await db.get_all_shinies(user_id)
 
@@ -700,6 +717,10 @@ class ShinyDexDisplay(commands.Cog):
 
         dex_entries = []
         for dex_num, pokemon_name in all_dex_entries:
+            # NEW: skip if not in --f filter
+            if filter_pokemon_set is not None and pokemon_name not in filter_pokemon_set:
+                continue
+
             if name_searches or evo_filters:
                 matches_name = False
                 matches_evo = False
@@ -781,6 +802,8 @@ class ShinyDexDisplay(commands.Cog):
             pages.append(page_content)
 
         filter_text = "basic"
+        if filter_name_flag:
+            filter_text += f" - {filter_name_flag}"
         if evo_filters:
             filter_text += f" - {', '.join(evo_filters)} families"
         if region_filter:
@@ -799,11 +822,11 @@ class ShinyDexDisplay(commands.Cog):
         view = ViewClass()
 
         # Send view only (no embed or content needed with LayoutView)
-        message = await ctx.send(view=view, reference=ctx.message, mention_author=False)  # Add this
+        message = await ctx.send(view=view, reference=ctx.message, mention_author=False)
         view.message = message
 
     @commands.hybrid_command(name='shinydexfull', aliases=['sdf','fulldex','fd','fullshinydex','fsd'])
-    @app_commands.describe(filters="Filters: --caught, --unc, --orderd, --ordera, --region, --type, --name, --exclude, --evo, --page, --list, --smartlist, --image, --ignoremale, --ignorefemale")
+    @app_commands.describe(filters="Filters: --caught, --unc, --orderd, --ordera, --region, --type, --name, --exclude, --evo, --f, --page, --list, --smartlist, --image, --ignoremale, --ignorefemale")
     async def shiny_dex_full(self, ctx, *, filters: str = None):
         """View your full shiny dex (all forms, includes gender differences)"""
         utils = self.bot.get_cog('Utils')
@@ -813,7 +836,7 @@ class ShinyDexDisplay(commands.Cog):
 
         user_id = ctx.author.id
 
-        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters = self.parse_filters(filters)
+        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flag = self.parse_filters(filters)
 
         if show_image and (show_list or show_smartlist):
             await ctx.send("❌ Cannot use --image with --list or --smartlist!", reference=ctx.message, mention_author=False)
@@ -825,6 +848,15 @@ class ShinyDexDisplay(commands.Cog):
             if evo_family_set is None:
                 await ctx.send(f"❌ Evolution family not found for one of: {', '.join(evo_filters)}!", reference=ctx.message, mention_author=False)
                 return
+
+        # NEW: resolve --f filter into a set of pokemon names
+        filter_pokemon_set = None
+        if filter_name_flag:
+            filter_data = get_filter(filter_name_flag)
+            if not filter_data:
+                await ctx.send(f"❌ Filter `{filter_name_flag}` not found!", reference=ctx.message, mention_author=False)
+                return
+            filter_pokemon_set = set(filter_data['pokemon'])
 
         user_shinies = await db.get_all_shinies(user_id)
 
@@ -849,6 +881,10 @@ class ShinyDexDisplay(commands.Cog):
 
         form_entries = []
         for dex_num, pokemon_name, has_gender_diff in all_forms:
+            # NEW: skip if not in --f filter
+            if filter_pokemon_set is not None and pokemon_name not in filter_pokemon_set:
+                continue
+
             if name_searches or evo_filters:
                 matches_name = False
                 matches_evo = False
@@ -959,6 +995,8 @@ class ShinyDexDisplay(commands.Cog):
             pages.append(page_content)
 
         filter_text = "full"
+        if filter_name_flag:
+            filter_text += f" - {filter_name_flag}"
         if evo_filters:
             filter_text += f" - {', '.join(evo_filters)} families"
         if region_filter:
@@ -974,7 +1012,7 @@ class ShinyDexDisplay(commands.Cog):
         view = ViewClass()
 
         # Send view only (no embed or content needed with LayoutView)
-        message = await ctx.send(view=view, reference=ctx.message, mention_author=False)  # Add this
+        message = await ctx.send(view=view, reference=ctx.message, mention_author=False)
         view.message = message
 
     @commands.hybrid_command(name='filter', aliases=['f'])
@@ -1012,7 +1050,7 @@ class ShinyDexDisplay(commands.Cog):
 
         user_id = ctx.author.id
 
-        show_caught, show_uncaught, order, region_filter, type_filters, _, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters = self.parse_filters(options)
+        show_caught, show_uncaught, order, region_filter, type_filters, _, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, _ = self.parse_filters(options)
 
         if show_image and (show_list or show_smartlist):
             await ctx.send("❌ Cannot use --image with --list or --smartlist!", reference=ctx.message, mention_author=False)
@@ -1180,7 +1218,7 @@ class ShinyDexDisplay(commands.Cog):
         view = ViewClass()
 
         # Send view only (no embed or content needed with LayoutView)
-        message = await ctx.send(view=view, reference=ctx.message, mention_author=False)  # Add this
+        message = await ctx.send(view=view, reference=ctx.message, mention_author=False)
         view.message = message
 
 
