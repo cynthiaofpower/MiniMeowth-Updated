@@ -67,14 +67,6 @@ FILTERS = {
         "pokemon": [
 "Gigantamax Corviknight","Gigantamax Butterfree","Gigantamax Charizard","Gigantamax Blastoise","Gigantamax Rillaboom","Gigantamax Cinderace","Gigantamax Venusaur","Gigantamax Garbodor","Gigantamax Melmetal","Gigantamax Inteleon","Gigantamax Orbeetle","Gigantamax Pikachu","Gigantamax Machamp","Gigantamax Kingler","Gigantamax Snorlax","Gigantamax Drednaw","Gigantamax Meowth","Gigantamax Gengar","Gigantamax Lapras","Gigantamax Eevee","Gigantamax Single Strike Urshifu","Gigantamax Rapid Strike Urshifu","Gigantamax Low Key Toxtricity","Gigantamax Amped Toxtricity","Gigantamax Centiskorch","Gigantamax Sandaconda","Gigantamax Grimmsnarl","Gigantamax Copperajah","Gigantamax Coalossal","Gigantamax Hatterene","Gigantamax Duraludon","Gigantamax Appletun","Gigantamax Alcremie","Eternamax Eternatus","Gigantamax Flapple"         ]
     },
-    "megas-not-in-p2-yet": {
-        "name":
-        "New Mega Pokémons Not in P2 yet",
-        "aliases": ["p2newmega", "p2new-megas", "p2mega2", "p2mega-za", "p2za-mega", "p2mega-2", "p2nm"],
-        "pokemon": [
-         "Mega Stretchy Tatsugiri","Mega Original Magearna","Mega Droopy Tatsugiri","Mega Crabominable","Mega Victreebel","Mega Feraligatr","Mega Eelektross","Mega Chandelure","Mega Chesnaught","Mega Barbaracle","Mega Scovillain","Mega Baxcalibur","Mega Dragonite","Mega Staraptor","Mega Excadrill","Mega Scolipede","Mega Golisopod","Mega Tatsugiri","Mega Clefable","Mega Meganium","Mega Skarmory","Mega Chimecho","Mega Garchomp Z","Mega Froslass","Mega Greninja","Mega Meowstic","Mega Dragalge","Mega Hawlucha","Mega Magearna","Mega Glimmora","Mega Starmie","Mega Lucario Z","Mega Heatran","Mega Darkrai","Mega Scrafty","Mega Delphox","Mega Floette","Mega Malamar","Mega Zygarde","Mega Zeraora","Mega Falinks","Mega Raichu X","Mega Raichu Y","Mega Emboar","Mega Golurk","Mega Pyroar","Mega Drampa","Mega Absol Z" 
-        ]
-    },
 
     "starters": {
         "name":
@@ -173,32 +165,11 @@ FILTERS = {
             "Quaquaval"
         ]
     },
-    "legendaries": {
-        "name":
-        "Legendary Pokémon",
-        "aliases": ["legendary", "legend", "legends"],
-        "pokemon": [
-            "Articuno", "Zapdos", "Moltres", "Mewtwo", "Raikou", "Entei",
-            "Suicune", "Lugia", "Ho-Oh", "Regirock", "Regice", "Registeel",
-            "Latias", "Latios", "Kyogre", "Groudon", "Rayquaza", "Uxie",
-            "Mesprit", "Azelf", "Dialga", "Palkia", "Heatran", "Regigigas",
-            "Giratina", "Cresselia", "Cobalion", "Terrakion", "Virizion",
-            "Tornadus", "Thundurus", "Reshiram", "Zekrom", "Landorus",
-            "Kyurem", "Xerneas", "Yveltal", "Zygarde", "Type: Null",
-            "Silvally", "Tapu Koko", "Tapu Lele", "Tapu Bulu", "Tapu Fini",
-            "Cosmog", "Cosmoem", "Solgaleo", "Lunala", "Necrozma", "Zacian",
-            "Zamazenta", "Eternatus", "Kubfu", "Urshifu", "Regieleki",
-            "Regidrago", "Glastrier", "Spectrier", "Calyrex", "Enamorus",
-            "Wo-Chien", "Chien-Pao", "Ting-Lu", "Chi-Yu", "Koraidon",
-            "Miraidon", "Okidogi", "Munkidori", "Fezandipiti", "Ogerpon",
-            "Terapagos"
-        ]
-    },
-    "legendarieswithforms": {
+    "legendary": {
         "name":
         "Legendary Pokémons With Forms And Variants",
         "aliases":
-        ["legendarywithforms", "legendwithforms", "legendswithforms"],
+        ["leg", "legend", "legendaries"],
         "pokemon": [
             "Gigantamax Single Strike Urshifu",
             "Gigantamax Rapid Strike Urshifu", "Sprinting Build Koraidon",
@@ -238,19 +209,8 @@ FILTERS = {
     },
     "mythical": {
         "name":
-        "Mythical Pokémon",
-        "aliases": ["mythicals", "myth"],
-        "pokemon": [
-            "Mew", "Celebi", "Jirachi", "Deoxys", "Phione", "Manaphy",
-            "Darkrai", "Shaymin", "Arceus", "Victini", "Keldeo", "Meloetta",
-            "Genesect", "Diancie", "Hoopa", "Volcanion", "Magearna",
-            "Marshadow", "Zeraora", "Meltan", "Melmetal", "Zarude", "Pecharunt"
-        ]
-    },
-    "mythicalwithforms": {
-        "name":
         "Mythical Pokémon With All Forms And Variants",
-        "aliases": ["mythicalswithforms", "mythwithforms"],
+        "aliases": ["my", "myth"],
         "pokemon": [
             "High-speed Flight Configuration Genesect", "Gigantamax Melmetal",
             "Pirouette Meloetta", "Original Magearna", "Zenith Marshadow",
