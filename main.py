@@ -123,15 +123,9 @@ async def on_ready():
     cogs = [
         'cogs.utils',
         'cogs.chainbreeding',
-        'cogs.pokedex',
-        'cogs.customimage',
         'cogs.id_overrides',
-        'cogs.shinypokemonviewer',
-        'cogs.shinydexstats',
         'cogs.shinydex_display',
         'cogs.shinydex_management',
-        'cogs.event_display',
-        'cogs.event_management',
         'cogs.breeding',
         'cogs.cooldown',
         'cogs.pokemonlisttools',
@@ -140,8 +134,7 @@ async def on_ready():
         'cogs.customdex',
         'cogs.utility_commands',
         'cogs.inventory',
-        'cogs.settings',
-        'cogs.shinyprofile'
+        'cogs.settings'
     ]
 
     for cog in cogs:
