@@ -480,7 +480,7 @@ class ShinyDexDisplay(commands.Cog):
             await ctx.send(list_text, reference=ctx.message, mention_author=False)
         else:
             file = discord.File(
-                io.BytesIO(formatted_list.encode('utf-8')),
+                io.BytesIO(formatted_list.encode('utf-8-sig')),
                 filename='pokemon_list.txt'
             )
             await ctx.send(
@@ -505,7 +505,7 @@ class ShinyDexDisplay(commands.Cog):
         else:
             # Create a text file
             file = discord.File(
-                io.BytesIO(list_text.encode('utf-8')),
+                io.BytesIO(list_text.encode('utf-8-sig')),
                 filename='pokemon_smartlist.txt'
             )
             await ctx.send(
