@@ -398,6 +398,11 @@ class ShinyDexDisplay(commands.Cog):
                     pass
                 i += 1
             else:
+                # Try to match unknown --flags directly as filter names (e.g. --rare, --legendaries)
+                if arg.startswith('--') and len(arg) > 2:
+                    potential_filter = arg[2:]  # Strip the --
+                    if get_filter(potential_filter):
+                        filter_name_flag = potential_filter
                 i += 1
 
         return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flag
