@@ -316,7 +316,7 @@ class PokemonListTools(commands.Cog):
             await ctx.send(f"**New List ({len(remaining)} Pokemon):**\n{new_list_text}", reference=ctx.message, mention_author=False)
         else:
             # Create a text file for the new list
-            file = io.BytesIO(new_list_text.encode('utf-8'))
+            file = io.BytesIO(new_list_text.encode('utf-8-sig'))
             discord_file = discord.File(file, filename='filtered_pokemon_list.txt')
 
             await ctx.send(
@@ -646,7 +646,7 @@ class PokemonListTools(commands.Cog):
         else:
             # Create a text file
             file = discord.File(
-                io.BytesIO(result_text.encode('utf-8')),
+                io.BytesIO(result_text.encode('utf-8-sig')),
                 filename='pokemon_comparison.txt'
             )
             await ctx.send(
@@ -773,7 +773,7 @@ class PokemonListTools(commands.Cog):
             else:
                 # Create a text file if too long
                 file = discord.File(
-                    io.BytesIO(result_text.encode('utf-8')),
+                    io.BytesIO(result_text.encode('utf-8-sig')),
                     filename='pokemon_comparison.txt'
                 )
                 await interaction.followup.send(file=file)
