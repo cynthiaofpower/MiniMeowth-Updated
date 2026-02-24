@@ -240,7 +240,7 @@ class ShinyDexDisplay(commands.Cog):
 
     def parse_filters(self, filter_string: str):
         """Parse filter string to extract options
-        Returns: (show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flag)
+        Returns: (show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags)
         """
         show_caught = True
         show_uncaught = True
@@ -257,10 +257,10 @@ class ShinyDexDisplay(commands.Cog):
         ignore_male = False
         ignore_female = False
         evo_filters = []
-        filter_name_flag = None  # NEW: --f filter
+        filter_name_flags = []  # NEW: supports multiple filters (intersected)
 
         if not filter_string:
-            return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flag
+            return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags
 
         args = filter_string.lower().split()
 
@@ -307,7 +307,7 @@ class ShinyDexDisplay(commands.Cog):
             # NEW: --f / --filter flag
             elif arg in ['--f', '--filter']:
                 if i + 1 < len(args):
-                    filter_name_flag = args[i + 1]
+                    filter_name_flags.append(args[i + 1])
                     i += 2
                 else:
                     i += 1
@@ -402,10 +402,10 @@ class ShinyDexDisplay(commands.Cog):
                 if arg.startswith('--') and len(arg) > 2:
                     potential_filter = arg[2:]  # Strip the --
                     if get_filter(potential_filter):
-                        filter_name_flag = potential_filter
+                        filter_name_flags.append(potential_filter)
                 i += 1
 
-        return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flag
+        return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags
 
     def matches_filters(self, pokemon_name: str, utils, region_filter: str, type_filters: list):
         """Check if a Pokemon matches region and type filters"""
@@ -687,7 +687,7 @@ class ShinyDexDisplay(commands.Cog):
 
         user_id = ctx.author.id
 
-        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flag = self.parse_filters(filters)
+        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags = self.parse_filters(filters)
 
         if show_image and (show_list or show_smartlist):
             await ctx.send("❌ Cannot use --image with --list or --smartlist!", reference=ctx.message, mention_author=False)
@@ -700,14 +700,22 @@ class ShinyDexDisplay(commands.Cog):
                 await ctx.send(f"❌ Evolution family not found for one of: {', '.join(evo_filters)}!", reference=ctx.message, mention_author=False)
                 return
 
-        # NEW: resolve --f filter into a set of pokemon names
+        # Resolve filter flags - intersect all specified filters
         filter_pokemon_set = None
-        if filter_name_flag:
-            filter_data = get_filter(filter_name_flag)
-            if not filter_data:
-                await ctx.send(f"❌ Filter `{filter_name_flag}` not found!", reference=ctx.message, mention_author=False)
+        if filter_name_flags:
+            for flag in filter_name_flags:
+                filter_data = get_filter(flag)
+                if not filter_data:
+                    await ctx.send(f"❌ Filter `{flag}` not found!", reference=ctx.message, mention_author=False)
+                    return
+                flag_set = set(filter_data['pokemon'])
+                if filter_pokemon_set is None:
+                    filter_pokemon_set = flag_set
+                else:
+                    filter_pokemon_set = filter_pokemon_set & flag_set
+            if not filter_pokemon_set:
+                await ctx.send("❌ No Pokémon found in the intersection of those filters!", reference=ctx.message, mention_author=False)
                 return
-            filter_pokemon_set = set(filter_data['pokemon'])
 
         user_shinies = await db.get_all_shinies(user_id)
 
@@ -807,8 +815,8 @@ class ShinyDexDisplay(commands.Cog):
             pages.append(page_content)
 
         filter_text = "basic"
-        if filter_name_flag:
-            filter_text += f" - {filter_name_flag}"
+        if filter_name_flags:
+            filter_text += f" - {' & '.join(filter_name_flags)}"
         if evo_filters:
             filter_text += f" - {', '.join(evo_filters)} families"
         if region_filter:
@@ -841,7 +849,7 @@ class ShinyDexDisplay(commands.Cog):
 
         user_id = ctx.author.id
 
-        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flag = self.parse_filters(filters)
+        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags = self.parse_filters(filters)
 
         if show_image and (show_list or show_smartlist):
             await ctx.send("❌ Cannot use --image with --list or --smartlist!", reference=ctx.message, mention_author=False)
@@ -854,14 +862,22 @@ class ShinyDexDisplay(commands.Cog):
                 await ctx.send(f"❌ Evolution family not found for one of: {', '.join(evo_filters)}!", reference=ctx.message, mention_author=False)
                 return
 
-        # NEW: resolve --f filter into a set of pokemon names
+        # Resolve filter flags - intersect all specified filters
         filter_pokemon_set = None
-        if filter_name_flag:
-            filter_data = get_filter(filter_name_flag)
-            if not filter_data:
-                await ctx.send(f"❌ Filter `{filter_name_flag}` not found!", reference=ctx.message, mention_author=False)
+        if filter_name_flags:
+            for flag in filter_name_flags:
+                filter_data = get_filter(flag)
+                if not filter_data:
+                    await ctx.send(f"❌ Filter `{flag}` not found!", reference=ctx.message, mention_author=False)
+                    return
+                flag_set = set(filter_data['pokemon'])
+                if filter_pokemon_set is None:
+                    filter_pokemon_set = flag_set
+                else:
+                    filter_pokemon_set = filter_pokemon_set & flag_set
+            if not filter_pokemon_set:
+                await ctx.send("❌ No Pokémon found in the intersection of those filters!", reference=ctx.message, mention_author=False)
                 return
-            filter_pokemon_set = set(filter_data['pokemon'])
 
         user_shinies = await db.get_all_shinies(user_id)
 
@@ -1000,8 +1016,8 @@ class ShinyDexDisplay(commands.Cog):
             pages.append(page_content)
 
         filter_text = "full"
-        if filter_name_flag:
-            filter_text += f" - {filter_name_flag}"
+        if filter_name_flags:
+            filter_text += f" - {' & '.join(filter_name_flags)}"
         if evo_filters:
             filter_text += f" - {', '.join(evo_filters)} families"
         if region_filter:
