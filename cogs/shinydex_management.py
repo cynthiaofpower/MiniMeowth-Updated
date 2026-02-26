@@ -735,7 +735,7 @@ class ShinyDexManagement(commands.Cog):
 
         # Build the view
         class StatsView(discord.ui.LayoutView):
-            container1 = discord.ui.Container(*components)
+            container1 = discord.ui.Container(*components, accent_colour=config.EMBED_COLOR)
 
         await ctx.send(view=StatsView(), reference=ctx.message, mention_author=False)
 
