@@ -50,6 +50,34 @@ FILTERS = {
             "Raichu","Clefable","Victreebel","Starmie","Dragonite","Meganium","Feraligatr","Skarmory","Chimecho","Absol","Staraptor","Garchomp","Lucario","Froslass","Heatran","Darkrai","Emboar","Excadrill","Scolipede","Scrafty","Eelektross","Chandelure","Golurk","Chesnaught","Delphox","Greninja","Pyroar","Meowstic","Malamar","Barbaracle","Dragalge","Hawlucha","Complete Zygarde","Crabominable","Golisopod","Drampa","Magearna","Zeraora","Falinks","Scovillain","Glimmora","Tatsugiri","Droopy Tatsugiri","Stretchy Tatsugiri","Baxcalibur" 
         ]
     },
+    "alolan": {
+        "name": "Alolan Pokémon",
+        "aliases": ["alola", "alo"],
+        "pokemon": [
+            "Halloween Alolan Ninetales","Birthday Cake Alopix","Alolan Sandshrew","Alolan Sandslash","Alolan Ninetales","Alolan Exeggutor","Alolan Raticate","Alolan Graveler","Alolan Rattata","Alolan Diglett","Alolan Dugtrio","Alolan Persian","Alolan Geodude","Alolan Marowak","Alolan Raichu","Alolan Vulpix","Alolan Meowth","Alolan Grimer","Alolan Golem","Alolan Muk","Celebrating Alolan Exeggutor ft. Komala" ,
+        ]
+    },
+    "galarian": {
+        "name": "Galarian Pokémon",
+        "aliases": ["galari", "gal"],
+        "pokemon": [
+            "Galarian Zen Darmanitan","Galarian Farfetch'd","Galarian Darmanitan","Galarian Zigzagoon","Galarian Rapidash","Galarian Slowpoke","Galarian Mr. Mime","Galarian Articuno","Galarian Slowking","Galarian Darumaka","Galarian Stunfisk","Galarian Slowbro","Galarian Weezing","Galarian Moltres","Galarian Corsola","Galarian Linoone","Galarian Meowth","Galarian Ponyta","Galarian Zapdos","Galarian Yamask" ,
+        ]
+    },
+    "hisuian": {
+        "name": "Hisuian Pokémon",
+        "aliases": ["hisui", "his"],
+        "pokemon": [
+            "La Catrina Hisuian Lilligant","Hisuian Typhlosion","Hisuian Growlithe","Hisuian Electrode","Hisuian Lilligant","Hisuian Decidueye","Hisuian Arcanine","Hisuian Qwilfish","Hisuian Samurott","Hisuian Braviary","Hisuian Voltorb","Hisuian Sneasel","Hisuian Zoroark","Hisuian Sliggoo","Hisuian Avalugg","Hisuian Goodra","Santa H. Zorua","Hisuian Zorua" ,
+        ]
+    },
+    "paldean": {
+        "name": "Paldean Pokémon",
+        "aliases": ["paldea", "pal",],
+        "pokemon": [
+            "Combat Breed Tauros","Blaze Breed Tauros","Aqua Breed Tauros","Paldean Wooper" ,
+        ]
+    },
     "gigantamaxable": {
         "name":
         "Pokémons that can Gmax",
