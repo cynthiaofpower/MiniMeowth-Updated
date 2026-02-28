@@ -251,7 +251,7 @@ class Utils(commands.Cog):
             print(f"❌ Error loading data/event_pokemon.csv: {e}")
 
     def load_pokemon_cdn_mapping(self):
-        """Load Pokemon name to CDN number and emoji mapping from CSV file"""
+        """Load Pokemon name to CDN number mapping from CSV file"""
         pokemon_cdn_mapping = Utils._shared_data['pokemon_cdn_mapping']
         mapping_file = 'data/pokemon_cdn_mapping.csv'
 
@@ -264,19 +264,15 @@ class Utils(commands.Cog):
                 reader = csv.DictReader(f)
                 for row in reader:
                     pokemon_name = row.get('name', '').strip()
-                    cdn_number   = row.get('cdn_number', '').strip()
-                    emoji        = row.get('emoji', '').strip()
+                    cdn_number = row.get('cdn_number', '').strip()
 
                     if pokemon_name and cdn_number:
-                        pokemon_cdn_mapping[pokemon_name.lower()] = {
-                            'cdn_number': int(cdn_number),
-                            'emoji': emoji if emoji else None
-                        }
+                        # Store both lowercase and original case for flexible matching
+                        pokemon_cdn_mapping[pokemon_name.lower()] = int(cdn_number)
 
             print(f"✅ Loaded {len(pokemon_cdn_mapping)} Pokemon CDN mappings")
         except Exception as e:
             print(f"❌ Error loading Pokemon CDN mapping: {e}")
-
 
     def load_pokemon_name_mapping(self):
         """Load Pokemon name mappings from JSON file (multi-language support)"""
@@ -381,23 +377,15 @@ class Utils(commands.Cog):
     def get_cdn_number(self, pokemon_name: str) -> int:
         """Get CDN number for a Pokemon name"""
         pokemon_cdn_mapping = Utils._shared_data['pokemon_cdn_mapping']
-        entry = pokemon_cdn_mapping.get(pokemon_name.lower())
 
-        if entry is None:
+        # Try exact match (case-insensitive)
+        cdn_number = pokemon_cdn_mapping.get(pokemon_name.lower())
+
+        if cdn_number is None:
             print(f"⚠️ Warning: No CDN mapping found for '{pokemon_name}'")
             return 0
 
-        return entry['cdn_number']
-
-
-    # 3. NEW helper — get the emoji for a Pokemon name
-    def get_pokemon_emoji(self, pokemon_name: str) -> str | None:
-        """Get Discord emoji string for a Pokemon name, or None if not found"""
-        pokemon_cdn_mapping = Utils._shared_data['pokemon_cdn_mapping']
-        entry = pokemon_cdn_mapping.get(pokemon_name.lower())
-        return entry['emoji'] if entry else None
-
-
+        return cdn_number
 
     def resolve_pokemon_name(self, input_name: str) -> str:
         """
