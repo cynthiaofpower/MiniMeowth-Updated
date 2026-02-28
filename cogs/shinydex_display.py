@@ -434,17 +434,20 @@ class ShinyDexDisplay(commands.Cog):
     def matches_name_searches(self, pokemon_name: str, resolved_name_searches: list) -> bool:
         """
         Check if a Pokemon name matches any of the resolved name searches.
-        Exact searches use full normalized equality; substring searches use 'in'.
+        Always uses substring search - but if the input resolved to a canonical name,
+        the canonical name is used as the search term instead of the original input.
+
+        Examples:
+          "mauzi" resolves to "Meowth" → substring search for "meowth"
+            matches: Meowth, Alolan Meowth, Galarian Meowth
+          "meow" doesn't resolve → substring search for "meow"
+            matches: Meowth, Meowstic, etc.
         """
         normalized_pokemon = normalize_string(pokemon_name.lower())
         for r in resolved_name_searches:
             normalized_search = normalize_string(r['resolved'].lower())
-            if r['is_exact']:
-                if normalized_search == normalized_pokemon:
-                    return True
-            else:
-                if normalized_search in normalized_pokemon:
-                    return True
+            if normalized_search in normalized_pokemon:
+                return True
         return False
 
     def matches_filters(self, pokemon_name: str, utils, region_filter: str, type_filters: list):
