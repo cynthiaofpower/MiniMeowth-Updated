@@ -806,7 +806,9 @@ class ShinyDexDisplay(commands.Cog):
         for dex_num, name, count in filtered_entries:
             icon = f"{config.TICK}" if count > 0 else f"{config.CROSS}"
             sparkles = f"{count} ✨" if count > 0 else "0"
-            lines.append(f"{icon} **#{dex_num}** {name} - {sparkles}")
+            emoji = (utils.get_pokemon_emoji(name) or "") if ctx.interaction is None else ""
+            emoji_str = f"{emoji} " if emoji else ""
+            lines.append(f"{icon} **#{dex_num}** {emoji_str}{name} - {sparkles}")
 
         per_page = 21
         pages = []
@@ -1007,7 +1009,9 @@ class ShinyDexDisplay(commands.Cog):
             elif gender_key == 'female':
                 gender_emoji = f" {config.GENDER_FEMALE}"
 
-            lines.append(f"{icon} **#{dex_num}** {name}{gender_emoji} - {sparkles}")
+            emoji = (utils.get_pokemon_emoji(name) or "") if ctx.interaction is None else ""
+            emoji_str = f"{emoji} " if emoji else ""
+            lines.append(f"{icon} **#{dex_num}** {emoji_str}{name}{gender_emoji} - {sparkles}")
 
         per_page = 21
         pages = []
@@ -1215,7 +1219,9 @@ class ShinyDexDisplay(commands.Cog):
             elif gender_key == 'female':
                 gender_emoji = f" {config.GENDER_FEMALE}"
 
-            lines.append(f"{icon} **#{dex_num}** {name}{gender_emoji} - {sparkles}")
+            emoji = (utils.get_pokemon_emoji(name) or "") if ctx.interaction is None else ""
+            emoji_str = f"{emoji} " if emoji else ""
+            lines.append(f"{icon} **#{dex_num}** {emoji_str}{name}{gender_emoji} - {sparkles}")
 
         per_page = 21
         pages = []
