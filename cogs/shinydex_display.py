@@ -257,7 +257,7 @@ class ShinyDexDisplay(commands.Cog):
         ignore_male = False
         ignore_female = False
         evo_filters = []
-        filter_name_flags = []
+        filter_name_flags = []  # NEW: supports multiple filters (intersected)
 
         if not filter_string:
             return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags
@@ -304,6 +304,7 @@ class ShinyDexDisplay(commands.Cog):
             elif arg in ['--ignorefemale', '--if']:
                 ignore_female = True
                 i += 1
+            # NEW: --f / --filter flag
             elif arg in ['--f', '--filter']:
                 if i + 1 < len(args):
                     filter_name_flags.append(args[i + 1])
@@ -405,51 +406,6 @@ class ShinyDexDisplay(commands.Cog):
                 i += 1
 
         return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags
-
-    def resolve_name_searches(self, name_searches: list, utils) -> list:
-        """
-        Resolve each name search term using utils.resolve_pokemon_name().
-
-        For each search term:
-        - Try to resolve it as a known Pokemon name (supports foreign/alt names).
-        - If resolution returns a DIFFERENT name, the user typed an exact known name
-          (e.g. "Mauzi" → "Meowth"), so use that resolved name as the search term.
-        - If resolution returns the SAME name (no match found), treat it as a plain
-          substring search (e.g. "meow" stays "meow").
-
-        Returns a list of (original_search, resolved_search) tuples so the caller
-        can decide whether to do an exact/substring match.
-        """
-        resolved = []
-        for search in name_searches:
-            resolved_name = utils.resolve_pokemon_name(search)
-            if normalize_string(resolved_name.lower()) != normalize_string(search.lower()):
-                # Successfully resolved to a different canonical name — use it as exact term
-                resolved.append((search, resolved_name))
-            else:
-                # No resolution found — keep as plain substring search
-                resolved.append((search, None))
-        return resolved
-
-    def matches_name_searches(self, pokemon_name: str, resolved_searches: list) -> bool:
-        """
-        Check if pokemon_name matches any of the resolved name searches.
-
-        - If resolved_name is set: match only if pokemon_name contains resolved_name
-          as a substring (handles "Meowth" matching "Alolan Meowth" too).
-        - If resolved_name is None: plain substring search on the original term.
-        """
-        normalized_pokemon = normalize_string(pokemon_name.lower())
-        for original_search, resolved_name in resolved_searches:
-            if resolved_name is not None:
-                # Resolved to a known name — substring match on that canonical name
-                if normalize_string(resolved_name.lower()) in normalized_pokemon:
-                    return True
-            else:
-                # Plain substring search
-                if normalize_string(original_search.lower()) in normalized_pokemon:
-                    return True
-        return False
 
     def matches_filters(self, pokemon_name: str, utils, region_filter: str, type_filters: list):
         """Check if a Pokemon matches region and type filters"""
@@ -603,8 +559,10 @@ class ShinyDexDisplay(commands.Cog):
 
         # Send loading message
         if interaction:
+            # For button interactions, send as followup
             status_msg = await interaction.followup.send(loading_msg)
         else:
+            # For command calls
             status_msg = await ctx.send(loading_msg, reference=ctx.message, mention_author=False)
 
         try:
@@ -624,16 +582,21 @@ class ShinyDexDisplay(commands.Cog):
             )
 
             if img:
+                # Save image to bytes
                 img_bytes = io.BytesIO()
                 img.save(img_bytes, format='PNG')
                 img_bytes.seek(0)
 
+                # Create a Discord file attachment
                 file = discord.File(img_bytes, filename='shinydex.png')
 
+                # Determine if this is the last page
                 is_last_page = (page >= total_pages)
 
+                # Store reference to send_dex_image for button callbacks
                 send_dex_image_ref = self.send_dex_image
 
+                # Create button class with callback
                 class NextPageButton(discord.ui.Button):
                     def __init__(self):
                         super().__init__(
@@ -651,8 +614,10 @@ class ShinyDexDisplay(commands.Cog):
                             )
                             return
 
+                        # Defer the interaction
                         await interaction.response.defer()
 
+                        # Generate next page (pass interaction for loading message)
                         next_page = page + 1
                         await send_dex_image_ref(
                             ctx, 
@@ -660,9 +625,10 @@ class ShinyDexDisplay(commands.Cog):
                             utils, 
                             next_page, 
                             header_info,
-                            interaction
+                            interaction  # Pass interaction here
                         )
 
+                # Create a LayoutView with the image, separator, and button
                 class ImageView(discord.ui.LayoutView):
                     container1 = discord.ui.Container(
                         discord.ui.MediaGallery(
@@ -684,6 +650,7 @@ class ShinyDexDisplay(commands.Cog):
 
                 image_view = ImageView()
 
+                # Delete loading message and send image
                 if status_msg:
                     try:
                         await status_msg.delete()
@@ -692,6 +659,7 @@ class ShinyDexDisplay(commands.Cog):
 
                 await ctx.send(view=image_view, file=file, reference=ctx.message, mention_author=False)
             else:
+                # Update loading message with error
                 if status_msg:
                     await status_msg.edit(content="❌ Failed to generate image!")
                 else:
@@ -700,6 +668,7 @@ class ShinyDexDisplay(commands.Cog):
         except Exception as e:
             error_msg = f"❌ Error generating image: {str(e)}"
 
+            # Update loading message with error
             if status_msg:
                 await status_msg.edit(content=error_msg)
             else:
@@ -731,9 +700,6 @@ class ShinyDexDisplay(commands.Cog):
                 await ctx.send(f"❌ Evolution family not found for one of: {', '.join(evo_filters)}!", reference=ctx.message, mention_author=False)
                 return
 
-        # Resolve --n search terms via utils (supports foreign/alt names like --evo does)
-        resolved_name_searches = self.resolve_name_searches(name_searches, utils) if name_searches else []
-
         # Resolve filter flags - intersect all specified filters
         filter_pokemon_set = None
         if filter_name_flags:
@@ -764,15 +730,17 @@ class ShinyDexDisplay(commands.Cog):
 
         dex_entries = []
         for dex_num, pokemon_name in all_dex_entries:
+            # NEW: skip if not in --f filter
             if filter_pokemon_set is not None and pokemon_name not in filter_pokemon_set:
                 continue
 
-            if resolved_name_searches or evo_filters:
+            if name_searches or evo_filters:
                 matches_name = False
                 matches_evo = False
 
-                if resolved_name_searches:
-                    matches_name = self.matches_name_searches(pokemon_name, resolved_name_searches)
+                if name_searches:
+                    normalized_pokemon = normalize_string(pokemon_name.lower())
+                    matches_name = any(normalize_string(search.lower()) in normalized_pokemon for search in name_searches)
 
                 if evo_family_set:
                     matches_evo = pokemon_name in evo_family_set
@@ -838,9 +806,7 @@ class ShinyDexDisplay(commands.Cog):
         for dex_num, name, count in filtered_entries:
             icon = f"{config.TICK}" if count > 0 else f"{config.CROSS}"
             sparkles = f"{count} ✨" if count > 0 else "0"
-            emoji = (utils.get_pokemon_emoji(name) or "") if ctx.interaction is None else ""
-            emoji_str = f"{emoji} " if emoji else ""
-            lines.append(f"{icon} **#{dex_num}** {emoji_str}{name} - {sparkles}")
+            lines.append(f"{icon} **#{dex_num}** {name} - {sparkles}")
 
         per_page = 21
         pages = []
@@ -853,8 +819,6 @@ class ShinyDexDisplay(commands.Cog):
             filter_text += f" - {' & '.join(filter_name_flags)}"
         if evo_filters:
             filter_text += f" - {', '.join(evo_filters)} families"
-        if name_searches:
-            filter_text += f" - {', '.join(name_searches)}"
         if region_filter:
             filter_text += f" - {region_filter}"
         if type_filters:
@@ -863,12 +827,14 @@ class ShinyDexDisplay(commands.Cog):
         # Convert filtered_entries to format expected by view (add None for gender_key)
         view_entries = [(dex_num, name, None, count) for dex_num, name, count in filtered_entries]
 
+        # Create view using factory function
         ViewClass = create_shiny_dex_view(
             ctx, pages, total_caught, total_pokemon, filter_text, total_shiny_count,
             display_cog=self, utils=utils, filtered_entries=view_entries, current_page=(page - 1) if page else 0
         )
         view = ViewClass()
 
+        # Send view only (no embed or content needed with LayoutView)
         message = await ctx.send(view=view, reference=ctx.message, mention_author=False)
         view.message = message
 
@@ -895,9 +861,6 @@ class ShinyDexDisplay(commands.Cog):
             if evo_family_set is None:
                 await ctx.send(f"❌ Evolution family not found for one of: {', '.join(evo_filters)}!", reference=ctx.message, mention_author=False)
                 return
-
-        # Resolve --n search terms via utils (supports foreign/alt names like --evo does)
-        resolved_name_searches = self.resolve_name_searches(name_searches, utils) if name_searches else []
 
         # Resolve filter flags - intersect all specified filters
         filter_pokemon_set = None
@@ -939,15 +902,17 @@ class ShinyDexDisplay(commands.Cog):
 
         form_entries = []
         for dex_num, pokemon_name, has_gender_diff in all_forms:
+            # NEW: skip if not in --f filter
             if filter_pokemon_set is not None and pokemon_name not in filter_pokemon_set:
                 continue
 
-            if resolved_name_searches or evo_filters:
+            if name_searches or evo_filters:
                 matches_name = False
                 matches_evo = False
 
-                if resolved_name_searches:
-                    matches_name = self.matches_name_searches(pokemon_name, resolved_name_searches)
+                if name_searches:
+                    normalized_pokemon = normalize_string(pokemon_name.lower())
+                    matches_name = any(normalize_string(search.lower()) in normalized_pokemon for search in name_searches)
 
                 if evo_family_set:
                     matches_evo = pokemon_name in evo_family_set
@@ -1042,9 +1007,7 @@ class ShinyDexDisplay(commands.Cog):
             elif gender_key == 'female':
                 gender_emoji = f" {config.GENDER_FEMALE}"
 
-            emoji = (utils.get_pokemon_emoji(name) or "") if ctx.interaction is None else ""
-            emoji_str = f"{emoji} " if emoji else ""
-            lines.append(f"{icon} **#{dex_num}** {emoji_str}{name}{gender_emoji} - {sparkles}")
+            lines.append(f"{icon} **#{dex_num}** {name}{gender_emoji} - {sparkles}")
 
         per_page = 21
         pages = []
@@ -1057,19 +1020,19 @@ class ShinyDexDisplay(commands.Cog):
             filter_text += f" - {' & '.join(filter_name_flags)}"
         if evo_filters:
             filter_text += f" - {', '.join(evo_filters)} families"
-        if name_searches:
-            filter_text += f" - {', '.join(name_searches)}"
         if region_filter:
             filter_text += f" - {region_filter}"
         if type_filters:
             filter_text += f" - {'/'.join(type_filters)}"
 
+        # Create view using factory function
         ViewClass = create_shiny_dex_view(
             ctx, pages, total_caught, total_forms, filter_text, total_shiny_count,
             display_cog=self, utils=utils, filtered_entries=filtered_entries, current_page=(page - 1) if page else 0
         )
         view = ViewClass()
 
+        # Send view only (no embed or content needed with LayoutView)
         message = await ctx.send(view=view, reference=ctx.message, mention_author=False)
         view.message = message
 
@@ -1252,9 +1215,7 @@ class ShinyDexDisplay(commands.Cog):
             elif gender_key == 'female':
                 gender_emoji = f" {config.GENDER_FEMALE}"
 
-            emoji = (utils.get_pokemon_emoji(name) or "") if ctx.interaction is None else ""
-            emoji_str = f"{emoji} " if emoji else ""
-            lines.append(f"{icon} **#{dex_num}** {emoji_str}{name}{gender_emoji} - {sparkles}")
+            lines.append(f"{icon} **#{dex_num}** {name}{gender_emoji} - {sparkles}")
 
         per_page = 21
         pages = []
@@ -1270,12 +1231,14 @@ class ShinyDexDisplay(commands.Cog):
         if type_filters:
             filter_display_name += f" - {'/'.join(type_filters)}"
 
+        # Create view using factory function
         ViewClass = create_shiny_dex_view(
             ctx, pages, total_caught, total_pokemon, filter_display_name, total_shiny_count,
             display_cog=self, utils=utils, filtered_entries=filtered_entries, current_page=(page - 1) if page else 0
         )
         view = ViewClass()
 
+        # Send view only (no embed or content needed with LayoutView)
         message = await ctx.send(view=view, reference=ctx.message, mention_author=False)
         view.message = message
 
