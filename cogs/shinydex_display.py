@@ -16,7 +16,7 @@ def normalize_string(s):
     return ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
 
 
-def create_shiny_dex_view(ctx, pages, total_caught, total_pokemon, dex_type="basic", total_shiny_count=0, 
+def create_shiny_dex_view(ctx, pages, total_caught, total_pokemon, dex_type="basic", total_shiny_count=0,
                           display_cog=None, utils=None, filtered_entries=None, current_page=0):
     """Factory function to create a ShinyDexView class with proper class-level containers"""
 
@@ -114,10 +114,10 @@ def create_shiny_dex_view(ctx, pages, total_caught, total_pokemon, dex_type="bas
             try:
                 header_info = {'dex_type': f'{dex_type.title()} Shiny Dex'}
                 await display_cog.send_dex_image(
-                    ctx, 
-                    filtered_entries, 
-                    utils, 
-                    current_page + 1, 
+                    ctx,
+                    filtered_entries,
+                    utils,
+                    current_page + 1,
                     header_info,
                     interaction  # Pass interaction for loading message
                 )
@@ -264,7 +264,7 @@ class ShinyDexDisplay(commands.Cog):
 
         args = filter_string.lower().split()
 
-        valid_regions = ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova', 'kalos', 
+        valid_regions = ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova', 'kalos',
                          'alola', 'galar', 'hisui', 'paldea', 'unknown', 'missing', 'kitakami']
         valid_types = ['normal', 'fire', 'water', 'grass', 'electric', 'ice',
                        'fighting', 'poison', 'ground', 'flying', 'psychic', 'bug',
@@ -304,7 +304,7 @@ class ShinyDexDisplay(commands.Cog):
             elif arg in ['--ignorefemale', '--if']:
                 ignore_female = True
                 i += 1
-            # NEW: --f / --filter flag
+            # --f / --filter flag
             elif arg in ['--f', '--filter']:
                 if i + 1 < len(args):
                     filter_name_flags.append(args[i + 1])
@@ -406,6 +406,46 @@ class ShinyDexDisplay(commands.Cog):
                 i += 1
 
         return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags
+
+    def resolve_name_searches(self, name_searches: list, utils) -> list:
+        """
+        For each name search, try to resolve it as a Pokemon name (incl. foreign/alternate names).
+        Returns list of dicts: {'resolved': str, 'is_exact': bool}
+          - is_exact=True  → input resolved to a known canonical name → use exact match
+          - is_exact=False → no resolution found → fall back to substring search on original input
+
+        Examples:
+          "mauzi"   → resolve_pokemon_name returns "Meowth"  → is_exact=True,  resolved="Meowth"
+          "meow"    → resolve_pokemon_name returns "Meow"    → is_exact=False, resolved="meow"
+          "pikachu" → resolve_pokemon_name returns "Pikachu" → is_exact=True,  resolved="Pikachu"
+          "pika"    → resolve_pokemon_name returns "Pika"    → is_exact=False, resolved="pika"
+        """
+        resolved = []
+        for search in name_searches:
+            canonical = utils.resolve_pokemon_name(search)
+            if canonical.lower() != search.lower():
+                # resolve_pokemon_name found a different canonical name → exact match
+                resolved.append({'resolved': canonical, 'is_exact': True})
+            else:
+                # No resolution → substring search on the original input
+                resolved.append({'resolved': search, 'is_exact': False})
+        return resolved
+
+    def matches_name_searches(self, pokemon_name: str, resolved_name_searches: list) -> bool:
+        """
+        Check if a Pokemon name matches any of the resolved name searches.
+        Exact searches use full normalized equality; substring searches use 'in'.
+        """
+        normalized_pokemon = normalize_string(pokemon_name.lower())
+        for r in resolved_name_searches:
+            normalized_search = normalize_string(r['resolved'].lower())
+            if r['is_exact']:
+                if normalized_search == normalized_pokemon:
+                    return True
+            else:
+                if normalized_search in normalized_pokemon:
+                    return True
+        return False
 
     def matches_filters(self, pokemon_name: str, utils, region_filter: str, type_filters: list):
         """Check if a Pokemon matches region and type filters"""
@@ -574,10 +614,10 @@ class ShinyDexDisplay(commands.Cog):
             }
 
             img = await self.image_generator.create_dex_image(
-                page_entries, 
-                utils, 
-                header_info, 
-                page_info, 
+                page_entries,
+                utils,
+                header_info,
+                page_info,
                 user_id=ctx.author.id
             )
 
@@ -609,7 +649,7 @@ class ShinyDexDisplay(commands.Cog):
                     async def callback(self, interaction: discord.Interaction):
                         if interaction.user.id != ctx.author.id:
                             await interaction.response.send_message(
-                                "❌ This is not your dex!", 
+                                "❌ This is not your dex!",
                                 ephemeral=True
                             )
                             return
@@ -620,10 +660,10 @@ class ShinyDexDisplay(commands.Cog):
                         # Generate next page (pass interaction for loading message)
                         next_page = page + 1
                         await send_dex_image_ref(
-                            ctx, 
-                            pokemon_entries, 
-                            utils, 
-                            next_page, 
+                            ctx,
+                            pokemon_entries,
+                            utils,
+                            next_page,
                             header_info,
                             interaction  # Pass interaction here
                         )
@@ -676,7 +716,7 @@ class ShinyDexDisplay(commands.Cog):
 
             print(f"Error in dex image generation: {e}")
 
-    @commands.hybrid_command(name='shinydex', aliases=['sd','basicdex','bd'])
+    @commands.hybrid_command(name='shinydex', aliases=['sd', 'basicdex', 'bd'])
     @app_commands.describe(filters="Filters: --caught, --uncaught, --orderd, --ordera, --region, --type, --name, --exclude, --evo, --f, --page, --list, --smartlist, --image, --ignoremale, --ignorefemale")
     async def shiny_dex(self, ctx, *, filters: str = None):
         """View your basic shiny dex (one Pokemon per dex number, counts all forms)"""
@@ -717,6 +757,9 @@ class ShinyDexDisplay(commands.Cog):
                 await ctx.send("❌ No Pokémon found in the intersection of those filters!", reference=ctx.message, mention_author=False)
                 return
 
+        # Pre-resolve name searches once (supports foreign/alternate names)
+        resolved_name_searches = self.resolve_name_searches(name_searches, utils) if name_searches else []
+
         user_shinies = await db.get_all_shinies(user_id)
 
         dex_counts = {}
@@ -730,7 +773,7 @@ class ShinyDexDisplay(commands.Cog):
 
         dex_entries = []
         for dex_num, pokemon_name in all_dex_entries:
-            # NEW: skip if not in --f filter
+            # Skip if not in --f filter
             if filter_pokemon_set is not None and pokemon_name not in filter_pokemon_set:
                 continue
 
@@ -739,8 +782,7 @@ class ShinyDexDisplay(commands.Cog):
                 matches_evo = False
 
                 if name_searches:
-                    normalized_pokemon = normalize_string(pokemon_name.lower())
-                    matches_name = any(normalize_string(search.lower()) in normalized_pokemon for search in name_searches)
+                    matches_name = self.matches_name_searches(pokemon_name, resolved_name_searches)
 
                 if evo_family_set:
                     matches_evo = pokemon_name in evo_family_set
@@ -811,7 +853,7 @@ class ShinyDexDisplay(commands.Cog):
         per_page = 21
         pages = []
         for i in range(0, len(lines), per_page):
-            page_content = "\n".join(lines[i:i+per_page])
+            page_content = "\n".join(lines[i:i + per_page])
             pages.append(page_content)
 
         filter_text = "basic"
@@ -838,7 +880,7 @@ class ShinyDexDisplay(commands.Cog):
         message = await ctx.send(view=view, reference=ctx.message, mention_author=False)
         view.message = message
 
-    @commands.hybrid_command(name='shinydexfull', aliases=['sdf','fulldex','fd','fullshinydex','fsd'])
+    @commands.hybrid_command(name='shinydexfull', aliases=['sdf', 'fulldex', 'fd', 'fullshinydex', 'fsd'])
     @app_commands.describe(filters="Filters: --caught, --unc, --orderd, --ordera, --region, --type, --name, --exclude, --evo, --f, --page, --list, --smartlist, --image, --ignoremale, --ignorefemale")
     async def shiny_dex_full(self, ctx, *, filters: str = None):
         """View your full shiny dex (all forms, includes gender differences)"""
@@ -879,6 +921,9 @@ class ShinyDexDisplay(commands.Cog):
                 await ctx.send("❌ No Pokémon found in the intersection of those filters!", reference=ctx.message, mention_author=False)
                 return
 
+        # Pre-resolve name searches once (supports foreign/alternate names)
+        resolved_name_searches = self.resolve_name_searches(name_searches, utils) if name_searches else []
+
         user_shinies = await db.get_all_shinies(user_id)
 
         form_counts = {}
@@ -902,7 +947,7 @@ class ShinyDexDisplay(commands.Cog):
 
         form_entries = []
         for dex_num, pokemon_name, has_gender_diff in all_forms:
-            # NEW: skip if not in --f filter
+            # Skip if not in --f filter
             if filter_pokemon_set is not None and pokemon_name not in filter_pokemon_set:
                 continue
 
@@ -911,8 +956,7 @@ class ShinyDexDisplay(commands.Cog):
                 matches_evo = False
 
                 if name_searches:
-                    normalized_pokemon = normalize_string(pokemon_name.lower())
-                    matches_name = any(normalize_string(search.lower()) in normalized_pokemon for search in name_searches)
+                    matches_name = self.matches_name_searches(pokemon_name, resolved_name_searches)
 
                 if evo_family_set:
                     matches_evo = pokemon_name in evo_family_set
@@ -1012,7 +1056,7 @@ class ShinyDexDisplay(commands.Cog):
         per_page = 21
         pages = []
         for i in range(0, len(lines), per_page):
-            page_content = "\n".join(lines[i:i+per_page])
+            page_content = "\n".join(lines[i:i + per_page])
             pages.append(page_content)
 
         filter_text = "full"
@@ -1220,7 +1264,7 @@ class ShinyDexDisplay(commands.Cog):
         per_page = 21
         pages = []
         for i in range(0, len(lines), per_page):
-            page_content = "\n".join(lines[i:i+per_page])
+            page_content = "\n".join(lines[i:i + per_page])
             pages.append(page_content)
 
         filter_display_name = filter_data['name']
