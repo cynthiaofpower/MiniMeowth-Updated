@@ -40,7 +40,7 @@ FILTERS = {
     },
     "legendary": {
         "name":
-        "Legendary Pokémons With Forms And Variants",
+        "Legendary Pokémons",
         "aliases":
         ["leg", "legend", "legendaries"],
         "pokemon": [
@@ -82,7 +82,7 @@ FILTERS = {
     },
     "mythical": {
         "name":
-        "Mythical Pokémon With All Forms And Variants",
+        "Mythical Pokémons",
         "aliases": ["my", "myth"],
         "pokemon": [
             "High-speed Flight Configuration Genesect", "Gigantamax Melmetal",
@@ -102,7 +102,7 @@ FILTERS = {
     },
     "ub": {
         "name":
-        "Ultra Beasts",
+        "Ultra Beast Pokémons",
         "aliases": ["ultrabeasts", "ultrabeast"],
         "pokemon": [
             "Blacephalon", "Celesteela", "Pheromosa", "Xurkitree", "Naganadel",
@@ -230,7 +230,7 @@ FILTERS = {
     },
     "somehow": {
         "name":
-        "Somehow Pokémon",
+        "Evolves Somehow Pokémon",
         "aliases": ["some", "how", "smh"],
         "pokemon": [
             "Shedinja", "Sirfetch'd", "Runerigus", "Pawmot", "Brambleghast", "Rabsca", "Annihilape"
@@ -411,7 +411,7 @@ FILTERS = {
     },
     "meowthcol": {
         "name":
-        " Meowth's Collection Pokemons",
+        " Meowth's Collection Pokémons",
         "aliases": ["mcol", "mmco"],
         "pokemon": [
             "Dedenne","Meowth","Alolan Meowth"," Galarian Meowth","Aerodactyl","Furfrou","Umbreon","Lapras","Sylveon","Leafeon","Espeon","Glaceon","Flareon","Jolteon","Sneasler","Vaporeon","Emolga","Pachirisu","Delphox","Morpeko","Dragonite","Heracross","Charizard","Togedemaru","Hisuian Sneasel","Decidueye","Basculegion","Partner Pikachu","Partner Eevee","Eevee","Dipplin","Carbink","Komala","Mimikyu","Alcremie","Falinks","Eiscue","Wynaut","Absol","Rotom","Zoroark","Greninja","Ditto","Pikachu","Snorlax","Hydrapple","Gouging Fire","Raging Bolt","Iron Boulder","Iron Crown","Sinistcha","Bloodmoon Ursaluna","Hangry Morpeko","Milcery","Unown" 
