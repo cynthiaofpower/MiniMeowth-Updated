@@ -2,100 +2,42 @@
 # Each filter is a list of Pokemon names (exact match with base species names or forms)
 
 FILTERS = {
-    "eevee": {
+    "rare": {
         "name":
-        "Eeveelutions",
-        "aliases":
-        ["ibui", "eievui", "eeveelutions", "evoli",  "eevos", "イーブイ", "Ībui", "Évoli"],
+        "Rare Pokémons",
+        "aliases": ["rares", "allrare"],
         "pokemon": [
-            "Eevee", "Partner Eevee", "Vaporeon", "Jolteon", "Flareon",
-            "Espeon", "Umbreon", "Leafeon", "Glaceon", "Sylveon"
-        ]
-    },
-    "genderdifference": {
-        "name":
-        "Gender Difference Pokémons",
-        "aliases": ["gd", "gender"],
-        "pokemon": [
-            "Hisuian Sneasel","Basculegion","Butterfree","Kricketune","Hippopotas","Oinkologne","Vileplume","Sudowoodo","Wobbuffet","Girafarig","Heracross","Piloswine","Octillery","Combusken","Beautifly","Relicanth","Staraptor","Kricketot","Pachirisu","Hippowdon","Toxicroak","Abomasnow","Rhyperior","Tangrowth","Mamoswine","Jellicent","Venusaur","Raticate","Alakazam","Magikarp","Gyarados","Meganium","Politoed","Quagsire","Ursaring","Houndoom","Blaziken","Ludicolo","Meditite","Medicham","Camerupt","Cacturne","Staravia","Roserade","Floatzel","Garchomp","Croagunk","Lumineon","Unfezant","Frillish","Meowstic","Indeedee","Rattata","Pikachu","Kadabra","Rhyhorn","Goldeen","Seaking","Scyther","Murkrow","Steelix","Sneasel","Donphan","Torchic","Nuzleaf","Shiftry","Roselia","Milotic","Bibarel","Ambipom","Finneon","Weavile","Raichu","Golbat","Dodrio","Rhydon","Ledyba","Ledian","Wooper","Gligar","Scizor","Dustox","Gulpin","Swalot","Starly","Bidoof","Luxray","Combee","Buizel","Gabite","Snover","Pyroar","Zubat","Gloom","Doduo","Hypno","Eevee","Aipom","Numel","Shinx","Luxio","Gible","Xatu"
-        ]
-    },
-    "noevo": {
-        "name":
-        "No Evolution Pokémons",
-        "aliases": ["cantevolve", "evoless",  "nonevo"],
-        "pokemon": [
-"Blue Plumage Squawkabilly","Debutante Trim Furfrou","Blue-Striped Basculin","La Reine Trim Furfrou","Diamond Trim Furfrou","Pharaoh Trim Furfrou","Orange Meteor Minior","Indigo Meteor Minior","Matron Trim Furfrou","Kabuki Trim Furfrou","Green Meteor Minior","Heart Trim Furfrou","Dandy Trim Furfrou","Blue Meteor Minior","Orange Core Minior","Indigo Core Minior","Bloodmoon Ursaluna","Spiky-eared Pichu","School Wishiwashi","Red Meteor Minior","Green Core Minior","Gulping Cramorant","Gorging Cramorant","Noice Face Eiscue","Pom-pom Oricorio","Blue Core Minior","Droopy Tatsugiri","Red Core Minior","Battle Cyclizar","Rainy Castform","Snowy Castform","Sensu Oricorio","Hangry Morpeko","Rotom Pokédex","Pa'u Oricorio","Ride Cyclizar","Squawkabilly","Brute Bonnet","Flutter Mane","Slither Wing","Sandy Shocks","Iron Jugulis","Roaring Moon","Iron Valiant","Gouging Fire","Iron Boulder","Frost Rotom","Rotom Phone","Rotom Drone","Scream Tail","Iron Treads","Iron Bundle","Iron Thorns","Iron Leaves","Raging Bolt","MissingNo.","Farfetch'd","Kangaskhan","Aerodactyl","Heat Rotom","Bouffalant","Pincurchin","Bombirdier","Great Tusk","Iron Hands","Iron Crown","Heracross","Relicanth","Pachirisu","Spiritomb","Carnivine","Fan Rotom","Mow Rotom","Alomomola","Cryogonal","Druddigon","Passimian","Pyukumuku","Cramorant","Dracozolt","Arctozolt","Dracovish","Arctovish","Iron Moth","Qwilfish","Delibird","Skarmory","Smeargle","Illumise","Lunatone","Castform","Basculin","Maractus","Sigilyph","Hawlucha","Oricorio","Oranguru","Dhelmise","Indeedee","Cyclizar","Orthworm","Shuckle","Corsola","Miltank","Sableye","Seviper","Solrock","Kecleon","Luvdisc","Heatmor","Furfrou","Dedenne","Carbink","Mimikyu","Bruxish","Falinks","Morpeko","Flamigo","Dondozo","Pinsir","Lapras","Mawile","Plusle","Spinda","Chatot","Audino","Emolga","Durant","Klefki","Comfey","Minior" ,"Komala","Drampa","Eiscue","Ditto","Minun","Absol","Rotom","Klawf","Sawk","Yellow Plumage Squawkabilly","White Plumage Squawkabilly","Yellow Meteor Minior","Violet Meteor Minior","Yellow Core Minior","Violet Core Minior","Stretchy Tatsugiri","Unown Exclamation","Star Trim Furfrou","Unown Question","Sunny Castform","Walking Wake","Stonjourner","Wash Rotom","Wishiwashi","Turtonator","Togedemaru","Tatsugiri","Zangoose","Stunfisk","Unown A","Unown B","Unown C","Unown D","Unown E","Unown G","Unown H","Unown I","Unown J","Unown K","Unown L","Unown M","Unown N","Unown O","Unown P","Unown Q","Unown R","Unown S","Unown T","Unown U","Unown V","Unown W","Unown X","Unown Y","Unown Z","Volbeat","Torkoal","Tropius","Tauros","Veluza","Unown","Throh"         ]
-    },
-    "babypokemon": {
-        "name":
-        "Baby Pokémons",
-        "aliases": ["baby", "babies",  "babypokemons"],
-        "pokemon": [
-"Pichu","Spiky-eared Pichu","Cleffa","Igglybuff","Togepi","Tyrogue","Smoochum","Elekid","Magby","Azurill","Wynaut","Budew","Chingling","Bonsly","Mime Jr.","Happiny","Munchlax","Riolu","Mantyke","Toxel"  ]
-    },
-    "fossil": {
-        "name":
-        "Fossil Pokémons",
-        "aliases": ["fossils", "fossilpokemon",  "fossilpokemons"],
-        "pokemon": [
-"Aerodactyl","Carracosta","Rampardos","Bastiodon","Tyrantrum","Dracozolt","Arctozolt","Dracovish","Arctovish","Kabutops","Cranidos","Shieldon","Tirtouga","Archeops","Omanyte","Omastar","Cradily","Anorith","Armaldo","Aurorus","Kabuto","Lileep","Archen","Tyrunt","Amaura"  ]
-    },
-    "newmegas": {
-        "name":
-        "Pokémons That Got New Mega Form",
-        "aliases":
-        ["newmega", "new-megas", "mega2", "mega-za", "za-mega", "mega-2", "nm"],
-        "pokemon": [
-            "Raichu","Clefable","Victreebel","Starmie","Dragonite","Meganium","Feraligatr","Skarmory","Chimecho","Absol","Staraptor","Garchomp","Lucario","Froslass","Heatran","Darkrai","Emboar","Excadrill","Scolipede","Scrafty","Eelektross","Chandelure","Golurk","Chesnaught","Delphox","Greninja","Pyroar","Meowstic","Malamar","Barbaracle","Dragalge","Hawlucha","Complete Zygarde","Crabominable","Golisopod","Drampa","Magearna","Zeraora","Falinks","Scovillain","Glimmora","Tatsugiri","Droopy Tatsugiri","Stretchy Tatsugiri","Baxcalibur" 
-        ]
-    },
-    "alolan": {
-        "name": "Alolan Pokémon",
-        "aliases": ["alola", "alo"],
-        "pokemon": [
-            "Halloween Alolan Ninetales","Birthday Cake Alopix","Alolan Sandshrew","Alolan Sandslash","Alolan Ninetales","Alolan Exeggutor","Alolan Raticate","Alolan Graveler","Alolan Rattata","Alolan Diglett","Alolan Dugtrio","Alolan Persian","Alolan Geodude","Alolan Marowak","Alolan Raichu","Alolan Vulpix","Alolan Meowth","Alolan Grimer","Alolan Golem","Alolan Muk","Celebrating Alolan Exeggutor ft. Komala" ,
-        ]
-    },
-    "galarian": {
-        "name": "Galarian Pokémon",
-        "aliases": ["galari", "gal"],
-        "pokemon": [
-            "Galarian Zen Darmanitan","Galarian Farfetch'd","Galarian Darmanitan","Galarian Zigzagoon","Galarian Rapidash","Galarian Slowpoke","Galarian Mr. Mime","Galarian Articuno","Galarian Slowking","Galarian Darumaka","Galarian Stunfisk","Galarian Slowbro","Galarian Weezing","Galarian Moltres","Galarian Corsola","Galarian Linoone","Galarian Meowth","Galarian Ponyta","Galarian Zapdos","Galarian Yamask" ,
-        ]
-    },
-    "hisuian": {
-        "name": "Hisuian Pokémon",
-        "aliases": ["hisui", "his"],
-        "pokemon": [
-            "La Catrina Hisuian Lilligant","Hisuian Typhlosion","Hisuian Growlithe","Hisuian Electrode","Hisuian Lilligant","Hisuian Decidueye","Hisuian Arcanine","Hisuian Qwilfish","Hisuian Samurott","Hisuian Braviary","Hisuian Voltorb","Hisuian Sneasel","Hisuian Zoroark","Hisuian Sliggoo","Hisuian Avalugg","Hisuian Goodra","Santa H. Zorua","Hisuian Zorua" ,
-        ]
-    },
-    "paldean": {
-        "name": "Paldean Pokémon",
-        "aliases": ["paldea", "pal",],
-        "pokemon": [
-            "Combat Breed Tauros","Blaze Breed Tauros","Aqua Breed Tauros","Paldean Wooper" ,
-        ]
-    },
-    "gigantamaxable": {
-        "name":
-        "Pokémons that can Gmax",
-        "aliases":
-        ["gmaxable", "gmable", "pregm", "cangmax"],
-        "pokemon": [
-"Corviknight","Butterfree","Charizard","Blastoise","Rillaboom","Cinderace","Venusaur","Garbodor","Melmetal","Inteleon","Orbeetle","Pikachu","Machamp","Kingler","Snorlax","Drednaw","Meowth","Gengar","Lapras","Eevee","Urshifu","Rapid Strike Urshifu","Low Key Toxtricity","Amped Toxtricity","Centiskorch","Sandaconda","Grimmsnarl","Copperajah","Coalossal","Hatterene","Duraludon","Appletun","Alcremie","Eternatus","Flapple","Vanilla Cream Clover Sweet Alcremie","Vanilla Cream Flower Sweet Alcremie","Vanilla Cream Ribbon Sweet Alcremie","Vanilla Cream Berry Sweet Alcremie","Vanilla Cream Love Sweet Alcremie","Vanilla Cream Star Sweet Alcremie","Gigantamax Alcremie" 
-        ]
-    },
-    "gigantamax": {
-        "name":
-        "Gigantamax Pokémons",
-        "aliases":
-        ["gmax", "gm", "gigantic", "isgmax"],
-        "pokemon": [
-"Gigantamax Corviknight","Gigantamax Butterfree","Gigantamax Charizard","Gigantamax Blastoise","Gigantamax Rillaboom","Gigantamax Cinderace","Gigantamax Venusaur","Gigantamax Garbodor","Gigantamax Melmetal","Gigantamax Inteleon","Gigantamax Orbeetle","Gigantamax Pikachu","Gigantamax Machamp","Gigantamax Kingler","Gigantamax Snorlax","Gigantamax Drednaw","Gigantamax Meowth","Gigantamax Gengar","Gigantamax Lapras","Gigantamax Eevee","Gigantamax Single Strike Urshifu","Gigantamax Rapid Strike Urshifu","Gigantamax Low Key Toxtricity","Gigantamax Amped Toxtricity","Gigantamax Centiskorch","Gigantamax Sandaconda","Gigantamax Grimmsnarl","Gigantamax Copperajah","Gigantamax Coalossal","Gigantamax Hatterene","Gigantamax Duraludon","Gigantamax Appletun","Gigantamax Alcremie","Eternamax Eternatus","Gigantamax Flapple"         ]
-    },
+                "Registeel","Articuno","Regirock","Rayquaza","Moltres","Suicune","Groudon","Jirachi","Zapdos","Mewtwo","Raikou","Celebi","Regice","Latias","Latios","Kyogre","Entei","Lugia","Ho-Oh","Mew","Regigigas","Cresselia","Terrakion","Giratina","Cobalion","Virizion","Tornadus","Mesprit","Heatran","Manaphy","Darkrai","Shaymin","Victini","Deoxys","Dialga","Palkia","Phione","Arceus","Azelf","Uxie","Type: Null","Thundurus","Volcanion","Tapu Koko","Tapu Lele","Tapu Bulu","Tapu Fini","Reshiram","Landorus","Meloetta","Genesect","Silvally","Xerneas","Yveltal","Zygarde","Diancie","Zekrom","Kyurem","Keldeo","Hoopa","Blacephalon","Celesteela","Pheromosa","Xurkitree","Marshadow","Naganadel","Stakataka","Solgaleo","Nihilego","Buzzwole","Guzzlord","Necrozma","Magearna","Cosmoem","Kartana","Poipole","Zeraora","Cosmog","Lunala","Meltan","Zamazenta","Eternatus","Regieleki","Regidrago","Glastrier","Spectrier","Chien-Pao","Melmetal","Enamorus","Wo-Chien","Koraidon","Miraidon","Urshifu","Calyrex","Ting-Lu","Okidogi","Zacian","Zarude","Chi-Yu","Kubfu","Pirouette Meloetta","Therian Thundurus","Therian Tornadus","Therian Landorus","Origin Giratina","Resolute Keldeo","Defense Deoxys","Mega Mewtwo X","Mega Mewtwo Y","Attack Deoxys","Speed Deoxys","Black Kyurem","White Kyurem","Mega Latias","Sky Shaymin","Fezandipiti","Munkidori","Terapagos","Pecharunt","Ogerpon","Rapid Strike Urshifu","Shadow Rider Calyrex" ,"Dawn Wings Necrozma","Dusk Mane Necrozma","Galarian Articuno","Original Magearna","Crowned Zamazenta","Ice Rider Calyrex","Galarian Moltres","Complete Zygarde","Galarian Zapdos","Primal Groudon","Ultra Necrozma","Crowned Zacian","Primal Kyogre","Mega Rayquaza","Hoopa Unbound","Mega Diancie","Mega Latios","10% Zygarde","Gigantamax Single Strike Urshifu","Gigantamax Rapid Strike Urshifu","Sprinting Build Koraidon","Hearthflame Mask Ogerpon","Cornerstone Mask Ogerpon","Wellspring Mask Ogerpon","Gliding Build Koraidon","Gigantamax Melmetal","Eternamax Eternatus","Drive Mode Miraidon","Glide Mode Miraidon","Terastal Terapagos","Therian Enamorus","Neutral Xerneas","Origin Dialga","Origin Palkia","Dragon Arceus","Dark Arceus","Dada Zarude","Bug Arceus","Electric Silvally","Fighting Silvally","Electric Arceus","Fighting Arceus","Dragon Silvally","Psychic Arceus","Flying Arceus","Ground Arceus","Poison Arceus","Dark Silvally","Fire Silvally","Ghost Arceus","Grass Arceus","Steel Arceus","Water Arceus","Fairy Arceus","Bug Silvally","Fire Arceus","Rock Arceus","Ice Arceus","High-speed Flight Configuration Genesect","Psychic Silvally","Zenith Marshadow","Flying Silvally","Ground Silvally","Poison Silvally","Ghost Silvally","Grass Silvally","Steel Silvally","Water Silvally","Fairy Silvally","Rock Silvally","Zygarde Cell","Zygarde Core","Ice Silvally" 
 
+        ]
+    },
+    "regionals": {
+        "name":
+        "Regional Pokémon",
+        "aliases": ["regional", "reg", "regionalpokemons"],
+        "pokemon": [
+            "Galarian Zen Darmanitan", "Galarian Farfetch'd",
+            "Combat Breed Tauros", "Galarian Darmanitan", "Blaze Breed Tauros",
+            "Hisuian Typhlosion", "Galarian Zigzagoon", "Hisuian Growlithe",
+            "Galarian Rapidash", "Galarian Slowpoke", "Hisuian Electrode",
+            "Galarian Mr. Mime", "Aqua Breed Tauros", "Galarian Articuno",
+            "Galarian Slowking", "Hisuian Lilligant", "Galarian Darumaka",
+            "Galarian Stunfisk", "Hisuian Decidueye", "Alolan Sandshrew",
+            "Alolan Sandslash", "Alolan Ninetales", "Hisuian Arcanine",
+            "Galarian Slowbro", "Alolan Exeggutor", "Galarian Weezing",
+            "Galarian Moltres", "Hisuian Qwilfish", "Galarian Corsola",
+            "Galarian Linoone", "Hisuian Samurott", "Hisuian Braviary",
+            "Alolan Raticate", "Galarian Meowth", "Alolan Graveler",
+            "Galarian Ponyta", "Hisuian Voltorb", "Galarian Zapdos",
+            "Hisuian Sneasel", "Galarian Yamask", "Hisuian Zoroark",
+            "Hisuian Sliggoo", "Hisuian Avalugg", "Alolan Rattata",
+            "Alolan Diglett", "Alolan Dugtrio", "Alolan Persian",
+            "Alolan Geodude", "Alolan Marowak", "Paldean Wooper",
+            "Hisuian Goodra", "Alolan Raichu", "Alolan Vulpix",
+            "Alolan Meowth", "Alolan Grimer", "Hisuian Zorua", "Alolan Golem",
+            "Alolan Muk"
+        ]
+    },
     "legendary": {
         "name":
         "Legendary Pokémons With Forms And Variants",
@@ -168,13 +110,45 @@ FILTERS = {
             "Poipole"
         ]
     },
-    "rare": {
-        "name":
-        "Rare Pokémons",
-        "aliases": ["rares", "allrare"],
+    "alolan": {
+        "name": "Alolan Pokémon",
+        "aliases": ["alola", "alo"],
         "pokemon": [
-                "Registeel","Articuno","Regirock","Rayquaza","Moltres","Suicune","Groudon","Jirachi","Zapdos","Mewtwo","Raikou","Celebi","Regice","Latias","Latios","Kyogre","Entei","Lugia","Ho-Oh","Mew","Regigigas","Cresselia","Terrakion","Giratina","Cobalion","Virizion","Tornadus","Mesprit","Heatran","Manaphy","Darkrai","Shaymin","Victini","Deoxys","Dialga","Palkia","Phione","Arceus","Azelf","Uxie","Type: Null","Thundurus","Volcanion","Tapu Koko","Tapu Lele","Tapu Bulu","Tapu Fini","Reshiram","Landorus","Meloetta","Genesect","Silvally","Xerneas","Yveltal","Zygarde","Diancie","Zekrom","Kyurem","Keldeo","Hoopa","Blacephalon","Celesteela","Pheromosa","Xurkitree","Marshadow","Naganadel","Stakataka","Solgaleo","Nihilego","Buzzwole","Guzzlord","Necrozma","Magearna","Cosmoem","Kartana","Poipole","Zeraora","Cosmog","Lunala","Meltan","Zamazenta","Eternatus","Regieleki","Regidrago","Glastrier","Spectrier","Chien-Pao","Melmetal","Enamorus","Wo-Chien","Koraidon","Miraidon","Urshifu","Calyrex","Ting-Lu","Okidogi","Zacian","Zarude","Chi-Yu","Kubfu","Pirouette Meloetta","Therian Thundurus","Therian Tornadus","Therian Landorus","Origin Giratina","Resolute Keldeo","Defense Deoxys","Mega Mewtwo X","Mega Mewtwo Y","Attack Deoxys","Speed Deoxys","Black Kyurem","White Kyurem","Mega Latias","Sky Shaymin","Fezandipiti","Munkidori","Terapagos","Pecharunt","Ogerpon","Rapid Strike Urshifu","Shadow Rider Calyrex" ,"Dawn Wings Necrozma","Dusk Mane Necrozma","Galarian Articuno","Original Magearna","Crowned Zamazenta","Ice Rider Calyrex","Galarian Moltres","Complete Zygarde","Galarian Zapdos","Primal Groudon","Ultra Necrozma","Crowned Zacian","Primal Kyogre","Mega Rayquaza","Hoopa Unbound","Mega Diancie","Mega Latios","10% Zygarde","Gigantamax Single Strike Urshifu","Gigantamax Rapid Strike Urshifu","Sprinting Build Koraidon","Hearthflame Mask Ogerpon","Cornerstone Mask Ogerpon","Wellspring Mask Ogerpon","Gliding Build Koraidon","Gigantamax Melmetal","Eternamax Eternatus","Drive Mode Miraidon","Glide Mode Miraidon","Terastal Terapagos","Therian Enamorus","Neutral Xerneas","Origin Dialga","Origin Palkia","Dragon Arceus","Dark Arceus","Dada Zarude","Bug Arceus","Electric Silvally","Fighting Silvally","Electric Arceus","Fighting Arceus","Dragon Silvally","Psychic Arceus","Flying Arceus","Ground Arceus","Poison Arceus","Dark Silvally","Fire Silvally","Ghost Arceus","Grass Arceus","Steel Arceus","Water Arceus","Fairy Arceus","Bug Silvally","Fire Arceus","Rock Arceus","Ice Arceus","High-speed Flight Configuration Genesect","Psychic Silvally","Zenith Marshadow","Flying Silvally","Ground Silvally","Poison Silvally","Ghost Silvally","Grass Silvally","Steel Silvally","Water Silvally","Fairy Silvally","Rock Silvally","Zygarde Cell","Zygarde Core","Ice Silvally" 
-
+            "Halloween Alolan Ninetales","Birthday Cake Alopix","Alolan Sandshrew","Alolan Sandslash","Alolan Ninetales","Alolan Exeggutor","Alolan Raticate","Alolan Graveler","Alolan Rattata","Alolan Diglett","Alolan Dugtrio","Alolan Persian","Alolan Geodude","Alolan Marowak","Alolan Raichu","Alolan Vulpix","Alolan Meowth","Alolan Grimer","Alolan Golem","Alolan Muk","Celebrating Alolan Exeggutor ft. Komala" ,
+        ]
+    },
+    "galarian": {
+        "name": "Galarian Pokémon",
+        "aliases": ["galari", "gal"],
+        "pokemon": [
+            "Galarian Zen Darmanitan","Galarian Farfetch'd","Galarian Darmanitan","Galarian Zigzagoon","Galarian Rapidash","Galarian Slowpoke","Galarian Mr. Mime","Galarian Articuno","Galarian Slowking","Galarian Darumaka","Galarian Stunfisk","Galarian Slowbro","Galarian Weezing","Galarian Moltres","Galarian Corsola","Galarian Linoone","Galarian Meowth","Galarian Ponyta","Galarian Zapdos","Galarian Yamask" ,
+        ]
+    },
+    "hisuian": {
+        "name": "Hisuian Pokémon",
+        "aliases": ["hisui", "his"],
+        "pokemon": [
+            "La Catrina Hisuian Lilligant","Hisuian Typhlosion","Hisuian Growlithe","Hisuian Electrode","Hisuian Lilligant","Hisuian Decidueye","Hisuian Arcanine","Hisuian Qwilfish","Hisuian Samurott","Hisuian Braviary","Hisuian Voltorb","Hisuian Sneasel","Hisuian Zoroark","Hisuian Sliggoo","Hisuian Avalugg","Hisuian Goodra","Santa H. Zorua","Hisuian Zorua" ,
+        ]
+    },
+    "paldean": {
+        "name": "Paldean Pokémon",
+        "aliases": ["paldea", "pal",],
+        "pokemon": [
+            "Combat Breed Tauros","Blaze Breed Tauros","Aqua Breed Tauros","Paldean Wooper" ,
+        ]
+    },
+    "paradox": {
+        "name":
+        "Paradox Pokémon",
+        "aliases": ["para", "par", "parad"],
+        "pokemon": [
+            "Great Tusk", "Scream Tail", "Brute Bonnet", "Flutter Mane",
+            "Slither Wing", "Sandy Shocks", "Iron Treads", "Iron Bundle",
+            "Iron Hands", "Iron Jugulis", "Iron Moth", "Iron Thorns",
+            "Roaring Moon", "Iron Valiant", "Koraidon", "Miraidon",
+            "Walking Wake", "Iron Leaves", "Gouging Fire", "Raging Bolt",
+            "Iron Boulder", "Iron Crown"
         ]
     },
     "mega": {
@@ -198,6 +172,32 @@ FILTERS = {
             "Mega Lopunny", "Mega Diancie", "Mega Glalie"
         ]
     },
+    "newmegas": {
+        "name":
+        "Pokémons That Got New Mega Form",
+        "aliases":
+        ["newmega", "new-megas", "mega2", "mega-za", "za-mega", "mega-2", "nm"],
+        "pokemon": [
+            "Raichu","Clefable","Victreebel","Starmie","Dragonite","Meganium","Feraligatr","Skarmory","Chimecho","Absol","Staraptor","Garchomp","Lucario","Froslass","Heatran","Darkrai","Emboar","Excadrill","Scolipede","Scrafty","Eelektross","Chandelure","Golurk","Chesnaught","Delphox","Greninja","Pyroar","Meowstic","Malamar","Barbaracle","Dragalge","Hawlucha","Complete Zygarde","Crabominable","Golisopod","Drampa","Magearna","Zeraora","Falinks","Scovillain","Glimmora","Tatsugiri","Droopy Tatsugiri","Stretchy Tatsugiri","Baxcalibur" 
+        ]
+    },
+    "gigantamax": {
+        "name":
+        "Gigantamax Pokémons",
+        "aliases":
+        ["gmax", "gm", "gigantic", "isgmax"],
+        "pokemon": [
+"Gigantamax Corviknight","Gigantamax Butterfree","Gigantamax Charizard","Gigantamax Blastoise","Gigantamax Rillaboom","Gigantamax Cinderace","Gigantamax Venusaur","Gigantamax Garbodor","Gigantamax Melmetal","Gigantamax Inteleon","Gigantamax Orbeetle","Gigantamax Pikachu","Gigantamax Machamp","Gigantamax Kingler","Gigantamax Snorlax","Gigantamax Drednaw","Gigantamax Meowth","Gigantamax Gengar","Gigantamax Lapras","Gigantamax Eevee","Gigantamax Single Strike Urshifu","Gigantamax Rapid Strike Urshifu","Gigantamax Low Key Toxtricity","Gigantamax Amped Toxtricity","Gigantamax Centiskorch","Gigantamax Sandaconda","Gigantamax Grimmsnarl","Gigantamax Copperajah","Gigantamax Coalossal","Gigantamax Hatterene","Gigantamax Duraludon","Gigantamax Appletun","Gigantamax Alcremie","Eternamax Eternatus","Gigantamax Flapple"         ]
+    },
+    "gigantamaxable": {
+        "name":
+        "Pokémons that can Gmax",
+        "aliases":
+        ["gmaxable", "gmable", "pregm", "cangmax"],
+        "pokemon": [
+"Corviknight","Butterfree","Charizard","Blastoise","Rillaboom","Cinderace","Venusaur","Garbodor","Melmetal","Inteleon","Orbeetle","Pikachu","Machamp","Kingler","Snorlax","Drednaw","Meowth","Gengar","Lapras","Eevee","Urshifu","Rapid Strike Urshifu","Low Key Toxtricity","Amped Toxtricity","Centiskorch","Sandaconda","Grimmsnarl","Copperajah","Coalossal","Hatterene","Duraludon","Appletun","Alcremie","Eternatus","Flapple","Vanilla Cream Clover Sweet Alcremie","Vanilla Cream Flower Sweet Alcremie","Vanilla Cream Ribbon Sweet Alcremie","Vanilla Cream Berry Sweet Alcremie","Vanilla Cream Love Sweet Alcremie","Vanilla Cream Star Sweet Alcremie","Gigantamax Alcremie" 
+        ]
+    },
     "pseudo": {
         "name":
         "Pseudo-Legendary Pokémon",
@@ -205,6 +205,14 @@ FILTERS = {
         "pokemon": [
             "Baxcalibur", "Dragonite", "Tyranitar", "Salamence", "Metagross",
             "Hydreigon", "Dragapult", "Garchomp", "Kommo-o", "Goodra"
+        ]
+    },
+    "starters": {
+        "name":
+        "Starter Pokémon",
+        "aliases": ["starter"],
+        "pokemon": [
+            "Gigantamax Charizard","Gigantamax Blastoise","Gigantamax Rillaboom","Gigantamax Cinderace","Gigantamax Venusaur","Gigantamax Inteleon","Hisuian Typhlosion","Hisuian Decidueye","Mega Charizard X","Mega Charizard Y","Hisuian Samurott","Mega Blastoise","Mega Venusaur","Mega Sceptile","Mega Blaziken","Mega Swampert","Meowscarada","Charmander","Charmeleon","Typhlosion","Feraligatr","Chesnaught","Incineroar","Sprigatito","Skeledirge","Bulbasaur","Charizard","Wartortle","Blastoise","Chikorita","Cyndaquil","Combusken","Marshtomp","Infernape","Serperior","Quilladin","Frogadier","Decidueye","Primarina","Rillaboom","Scorbunny","Cinderace","Floragato","Quaquaval","Venusaur","Squirtle","Meganium","Totodile","Croconaw","Sceptile","Blaziken","Swampert","Torterra","Chimchar","Monferno","Prinplup","Empoleon","Oshawott","Samurott","Fennekin","Greninja","Torracat","Thwackey","Drizzile","Inteleon","Crocalor","Quaxwell","Ivysaur","Bayleef","Quilava","Treecko","Grovyle","Torchic","Turtwig","Servine","Pignite","Chespin","Braixen","Delphox","Froakie","Dartrix","Popplio","Brionne","Grookey","Fuecoco","Mudkip","Grotle","Piplup","Emboar","Dewott","Rowlet","Litten","Raboot","Sobble","Quaxly","Snivy","Tepig" 
         ]
     },
     "startersonly": {
@@ -220,61 +228,51 @@ FILTERS = {
             "Litten", "Sobble", "Quaxly", "Snivy", "Tepig"
         ]
     },
-
-    "starters": {
-        "name":
-        "Starter Pokémon",
-        "aliases": ["starter"],
-        "pokemon": [
-            "Gigantamax Charizard","Gigantamax Blastoise","Gigantamax Rillaboom","Gigantamax Cinderace","Gigantamax Venusaur","Gigantamax Inteleon","Hisuian Typhlosion","Hisuian Decidueye","Mega Charizard X","Mega Charizard Y","Hisuian Samurott","Mega Blastoise","Mega Venusaur","Mega Sceptile","Mega Blaziken","Mega Swampert","Meowscarada","Charmander","Charmeleon","Typhlosion","Feraligatr","Chesnaught","Incineroar","Sprigatito","Skeledirge","Bulbasaur","Charizard","Wartortle","Blastoise","Chikorita","Cyndaquil","Combusken","Marshtomp","Infernape","Serperior","Quilladin","Frogadier","Decidueye","Primarina","Rillaboom","Scorbunny","Cinderace","Floragato","Quaquaval","Venusaur","Squirtle","Meganium","Totodile","Croconaw","Sceptile","Blaziken","Swampert","Torterra","Chimchar","Monferno","Prinplup","Empoleon","Oshawott","Samurott","Fennekin","Greninja","Torracat","Thwackey","Drizzile","Inteleon","Crocalor","Quaxwell","Ivysaur","Bayleef","Quilava","Treecko","Grovyle","Torchic","Turtwig","Servine","Pignite","Chespin","Braixen","Delphox","Froakie","Dartrix","Popplio","Brionne","Grookey","Fuecoco","Mudkip","Grotle","Piplup","Emboar","Dewott","Rowlet","Litten","Raboot","Sobble","Quaxly","Snivy","Tepig" 
-        ]
-    },
-    "regionals": {
-        "name":
-        "Regional Pokémon",
-        "aliases": ["regional", "reg", "regionalpokemons"],
-        "pokemon": [
-            "Galarian Zen Darmanitan", "Galarian Farfetch'd",
-            "Combat Breed Tauros", "Galarian Darmanitan", "Blaze Breed Tauros",
-            "Hisuian Typhlosion", "Galarian Zigzagoon", "Hisuian Growlithe",
-            "Galarian Rapidash", "Galarian Slowpoke", "Hisuian Electrode",
-            "Galarian Mr. Mime", "Aqua Breed Tauros", "Galarian Articuno",
-            "Galarian Slowking", "Hisuian Lilligant", "Galarian Darumaka",
-            "Galarian Stunfisk", "Hisuian Decidueye", "Alolan Sandshrew",
-            "Alolan Sandslash", "Alolan Ninetales", "Hisuian Arcanine",
-            "Galarian Slowbro", "Alolan Exeggutor", "Galarian Weezing",
-            "Galarian Moltres", "Hisuian Qwilfish", "Galarian Corsola",
-            "Galarian Linoone", "Hisuian Samurott", "Hisuian Braviary",
-            "Alolan Raticate", "Galarian Meowth", "Alolan Graveler",
-            "Galarian Ponyta", "Hisuian Voltorb", "Galarian Zapdos",
-            "Hisuian Sneasel", "Galarian Yamask", "Hisuian Zoroark",
-            "Hisuian Sliggoo", "Hisuian Avalugg", "Alolan Rattata",
-            "Alolan Diglett", "Alolan Dugtrio", "Alolan Persian",
-            "Alolan Geodude", "Alolan Marowak", "Paldean Wooper",
-            "Hisuian Goodra", "Alolan Raichu", "Alolan Vulpix",
-            "Alolan Meowth", "Alolan Grimer", "Hisuian Zorua", "Alolan Golem",
-            "Alolan Muk"
-        ]
-    },
-    "paradox": {
-        "name":
-        "Paradox Pokémon",
-        "aliases": ["para", "par", "parad"],
-        "pokemon": [
-            "Great Tusk", "Scream Tail", "Brute Bonnet", "Flutter Mane",
-            "Slither Wing", "Sandy Shocks", "Iron Treads", "Iron Bundle",
-            "Iron Hands", "Iron Jugulis", "Iron Moth", "Iron Thorns",
-            "Roaring Moon", "Iron Valiant", "Koraidon", "Miraidon",
-            "Walking Wake", "Iron Leaves", "Gouging Fire", "Raging Bolt",
-            "Iron Boulder", "Iron Crown"
-        ]
-    },
     "somehow": {
         "name":
         "Somehow Pokémon",
         "aliases": ["some", "how", "smh"],
         "pokemon": [
             "Shedinja", "Sirfetch'd", "Runerigus", "Pawmot", "Brambleghast", "Rabsca", "Annihilape"
+        ]
+    },
+    "fossil": {
+        "name":
+        "Fossil Pokémons",
+        "aliases": ["fossils", "fossilpokemon",  "fossilpokemons"],
+        "pokemon": [
+"Aerodactyl","Carracosta","Rampardos","Bastiodon","Tyrantrum","Dracozolt","Arctozolt","Dracovish","Arctovish","Kabutops","Cranidos","Shieldon","Tirtouga","Archeops","Omanyte","Omastar","Cradily","Anorith","Armaldo","Aurorus","Kabuto","Lileep","Archen","Tyrunt","Amaura"  ]
+    },
+    "babypokemon": {
+        "name":
+        "Baby Pokémons",
+        "aliases": ["baby", "babies",  "babypokemons"],
+        "pokemon": [
+"Pichu","Spiky-eared Pichu","Cleffa","Igglybuff","Togepi","Tyrogue","Smoochum","Elekid","Magby","Azurill","Wynaut","Budew","Chingling","Bonsly","Mime Jr.","Happiny","Munchlax","Riolu","Mantyke","Toxel"  ]
+    },
+    "noevo": {
+        "name":
+        "No Evolution Pokémons",
+        "aliases": ["cantevolve", "evoless",  "nonevo"],
+        "pokemon": [
+"Blue Plumage Squawkabilly","Debutante Trim Furfrou","Blue-Striped Basculin","La Reine Trim Furfrou","Diamond Trim Furfrou","Pharaoh Trim Furfrou","Orange Meteor Minior","Indigo Meteor Minior","Matron Trim Furfrou","Kabuki Trim Furfrou","Green Meteor Minior","Heart Trim Furfrou","Dandy Trim Furfrou","Blue Meteor Minior","Orange Core Minior","Indigo Core Minior","Bloodmoon Ursaluna","Spiky-eared Pichu","School Wishiwashi","Red Meteor Minior","Green Core Minior","Gulping Cramorant","Gorging Cramorant","Noice Face Eiscue","Pom-pom Oricorio","Blue Core Minior","Droopy Tatsugiri","Red Core Minior","Battle Cyclizar","Rainy Castform","Snowy Castform","Sensu Oricorio","Hangry Morpeko","Rotom Pokédex","Pa'u Oricorio","Ride Cyclizar","Squawkabilly","Brute Bonnet","Flutter Mane","Slither Wing","Sandy Shocks","Iron Jugulis","Roaring Moon","Iron Valiant","Gouging Fire","Iron Boulder","Frost Rotom","Rotom Phone","Rotom Drone","Scream Tail","Iron Treads","Iron Bundle","Iron Thorns","Iron Leaves","Raging Bolt","MissingNo.","Farfetch'd","Kangaskhan","Aerodactyl","Heat Rotom","Bouffalant","Pincurchin","Bombirdier","Great Tusk","Iron Hands","Iron Crown","Heracross","Relicanth","Pachirisu","Spiritomb","Carnivine","Fan Rotom","Mow Rotom","Alomomola","Cryogonal","Druddigon","Passimian","Pyukumuku","Cramorant","Dracozolt","Arctozolt","Dracovish","Arctovish","Iron Moth","Qwilfish","Delibird","Skarmory","Smeargle","Illumise","Lunatone","Castform","Basculin","Maractus","Sigilyph","Hawlucha","Oricorio","Oranguru","Dhelmise","Indeedee","Cyclizar","Orthworm","Shuckle","Corsola","Miltank","Sableye","Seviper","Solrock","Kecleon","Luvdisc","Heatmor","Furfrou","Dedenne","Carbink","Mimikyu","Bruxish","Falinks","Morpeko","Flamigo","Dondozo","Pinsir","Lapras","Mawile","Plusle","Spinda","Chatot","Audino","Emolga","Durant","Klefki","Comfey","Minior" ,"Komala","Drampa","Eiscue","Ditto","Minun","Absol","Rotom","Klawf","Sawk","Yellow Plumage Squawkabilly","White Plumage Squawkabilly","Yellow Meteor Minior","Violet Meteor Minior","Yellow Core Minior","Violet Core Minior","Stretchy Tatsugiri","Unown Exclamation","Star Trim Furfrou","Unown Question","Sunny Castform","Walking Wake","Stonjourner","Wash Rotom","Wishiwashi","Turtonator","Togedemaru","Tatsugiri","Zangoose","Stunfisk","Unown A","Unown B","Unown C","Unown D","Unown E","Unown G","Unown H","Unown I","Unown J","Unown K","Unown L","Unown M","Unown N","Unown O","Unown P","Unown Q","Unown R","Unown S","Unown T","Unown U","Unown V","Unown W","Unown X","Unown Y","Unown Z","Volbeat","Torkoal","Tropius","Tauros","Veluza","Unown","Throh"         ]
+    },
+    "genderdifference": {
+        "name":
+        "Gender Difference Pokémons",
+        "aliases": ["gd", "gender"],
+        "pokemon": [
+            "Hisuian Sneasel","Basculegion","Butterfree","Kricketune","Hippopotas","Oinkologne","Vileplume","Sudowoodo","Wobbuffet","Girafarig","Heracross","Piloswine","Octillery","Combusken","Beautifly","Relicanth","Staraptor","Kricketot","Pachirisu","Hippowdon","Toxicroak","Abomasnow","Rhyperior","Tangrowth","Mamoswine","Jellicent","Venusaur","Raticate","Alakazam","Magikarp","Gyarados","Meganium","Politoed","Quagsire","Ursaring","Houndoom","Blaziken","Ludicolo","Meditite","Medicham","Camerupt","Cacturne","Staravia","Roserade","Floatzel","Garchomp","Croagunk","Lumineon","Unfezant","Frillish","Meowstic","Indeedee","Rattata","Pikachu","Kadabra","Rhyhorn","Goldeen","Seaking","Scyther","Murkrow","Steelix","Sneasel","Donphan","Torchic","Nuzleaf","Shiftry","Roselia","Milotic","Bibarel","Ambipom","Finneon","Weavile","Raichu","Golbat","Dodrio","Rhydon","Ledyba","Ledian","Wooper","Gligar","Scizor","Dustox","Gulpin","Swalot","Starly","Bidoof","Luxray","Combee","Buizel","Gabite","Snover","Pyroar","Zubat","Gloom","Doduo","Hypno","Eevee","Aipom","Numel","Shinx","Luxio","Gible","Xatu"
+        ]
+    },
+    "eevee": {
+        "name":
+        "Eeveelutions",
+        "aliases":
+        ["ibui", "eievui", "eeveelutions", "evoli",  "eevos", "イーブイ", "Ībui", "Évoli"],
+        "pokemon": [
+            "Eevee", "Partner Eevee", "Vaporeon", "Jolteon", "Flareon",
+            "Espeon", "Umbreon", "Leafeon", "Glaceon", "Sylveon"
         ]
     },
     "alcremie": {
@@ -291,16 +289,30 @@ FILTERS = {
             "Alcremie"
         ]
     },
-    "unown": {
+    "arceus": {
         "name":
-        "Unown Pokémon",
-        "aliases": ["zarbi", "annon", "unknown", "icognito"],
+        "Arceus Pokémon",
+        "aliases": ["aruseusu"],
         "pokemon": [
-            "Unown Exclamation", "Unown Question", "Unown A", "Unown B",
-            "Unown C", "Unown D", "Unown E", "Unown G", "Unown H", "Unown I",
-            "Unown J", "Unown K", "Unown L", "Unown M", "Unown N", "Unown O",
-            "Unown P", "Unown Q", "Unown R", "Unown S", "Unown T", "Unown U",
-            "Unown V", "Unown W", "Unown X", "Unown Y", "Unown Z", "Unown"
+            "Electric Arceus", "Fighting Arceus", "Psychic Arceus",
+            "Dragon Arceus", "Flying Arceus", "Ground Arceus", "Poison Arceus",
+            "Ghost Arceus", "Grass Arceus", "Steel Arceus", "Water Arceus",
+            "Fairy Arceus", "Dark Arceus", "Fire Arceus", "Rock Arceus",
+            "Bug Arceus", "Ice Arceus", "Arceus"
+        ]
+    },
+    "silvally": {
+        "name":
+        "Silvally Pokémon",
+        "aliases":
+        ["shiruvadi", "silvady", "amigento", "silvallie", "silvallié"],
+        "pokemon": [
+            "Electric Silvally", "Fighting Silvally", "Psychic Silvally",
+            "Dragon Silvally", "Flying Silvally", "Ground Silvally",
+            "Poison Silvally", "Ghost Silvally", "Grass Silvally",
+            "Steel Silvally", "Water Silvally", "Fairy Silvally",
+            "Dark Silvally", "Fire Silvally", "Rock Silvally", "Bug Silvally",
+            "Ice Silvally", "Silvally"
         ]
     },
     "vivillon": {
@@ -350,30 +362,16 @@ FILTERS = {
             "Red Core Minior", "Minior"
         ]
     },
-    "arceus": {
+    "unown": {
         "name":
-        "Arceus Pokémon",
-        "aliases": ["aruseusu"],
+        "Unown Pokémon",
+        "aliases": ["zarbi", "annon", "unknown", "icognito"],
         "pokemon": [
-            "Electric Arceus", "Fighting Arceus", "Psychic Arceus",
-            "Dragon Arceus", "Flying Arceus", "Ground Arceus", "Poison Arceus",
-            "Ghost Arceus", "Grass Arceus", "Steel Arceus", "Water Arceus",
-            "Fairy Arceus", "Dark Arceus", "Fire Arceus", "Rock Arceus",
-            "Bug Arceus", "Ice Arceus", "Arceus"
-        ]
-    },
-    "silvally": {
-        "name":
-        "Silvally Pokémon",
-        "aliases":
-        ["shiruvadi", "silvady", "amigento", "silvallie", "silvallié"],
-        "pokemon": [
-            "Electric Silvally", "Fighting Silvally", "Psychic Silvally",
-            "Dragon Silvally", "Flying Silvally", "Ground Silvally",
-            "Poison Silvally", "Ghost Silvally", "Grass Silvally",
-            "Steel Silvally", "Water Silvally", "Fairy Silvally",
-            "Dark Silvally", "Fire Silvally", "Rock Silvally", "Bug Silvally",
-            "Ice Silvally", "Silvally"
+            "Unown Exclamation", "Unown Question", "Unown A", "Unown B",
+            "Unown C", "Unown D", "Unown E", "Unown G", "Unown H", "Unown I",
+            "Unown J", "Unown K", "Unown L", "Unown M", "Unown N", "Unown O",
+            "Unown P", "Unown Q", "Unown R", "Unown S", "Unown T", "Unown U",
+            "Unown V", "Unown W", "Unown X", "Unown Y", "Unown Z", "Unown"
         ]
     },
     "oricorio": {
@@ -383,12 +381,18 @@ FILTERS = {
         "pokemon":
         ["Pom-pom Oricorio", "Sensu Oricorio", "Pa'u Oricorio", "Oricorio"]
     },
-    "meowthcol": {
+    "tatsugiri": {
+        "name": "Tatsugiri Pokémon",
+        "aliases": ["syaritatsu", "nigiragi", "nigirigon"],
+        "pokemon": ["Stretchy Tatsugiri", "Droopy Tatsugiri", "Tatsugiri"]
+    },
+    "squawkabilly": {
         "name":
-        " Meowth's Collection Pokemons",
-        "aliases": ["mcol", "mmco"],
+        "Squawkabilly Pokémon",
+        "aliases": ["ikirinko", "tapatoes", "krawalloro"],
         "pokemon": [
-            "Dedenne","Meowth","Alolan Meowth"," Galarian Meowth","Aerodactyl","Furfrou","Umbreon","Lapras","Sylveon","Leafeon","Espeon","Glaceon","Flareon","Jolteon","Sneasler","Vaporeon","Emolga","Pachirisu","Delphox","Morpeko","Dragonite","Heracross","Charizard","Togedemaru","Hisuian Sneasel","Decidueye","Basculegion","Partner Pikachu","Partner Eevee","Eevee","Dipplin","Carbink","Komala","Mimikyu","Alcremie","Falinks","Eiscue","Wynaut","Absol","Rotom","Zoroark","Greninja","Ditto","Pikachu","Snorlax","Hydrapple","Gouging Fire","Raging Bolt","Iron Boulder","Iron Crown","Sinistcha","Bloodmoon Ursaluna","Hangry Morpeko","Milcery","Unown" 
+            "Yellow Plumage Squawkabilly", "White Plumage Squawkabilly",
+            "Blue Plumage Squawkabilly", "Squawkabilly"
         ]
     },
     "evoflabebe": {
@@ -405,21 +409,15 @@ FILTERS = {
             "Florges"
         ]
     },
-    "tatsugiri": {
-        "name": "Tatsugiri Pokémon",
-        "aliases": ["syaritatsu", "nigiragi", "nigirigon"],
-        "pokemon": ["Stretchy Tatsugiri", "Droopy Tatsugiri", "Tatsugiri"]
-    },
-    "squawkabilly": {
+    "meowthcol": {
         "name":
-        "Squawkabilly Pokémon",
-        "aliases": ["ikirinko", "tapatoes", "krawalloro"],
+        " Meowth's Collection Pokemons",
+        "aliases": ["mcol", "mmco"],
         "pokemon": [
-            "Yellow Plumage Squawkabilly", "White Plumage Squawkabilly",
-            "Blue Plumage Squawkabilly", "Squawkabilly"
+            "Dedenne","Meowth","Alolan Meowth"," Galarian Meowth","Aerodactyl","Furfrou","Umbreon","Lapras","Sylveon","Leafeon","Espeon","Glaceon","Flareon","Jolteon","Sneasler","Vaporeon","Emolga","Pachirisu","Delphox","Morpeko","Dragonite","Heracross","Charizard","Togedemaru","Hisuian Sneasel","Decidueye","Basculegion","Partner Pikachu","Partner Eevee","Eevee","Dipplin","Carbink","Komala","Mimikyu","Alcremie","Falinks","Eiscue","Wynaut","Absol","Rotom","Zoroark","Greninja","Ditto","Pikachu","Snorlax","Hydrapple","Gouging Fire","Raging Bolt","Iron Boulder","Iron Crown","Sinistcha","Bloodmoon Ursaluna","Hangry Morpeko","Milcery","Unown" 
         ]
     },
-     "something": {
+    "something": {
         "name":
         "Nice Pokémon",
         "aliases": ["meowth", "mauzi"],
