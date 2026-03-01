@@ -219,7 +219,7 @@ FILTERS = {
             "Popplio", "Grookey", "Fuecoco", "Mudkip", "Piplup", "Rowlet",
             "Litten", "Sobble", "Quaxly", "Snivy", "Tepig"
         ]
-    }.
+    },
 
     "starters": {
         "name":
