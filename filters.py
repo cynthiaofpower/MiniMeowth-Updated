@@ -96,14 +96,6 @@ FILTERS = {
 "Gigantamax Corviknight","Gigantamax Butterfree","Gigantamax Charizard","Gigantamax Blastoise","Gigantamax Rillaboom","Gigantamax Cinderace","Gigantamax Venusaur","Gigantamax Garbodor","Gigantamax Melmetal","Gigantamax Inteleon","Gigantamax Orbeetle","Gigantamax Pikachu","Gigantamax Machamp","Gigantamax Kingler","Gigantamax Snorlax","Gigantamax Drednaw","Gigantamax Meowth","Gigantamax Gengar","Gigantamax Lapras","Gigantamax Eevee","Gigantamax Single Strike Urshifu","Gigantamax Rapid Strike Urshifu","Gigantamax Low Key Toxtricity","Gigantamax Amped Toxtricity","Gigantamax Centiskorch","Gigantamax Sandaconda","Gigantamax Grimmsnarl","Gigantamax Copperajah","Gigantamax Coalossal","Gigantamax Hatterene","Gigantamax Duraludon","Gigantamax Appletun","Gigantamax Alcremie","Eternamax Eternatus","Gigantamax Flapple"         ]
     },
 
-    "starters": {
-        "name":
-        "Starter Pokémon",
-        "aliases": ["starter"],
-        "pokemon": [
-            "Gigantamax Charizard","Gigantamax Blastoise","Gigantamax Rillaboom","Gigantamax Cinderace","Gigantamax Venusaur","Gigantamax Inteleon","Hisuian Typhlosion","Hisuian Decidueye","Mega Charizard X","Mega Charizard Y","Hisuian Samurott","Mega Blastoise","Mega Venusaur","Mega Sceptile","Mega Blaziken","Mega Swampert","Meowscarada","Charmander","Charmeleon","Typhlosion","Feraligatr","Chesnaught","Incineroar","Sprigatito","Skeledirge","Bulbasaur","Charizard","Wartortle","Blastoise","Chikorita","Cyndaquil","Combusken","Marshtomp","Infernape","Serperior","Quilladin","Frogadier","Decidueye","Primarina","Rillaboom","Scorbunny","Cinderace","Floragato","Quaquaval","Venusaur","Squirtle","Meganium","Totodile","Croconaw","Sceptile","Blaziken","Swampert","Torterra","Chimchar","Monferno","Prinplup","Empoleon","Oshawott","Samurott","Fennekin","Greninja","Torracat","Thwackey","Drizzile","Inteleon","Crocalor","Quaxwell","Ivysaur","Bayleef","Quilava","Treecko","Grovyle","Torchic","Turtwig","Servine","Pignite","Chespin","Braixen","Delphox","Froakie","Dartrix","Popplio","Brionne","Grookey","Fuecoco","Mudkip","Grotle","Piplup","Emboar","Dewott","Rowlet","Litten","Raboot","Sobble","Quaxly","Snivy","Tepig" 
-        ]
-    },
     "legendary": {
         "name":
         "Legendary Pokémons With Forms And Variants",
@@ -227,6 +219,15 @@ FILTERS = {
             "Popplio", "Grookey", "Fuecoco", "Mudkip", "Piplup", "Rowlet",
             "Litten", "Sobble", "Quaxly", "Snivy", "Tepig"
         ]
+    }.
+
+    "starters": {
+        "name":
+        "Starter Pokémon",
+        "aliases": ["starter"],
+        "pokemon": [
+            "Gigantamax Charizard","Gigantamax Blastoise","Gigantamax Rillaboom","Gigantamax Cinderace","Gigantamax Venusaur","Gigantamax Inteleon","Hisuian Typhlosion","Hisuian Decidueye","Mega Charizard X","Mega Charizard Y","Hisuian Samurott","Mega Blastoise","Mega Venusaur","Mega Sceptile","Mega Blaziken","Mega Swampert","Meowscarada","Charmander","Charmeleon","Typhlosion","Feraligatr","Chesnaught","Incineroar","Sprigatito","Skeledirge","Bulbasaur","Charizard","Wartortle","Blastoise","Chikorita","Cyndaquil","Combusken","Marshtomp","Infernape","Serperior","Quilladin","Frogadier","Decidueye","Primarina","Rillaboom","Scorbunny","Cinderace","Floragato","Quaquaval","Venusaur","Squirtle","Meganium","Totodile","Croconaw","Sceptile","Blaziken","Swampert","Torterra","Chimchar","Monferno","Prinplup","Empoleon","Oshawott","Samurott","Fennekin","Greninja","Torracat","Thwackey","Drizzile","Inteleon","Crocalor","Quaxwell","Ivysaur","Bayleef","Quilava","Treecko","Grovyle","Torchic","Turtwig","Servine","Pignite","Chespin","Braixen","Delphox","Froakie","Dartrix","Popplio","Brionne","Grookey","Fuecoco","Mudkip","Grotle","Piplup","Emboar","Dewott","Rowlet","Litten","Raboot","Sobble","Quaxly","Snivy","Tepig" 
+        ]
     },
     "regionals": {
         "name":
@@ -266,6 +267,14 @@ FILTERS = {
             "Roaring Moon", "Iron Valiant", "Koraidon", "Miraidon",
             "Walking Wake", "Iron Leaves", "Gouging Fire", "Raging Bolt",
             "Iron Boulder", "Iron Crown"
+        ]
+    },
+    "somehow": {
+        "name":
+        "Somehow Pokémon",
+        "aliases": ["some", "how", "smh"],
+        "pokemon": [
+            "Shedinja", "Sirfetch'd", "Runerigus", "Pawmot", "Brambleghast", "Rabsca", "Annihilape"
         ]
     },
     "alcremie": {
