@@ -195,7 +195,7 @@ FILTERS = {
         "aliases":
         ["gmaxable", "gmable", "pregm", "cangmax"],
         "pokemon": [
-"Corviknight","Butterfree","Charizard","Blastoise","Rillaboom","Cinderace","Venusaur","Garbodor","Melmetal","Inteleon","Orbeetle","Pikachu","Machamp","Kingler","Snorlax","Drednaw","Meowth","Gengar","Lapras","Eevee","Urshifu","Rapid Strike Urshifu","Low Key Toxtricity","Amped Toxtricity","Centiskorch","Sandaconda","Grimmsnarl","Copperajah","Coalossal","Hatterene","Duraludon","Appletun","Alcremie","Eternatus","Flapple","Vanilla Cream Clover Sweet Alcremie","Vanilla Cream Flower Sweet Alcremie","Vanilla Cream Ribbon Sweet Alcremie","Vanilla Cream Berry Sweet Alcremie","Vanilla Cream Love Sweet Alcremie","Vanilla Cream Star Sweet Alcremie"" 
+"Corviknight","Butterfree","Charizard","Blastoise","Rillaboom","Cinderace","Venusaur","Garbodor","Melmetal","Inteleon","Orbeetle","Pikachu","Machamp","Kingler","Snorlax","Drednaw","Meowth","Gengar","Lapras","Eevee","Urshifu","Rapid Strike Urshifu","Low Key Toxtricity","Amped Toxtricity","Centiskorch","Sandaconda","Grimmsnarl","Copperajah","Coalossal","Hatterene","Duraludon","Appletun","Alcremie","Eternatus","Flapple","Vanilla Cream Clover Sweet Alcremie","Vanilla Cream Flower Sweet Alcremie","Vanilla Cream Ribbon Sweet Alcremie","Vanilla Cream Berry Sweet Alcremie","Vanilla Cream Love Sweet Alcremie","Vanilla Cream Star Sweet Alcremie"
         ]
     },
     "pseudo": {
