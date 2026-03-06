@@ -1098,7 +1098,7 @@ class ShinyDexDisplay(commands.Cog):
         if not filter_name:
             available_filters = get_all_filter_names()
             filter_list = ", ".join([f"`{f}`" for f in available_filters])
-            flags = "`--caught` / `--c`, `--uncaught` / `--unc`, `--orderd`, `--ordera`, `--page <n>` / `--p <n>`, `--image` / `--img`, `--list`, `--smartlist` / `--slist`, `--region <r>` / `--r <r>`, `--type <t>` / `--t <t>`, `--evo <n>`, `--exclude <n>` / `--ex <n>`, `--name <n>` / `--n <n>`, `--nogender` / `--ng`, `--ignoremale` / `--im`, `--ignorefemale` / `--if`"
+            flags = "`--caught` / `--c`, `--uncaught` / `--unc`, `--orderd`, `--ordera`, `--page <n>` / `--p <n>`, `--image` / `--img`, `--list`, `--smartlist` / `--slist`, `--region <r>` / `--r <r>`, `--type <t>` / `--t <t>`, `--evo <n>`, `--exclude <n>` / `--ex <n>`, `--name <n>` / `--n <n>`, `--nogender` / `--ng`, `--ignoremale` / `--im`, `--ignorefemale` / `--if`, `--f <n>` / `--filter <n>`"
             embed = discord.Embed(
                 title="📋 Available Filters",
                 description=f"Use `m!filter <n>` to view a filtered dex.\n\n**Available filters:**\n{filter_list}\n\n**Other flags:**\n{flags}",
