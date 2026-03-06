@@ -1101,7 +1101,7 @@ class ShinyDexDisplay(commands.Cog):
             flags = "`--caught` / `--c`, `--uncaught` / `--unc`, `--orderd`, `--ordera`, `--page <n>` / `--p <n>`, `--image` / `--img`, `--list`, `--smartlist` / `--slist`, `--region <r>` / `--r <r>`, `--type <t>` / `--t <t>`, `--evo <n>`, `--exclude <n>` / `--ex <n>`, `--name <n>` / `--n <n>`, `--nogender` / `--ng`, `--ignoremale` / `--im`, `--ignorefemale` / `--if`, `--f <n>` / `--filter <n>`"
             embed = discord.Embed(
                 title="📋 Available Filters",
-                description=f"Use `m!filter <n>` to view a filtered dex.\n\n**Available filters:**\n{filter_list}\n\n**Other flags:**\n{flags}",
+                description=f"Use `m!filter <n>` to view a filtered dex.\n\n**Available filters:**\n{filter_list}\n\n**Other flags for m!shinydex and m!shinydexfull :**\n{flags}",
                 color=EMBED_COLOR
             )
             await ctx.send(embed=embed, reference=ctx.message, mention_author=False)
