@@ -335,12 +335,15 @@ class ShinyDexManagement(commands.Cog):
                             all_shinies.append(shiny)
 
                     if page_shinies:
-                        page_new_count = await db.add_shinies_bulk(user_id, page_shinies)
+                        event_note = "\n\n⚠️ **Event Pokémon Are Not Added!**" if event_pokemon_count > 0 else ""
+
+                        # Run DB write and count fetch concurrently, then update status
+                        page_new_count, total_in_inventory = await asyncio.gather(
+                            db.add_shinies_bulk(user_id, page_shinies),
+                            db.count_shinies(user_id)
+                        )
                         new_count += page_new_count
                         last_update = asyncio.get_event_loop().time()
-                        total_in_inventory = await db.count_shinies(user_id)
-
-                        event_note = "\n\n⚠️ **Event Pokémon Are Not Added!**" if event_pokemon_count > 0 else ""
 
                         # Update with new page data
                         class UpdatedTrackingView(discord.ui.LayoutView):
@@ -531,8 +534,6 @@ class ShinyDexManagement(commands.Cog):
 
                 await interaction.response.defer()
 
-                self.view.stop()
-
                 count = await db.clear_all_shinies(user_id)
 
                 class ClearedView(discord.ui.LayoutView):
@@ -560,8 +561,6 @@ class ShinyDexManagement(commands.Cog):
                     return
 
                 await interaction.response.defer()
-
-                self.view.stop()
 
                 class CancelledView(discord.ui.LayoutView):
                     container1 = discord.ui.Container(
