@@ -837,10 +837,10 @@ class Database:
 
         # Cleanup expired in background (don't wait)
         if expired:
-            import asyncio
             unset_dict = {f"cooldowns.{pid}": "" for pid in expired}
-            asyncio.create_task(
-                self.user_data.update_one({"user_id": user_id}, {"$unset": unset_dict})
+            await self.user_data.update_one(
+                {"user_id": user_id},
+                {"$unset": unset_dict}
             )
 
         return active
@@ -870,12 +870,12 @@ class Database:
             else:
                 expired.append(pid_str)
 
-        # Cleanup expired in background (don't wait)
+        # Cleanup expired
         if expired:
-            import asyncio
             unset_dict = {f"cooldowns.{pid}": "" for pid in expired}
-            asyncio.create_task(
-                self.user_data.update_one({"user_id": user_id}, {"$unset": unset_dict})
+            await self.user_data.update_one(
+                {"user_id": user_id},
+                {"$unset": unset_dict}
             )
 
         return active_cooldowns
@@ -1101,8 +1101,6 @@ class Database:
         if not shinies_list:
             return 0
 
-        from pymongo import UpdateOne
-
         # Clean all names first
         for shiny in shinies_list:
             if 'name' in shiny:
@@ -1119,7 +1117,7 @@ class Database:
         existing_ids = {doc['pokemon_id'] for doc in existing_docs}
 
         new_shinies = []
-        update_ops = []
+        update_operations = []
 
         for shiny in shinies_list:
             pid = shiny['pokemon_id']
@@ -1130,16 +1128,18 @@ class Database:
                 new_shinies.append(shiny)
             else:
                 # Existing - update
-                update_ops.append(UpdateOne(
-                    {'user_id': user_id, 'pokemon_id': pid},
-                    {'$set': {
-                        'name': shiny['name'],
-                        'gender': shiny['gender'],
-                        'level': shiny['level'],
-                        'iv_percent': shiny['iv_percent'],
-                        'dex_number': shiny['dex_number']
-                    }}
-                ))
+                update_operations.append({
+                    'filter': {'user_id': user_id, 'pokemon_id': pid},
+                    'update': {
+                        '$set': {
+                            'name': shiny['name'],
+                            'gender': shiny['gender'],
+                            'level': shiny['level'],
+                            'iv_percent': shiny['iv_percent'],
+                            'dex_number': shiny['dex_number']
+                        }
+                    }
+                })
 
         new_count = 0
 
@@ -1155,9 +1155,11 @@ class Database:
                     print(f"Bulk insert shiny error: {e}")
 
         # Bulk update existing shinies
-        if update_ops:
+        if update_operations:
+            from pymongo import UpdateOne
+            bulk_ops = [UpdateOne(op['filter'], op['update']) for op in update_operations]
             try:
-                await self.shinies.bulk_write(update_ops, ordered=False)
+                await self.shinies.bulk_write(bulk_ops, ordered=False)
             except Exception as e:
                 print(f"Bulk update shiny error: {e}")
 
@@ -1371,9 +1373,9 @@ class Database:
     async def set_user_customization(self, user_id: int, background: str = None, user_title: str = None):
         """Set user customization settings"""
         updates = {}
-        if background is not None:
+        if background:
             updates['background'] = background
-        if user_title is not None:
+        if user_title:
             updates['user_title'] = user_title
 
         if updates:
@@ -1384,44 +1386,100 @@ class Database:
 # Add these to your database.py file
 # ========================================
 
+    async def get_dex_customization(self, user_id: int):
+        """
+        Get dex image customization settings for a user
+        Returns dict or None if no custom settings
+        """
+        print(f"DEBUG DB: get_dex_customization called for user {user_id}")
+        user_data = await self.get_user_data(user_id)
+        result = user_data.get('dex_customization')
+        print(f"DEBUG DB: Retrieved settings: {result}")
+        return result
+
     async def set_dex_customization(self, user_id: int, settings: dict):
-        """Save dex image customization settings"""
-        await self.user_data.update_one(
-            {"user_id": user_id},
-            {"$set": {"dex_customization": settings}},
-            upsert=True
-        )
+        """
+        Save dex image customization settings
+        settings: dict of customization options
+        """
+        print(f"DEBUG DB: set_dex_customization called for user {user_id}")
+        print(f"DEBUG DB: Settings to save: {settings}")
+
+        try:
+            result = await self.user_data.update_one(
+                {"user_id": user_id},
+                {"$set": {"dex_customization": settings}},
+                upsert=True
+            )
+            print(f"DEBUG DB: Update result - matched: {result.matched_count}, modified: {result.modified_count}, upserted_id: {result.upserted_id}")
+
+            # Verify it was saved
+            check = await self.user_data.find_one({"user_id": user_id}, {"dex_customization": 1})
+            print(f"DEBUG DB: Verification check: {check}")
+
+        except Exception as e:
+            print(f"DEBUG DB ERROR: Failed to save: {e}")
+            raise
 
     async def update_dex_customization(self, user_id: int, updates: dict):
-        """Update specific dex customization settings (merge with existing)"""
-        set_dict = {f"dex_customization.{k}": v for k, v in updates.items()}
-        await self.user_data.update_one(
-            {"user_id": user_id},
-            {"$set": set_dict},
-            upsert=True
-        )
+        """
+        Update specific dex customization settings (merge with existing)
+        updates: dict of settings to update
+        """
+        print(f"DEBUG DB: update_dex_customization called for user {user_id}")
+        # Get current settings
+        current = await self.get_dex_customization(user_id) or {}
+
+        # Merge with updates
+        current.update(updates)
+        print(f"DEBUG DB: Merged settings: {current}")
+
+        # Save back
+        await self.set_dex_customization(user_id, current)
 
     async def get_dex_customization(self, user_id: int):
-        """Get dex image customization settings for a user. Returns dict or None."""
+        """
+        Get dex image customization settings for a user
+        Returns dict or None if no custom settings
+        """
+        print(f"DEBUG DB: get_dex_customization called for user {user_id}")
+
+        # Fetch directly from database with projection
         doc = await self.user_data.find_one(
             {"user_id": user_id},
             {"dex_customization": 1}
         )
+
         if not doc or 'dex_customization' not in doc:
+            print(f"DEBUG DB: No custom settings found")
             return None
-        return doc['dex_customization']
+
+        result = doc['dex_customization']
+        print(f"DEBUG DB: Retrieved settings: {result}")
+        print(f"DEBUG DB: Number of settings retrieved: {len(result)}")
+        print(f"DEBUG DB: Setting keys: {list(result.keys())}")
+
+        return result
 
     async def reset_dex_customization(self, user_id: int):
-        """Reset dex customization to defaults. Returns True if settings existed."""
+        """
+        Reset dex customization to defaults (remove custom settings)
+        Returns True if settings existed, False otherwise
+        """
+        print(f"DEBUG DB: reset_dex_customization called for user {user_id}")
         doc = await self.user_data.find_one(
             {"user_id": user_id},
             {"dex_customization": 1}
         )
-        had_settings = bool(doc and 'dex_customization' in doc)
+
+        had_settings = doc and 'dex_customization' in doc
+        print(f"DEBUG DB: User had settings: {had_settings}")
+
         await self.user_data.update_one(
             {"user_id": user_id},
             {"$unset": {"dex_customization": ""}}
         )
+
         return had_settings
 
 
