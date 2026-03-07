@@ -413,13 +413,27 @@ class Settings(commands.Cog):
 
                 await interaction.followup.send(view=SuccessView())
 
-        class IVSortButton(discord.ui.Button):
+        class IVSortSelect(discord.ui.Select):
             def __init__(self, current_sort):
-                label = "High IV First (↓)" if current_sort == "descending" else "Low IV First (↑)"
+                options = [
+                    discord.SelectOption(
+                        label="High IV First (↓)",
+                        value="descending",
+                        description="Sort Pokemon by highest IV first",
+                        default=(current_sort == "descending")
+                    ),
+                    discord.SelectOption(
+                        label="Low IV First (↑)",
+                        value="ascending",
+                        description="Sort Pokemon by lowest IV first",
+                        default=(current_sort == "ascending")
+                    ),
+                ]
+                sort_label = "High IV First (↓)" if current_sort == "descending" else "Low IV First (↑)"
                 super().__init__(
-                    style=discord.ButtonStyle.secondary,
-                    label=label,
-                    custom_id="iv_sort_button"
+                    custom_id="iv_sort_select",
+                    placeholder=f"Current: {sort_label}",
+                    options=options
                 )
 
             async def callback(self, interaction: discord.Interaction):
@@ -433,10 +447,7 @@ class Settings(commands.Cog):
 
                 await interaction.response.defer()
 
-                current_settings = await db.get_settings(interaction.user.id)
-                current_sort = current_settings.get('iv_sort_order', 'descending')
-                new_sort = 'ascending' if current_sort == 'descending' else 'descending'
-
+                new_sort = self.values[0]
                 await db.update_settings(interaction.user.id, {'iv_sort_order': new_sort})
 
                 sort_name = "High IV First (↓)" if new_sort == 'descending' else "Low IV First (↑)"
@@ -726,12 +737,10 @@ class Settings(commands.Cog):
                 discord.ui.TextDisplay(content=priority_settings_text),
                 discord.ui.ActionRow(PrioritySystemSelect(priority_system)),
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                discord.ui.TextDisplay(content=mychoice_settings_text),
+                discord.ui.TextDisplay(content="- **IV Sort Order**"),
+                discord.ui.ActionRow(IVSortSelect(iv_sort_order)),
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-                discord.ui.Section(
-                    discord.ui.TextDisplay(content="- **Toggle IV Sort Order**"),
-                    accessory=IVSortButton(iv_sort_order),
-                ),
+                discord.ui.TextDisplay(content=mychoice_settings_text),
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
                 discord.ui.Section(
                     discord.ui.TextDisplay(content="- **Allow Male Gmax with Gmax/Normal/Regional Female**. \n> Still a Last resort if Enabled."),
