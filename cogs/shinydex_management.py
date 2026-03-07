@@ -531,6 +531,8 @@ class ShinyDexManagement(commands.Cog):
 
                 await interaction.response.defer()
 
+                self.view.stop()
+
                 count = await db.clear_all_shinies(user_id)
 
                 class ClearedView(discord.ui.LayoutView):
@@ -558,6 +560,8 @@ class ShinyDexManagement(commands.Cog):
                     return
 
                 await interaction.response.defer()
+
+                self.view.stop()
 
                 class CancelledView(discord.ui.LayoutView):
                     container1 = discord.ui.Container(
