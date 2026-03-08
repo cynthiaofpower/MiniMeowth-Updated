@@ -17,7 +17,8 @@ def normalize_string(s):
 
 
 def create_shiny_dex_view(ctx, pages, total_caught, total_pokemon, dex_type="basic", total_shiny_count=0,
-                          display_cog=None, utils=None, filtered_entries=None, current_page=0):
+                          display_cog=None, utils=None, filtered_entries=None, current_page=0,
+                          show_short_names=False):
     """Factory function to create a ShinyDexView class with proper class-level containers"""
 
     page_content = pages[current_page]
@@ -55,7 +56,8 @@ def create_shiny_dex_view(ctx, pages, total_caught, total_pokemon, dex_type="bas
             ViewClass = create_shiny_dex_view(
                 ctx, pages, total_caught, total_pokemon,
                 dex_type, total_shiny_count, display_cog,
-                utils, filtered_entries, new_page
+                utils, filtered_entries, new_page,
+                show_short_names=show_short_names
             )
             new_view = ViewClass()
             new_view.message = view.message
@@ -85,7 +87,8 @@ def create_shiny_dex_view(ctx, pages, total_caught, total_pokemon, dex_type="bas
             ViewClass = create_shiny_dex_view(
                 ctx, pages, total_caught, total_pokemon,
                 dex_type, total_shiny_count, display_cog,
-                utils, filtered_entries, new_page
+                utils, filtered_entries, new_page,
+                show_short_names=show_short_names
             )
             new_view = ViewClass()
             new_view.message = view.message
@@ -153,7 +156,7 @@ def create_shiny_dex_view(ctx, pages, total_caught, total_pokemon, dex_type="bas
                         seen.add(name)
                         unique_names.append(name)
 
-                await display_cog.send_pokemon_list_simple(ctx, unique_names)
+                await display_cog.send_pokemon_list_simple(ctx, unique_names, utils=utils, use_short_names=show_short_names)
             except Exception as e:
                 await interaction.followup.send(f"❌ Error generating list: {str(e)}")
 
@@ -179,7 +182,7 @@ def create_shiny_dex_view(ctx, pages, total_caught, total_pokemon, dex_type="bas
 
             try:
                 pokemon_data = [(name, gender_key, count) for _, name, gender_key, count in filtered_entries]
-                await display_cog.send_pokemon_smartlist(ctx, pokemon_data, utils)
+                await display_cog.send_pokemon_smartlist(ctx, pokemon_data, utils, use_short_names=show_short_names)
             except Exception as e:
                 await interaction.followup.send(f"❌ Error generating smart list: {str(e)}")
 
@@ -549,9 +552,14 @@ class ShinyDexDisplay(commands.Cog):
 
         return combined_set if combined_set else None
 
-    async def send_pokemon_list_simple(self, ctx, pokemon_names: list):
+    async def send_pokemon_list_simple(self, ctx, pokemon_names: list, utils=None, use_short_names: bool = False):
         """Send simple Pokemon names as --n formatted list (text or file)"""
-        formatted_list = " ".join([f"--n {name.lower()}" for name in pokemon_names])
+        def resolve(name):
+            if use_short_names and utils:
+                return get_shortest_name(name, utils).lower()
+            return name.lower()
+
+        formatted_list = " ".join([f"--n {resolve(name)}" for name in pokemon_names])
 
         total_count = len(pokemon_names)
         list_text = f"**total pokemon: {total_count}**. use --smartlist/--slist for better list!\n\n{formatted_list}"
@@ -570,11 +578,11 @@ class ShinyDexDisplay(commands.Cog):
                 mention_author=False
             )
 
-    async def send_pokemon_smartlist(self, ctx, pokemon_data: list, utils):
+    async def send_pokemon_smartlist(self, ctx, pokemon_data: list, utils, use_short_names: bool = False):
         """Send Pokemon names as smartlist with gender differences and categories
         pokemon_data: list of tuples (name, gender_key, count)
         """
-        sections, total_count, gender_diff_count = build_smartlist_sections(pokemon_data, utils)
+        sections, total_count, gender_diff_count = build_smartlist_sections(pokemon_data, utils, use_short_names=use_short_names)
 
         # Join sections with blank lines
         list_text = "\n\n".join(sections)
@@ -859,12 +867,12 @@ class ShinyDexDisplay(commands.Cog):
 
         if show_list:
             pokemon_names = [name for _, name, _ in filtered_entries]
-            await self.send_pokemon_list_simple(ctx, pokemon_names)
+            await self.send_pokemon_list_simple(ctx, pokemon_names, utils=utils, use_short_names=show_short_names)
             return
 
         if show_smartlist:
             pokemon_data = [(name, None, count) for _, name, count in filtered_entries]
-            await self.send_pokemon_smartlist(ctx, pokemon_data, utils)
+            await self.send_pokemon_smartlist(ctx, pokemon_data, utils, use_short_names=show_short_names)
             return
 
         total_caught = sum(1 for _, _, count in dex_entries if count > 0)
@@ -900,7 +908,8 @@ class ShinyDexDisplay(commands.Cog):
         # Create view using factory function
         ViewClass = create_shiny_dex_view(
             ctx, pages, total_caught, total_pokemon, filter_text, total_shiny_count,
-            display_cog=self, utils=utils, filtered_entries=view_entries, current_page=(page - 1) if page else 0
+            display_cog=self, utils=utils, filtered_entries=view_entries, current_page=(page - 1) if page else 0,
+            show_short_names=show_short_names
         )
         view = ViewClass()
 
@@ -1057,12 +1066,12 @@ class ShinyDexDisplay(commands.Cog):
                 if name not in seen:
                     seen.add(name)
                     unique_names.append(name)
-            await self.send_pokemon_list_simple(ctx, unique_names)
+            await self.send_pokemon_list_simple(ctx, unique_names, utils=utils, use_short_names=show_short_names)
             return
 
         if show_smartlist:
             pokemon_data = [(name, gender_key, count) for _, name, gender_key, count in filtered_entries]
-            await self.send_pokemon_smartlist(ctx, pokemon_data, utils)
+            await self.send_pokemon_smartlist(ctx, pokemon_data, utils, use_short_names=show_short_names)
             return
 
         total_caught = sum(1 for entry in form_entries if entry[3] > 0)
@@ -1102,7 +1111,8 @@ class ShinyDexDisplay(commands.Cog):
         # Create view using factory function
         ViewClass = create_shiny_dex_view(
             ctx, pages, total_caught, total_forms, filter_text, total_shiny_count,
-            display_cog=self, utils=utils, filtered_entries=filtered_entries, current_page=(page - 1) if page else 0
+            display_cog=self, utils=utils, filtered_entries=filtered_entries, current_page=(page - 1) if page else 0,
+            show_short_names=show_short_names
         )
         view = ViewClass()
 
@@ -1268,12 +1278,12 @@ class ShinyDexDisplay(commands.Cog):
                 if name not in seen:
                     seen.add(name)
                     unique_names.append(name)
-            await self.send_pokemon_list_simple(ctx, unique_names)
+            await self.send_pokemon_list_simple(ctx, unique_names, utils=utils, use_short_names=show_short_names)
             return
 
         if show_smartlist:
             pokemon_data = [(name, gender_key, count) for _, name, gender_key, count in filtered_entries]
-            await self.send_pokemon_smartlist(ctx, pokemon_data, utils)
+            await self.send_pokemon_smartlist(ctx, pokemon_data, utils, use_short_names=show_short_names)
             return
 
         total_caught = sum(1 for entry in dex_entries if entry[3] > 0)
@@ -1311,7 +1321,8 @@ class ShinyDexDisplay(commands.Cog):
         # Create view using factory function
         ViewClass = create_shiny_dex_view(
             ctx, pages, total_caught, total_pokemon, filter_display_name, total_shiny_count,
-            display_cog=self, utils=utils, filtered_entries=filtered_entries, current_page=(page - 1) if page else 0
+            display_cog=self, utils=utils, filtered_entries=filtered_entries, current_page=(page - 1) if page else 0,
+            show_short_names=show_short_names
         )
         view = ViewClass()
 
