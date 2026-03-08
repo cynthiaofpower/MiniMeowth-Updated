@@ -69,9 +69,10 @@ class Utils(commands.Cog):
             'event_data': {},
             'event_pokemon_list': [],
             'pokemon_cdn_mapping': {},
-            'pokemon_name_mapping': {},  # Maps all possible names (normalized) to canonical name
-            'evolution_families': {},  # Maps pokemon name to list of family members
-            'name_to_family_id': {}  # Maps pokemon name to family ID
+            'pokemon_name_mapping': {},         # Maps all possible names (normalized) to canonical name
+            'pokemon_names_by_canonical': {},   # Maps canonical name → list of all raw alternates
+            'evolution_families': {},           # Maps pokemon name to list of family members
+            'name_to_family_id': {}             # Maps pokemon name to family ID
         }
 
     def _load_all_data(self):
@@ -277,6 +278,7 @@ class Utils(commands.Cog):
     def load_pokemon_name_mapping(self):
         """Load Pokemon name mappings from JSON file (multi-language support)"""
         pokemon_name_mapping = Utils._shared_data['pokemon_name_mapping']
+        pokemon_names_by_canonical = Utils._shared_data['pokemon_names_by_canonical']  # NEW
         mapping_file = 'alldata/pokemon_names.json'
 
         if not os.path.exists(mapping_file):
@@ -291,6 +293,15 @@ class Utils(commands.Cog):
             for pokemon in data:
                 canonical_name = pokemon['name']
                 other_names = pokemon.get('other_names', {})
+
+                # NEW: Collect all raw alternates for shortest-name lookups
+                raw_alternates = []
+                for lang, names in other_names.items():
+                    if isinstance(names, list):
+                        raw_alternates.extend([v for v in names if isinstance(v, str) and v])
+                    elif isinstance(names, str) and names:
+                        raw_alternates.append(names)
+                pokemon_names_by_canonical[canonical_name] = raw_alternates
 
                 # Add canonical name (normalized)
                 normalized_canonical = normalize_string(canonical_name.lower())
@@ -394,6 +405,15 @@ class Utils(commands.Cog):
         """
         normalized_input = normalize_string(input_name.lower())
         return self.pokemon_name_mapping.get(normalized_input, input_name)
+
+    def get_all_pokemon_names(self, canonical_name: str) -> list:
+        """Return all alternate names for a Pokemon from pokemon_names.json.
+
+        Returns a flat list of all string name variants across all languages
+        (may include Japanese-script entries — callers filter those out).
+        Returns empty list if the Pokemon is not found.
+        """
+        return Utils._shared_data['pokemon_names_by_canonical'].get(canonical_name, [])
 
     def get_evolution_family(self, pokemon_name: str):
         """
@@ -560,9 +580,6 @@ class Utils(commands.Cog):
             else:
                 return "Low/Medium"
 
-    # ===== UPDATED PARSE FUNCTION FOR UTILS.PY =====
-    # Replace the parse_embed_content method in your Utils class with this enhanced version
-
     def parse_embed_content(self, embed_description: str):
         """Parse Poketwo embed description to extract Pokemon data (enhanced with nickname, level, favorite, moves, IVs)"""
         if not embed_description:
@@ -606,18 +623,16 @@ class Utils(commands.Cog):
                 else:
                     continue
 
-                # ===== NEW: Extract favorite status (❤️ emoji) =====
+                # Extract favorite status (❤️ emoji)
                 is_favorite = '❤️' in line or '❤' in line
 
-                # ===== NEW: Extract nickname (text in quotes after gender icon) =====
+                # Extract nickname (text in quotes after gender icon)
                 nickname = None
-                # Pattern: after gender icon, look for "nickname" in quotes
                 nickname_match = re.search(r'<:(?:male|female|unknown):\d+>\s*"([^"]+)"', line)
                 if nickname_match:
                     nickname = nickname_match.group(1).strip()
 
-                # ===== NEW: Extract level =====
-                # Pattern: Lvl. XX or Level XX
+                # Extract level
                 level = None
                 level_match = re.search(r'(?:Lvl\.|Level)\s*(\d+)', line, re.IGNORECASE)
                 if level_match:
@@ -635,7 +650,7 @@ class Utils(commands.Cog):
                 is_gmax = self.is_gigantamax(pokemon_name)
                 is_regional = self.is_regional(pokemon_name)
                 is_ditto = 'Ditto' in egg_groups
-                is_female_only = self.is_female_only(pokemon_name)  # ADD THIS
+                is_female_only = self.is_female_only(pokemon_name)
 
                 pokemon_data.append({
                     'pokemon_id': pokemon_id,
@@ -648,7 +663,7 @@ class Utils(commands.Cog):
                     'is_gmax': is_gmax,
                     'is_regional': is_regional,
                     'is_ditto': is_ditto,
-                    'is_female_only': is_female_only,  # ADD THIS
+                    'is_female_only': is_female_only,
                     # NEW FIELDS
                     'level': level,
                     'nickname': nickname,
@@ -661,8 +676,6 @@ class Utils(commands.Cog):
 
         return pokemon_data
 
-
-    # ===== NEW HELPER FUNCTION FOR PARSING IV FLAGS =====
     def parse_iv_value(self, iv_str: str) -> dict:
         """
         Parse IV value string into min/max range
@@ -675,35 +688,21 @@ class Utils(commands.Cog):
         """
         iv_str = iv_str.strip()
 
-        # Exact value
         if iv_str.isdigit():
             val = int(iv_str)
             return {'min': val, 'max': val}
-
-        # Greater than or equal
         if iv_str.startswith('>='):
             return {'min': int(iv_str[2:]), 'max': 31}
-
-        # Greater than
         if iv_str.startswith('>'):
             val = int(iv_str[1:])
             return {'min': val + 1, 'max': 31}
-
-        # Less than or equal
         if iv_str.startswith('<='):
             return {'min': 0, 'max': int(iv_str[2:])}
-
-        # Less than
         if iv_str.startswith('<'):
             val = int(iv_str[1:])
             return {'min': 0, 'max': val - 1}
 
-        # Default: unknown range
         return {'min': 0, 'max': 31}
-
-
-    # ===== REPLACE YOUR parse_add_flags METHOD WITH THIS UPDATED VERSION =====
-    # This goes in your utils.py file
 
     def parse_add_flags(self, args_str: str) -> dict:
         """
@@ -712,24 +711,6 @@ class Utils(commands.Cog):
         - hex 31 → also stores penta 31, quad 31, trip 31
         - penta 31 → also stores quad 31, trip 31
         - quad 31 → also stores trip 31
-
-        Returns: {
-            'name': ['Pokemon1', 'Pokemon2', ...],  # NEW
-            'moves': ['move1', 'move2', ...],
-            'no_moves': ['move1', 'move2'],
-            'hpiv': {'min': X, 'max': Y},
-            'atkiv': {'min': X, 'max': Y},
-            ...
-            'iv_percent': {'min': X, 'max': Y},  # Overall IV percentage
-            'trip': [31, 30],  # List of trip values
-            'quad': [31],      # Quadruple value
-            'penta': [31],     # Pentuple value
-            'hex': [31],       # Hextuple value
-            'level': {'min': X, 'max': Y} or {'exact': X},
-            'is_favorite': True/False,
-            'nickname': 'text',
-            'no_nickname': 'text'
-        }
         """
         if not args_str:
             return {}
@@ -738,18 +719,17 @@ class Utils(commands.Cog):
         result = {
             'moves': [],
             'no_moves': [],
-            'name': [],      # ← FIXED: Initialize name list
-            'trip': [],      # Can have up to 2 values
-            'quad': [],      # Can have 1 value
-            'penta': [],     # Can have 1 value
-            'hex': []        # Can have 1 value
+            'name': [],
+            'trip': [],
+            'quad': [],
+            'penta': [],
+            'hex': []
         }
 
         i = 0
         while i < len(args):
             arg = args[i].lower()
 
-            # ===== MOVE FLAG =====
             if arg == '--move':
                 if i + 1 < len(args):
                     move_parts = []
@@ -763,7 +743,6 @@ class Utils(commands.Cog):
                 else:
                     i += 1
 
-            # ===== NO MOVE FLAG =====
             if arg == '--nomove':
                 if i + 1 < len(args):
                     move_parts = []
@@ -777,7 +756,6 @@ class Utils(commands.Cog):
                 else:
                     i += 1
 
-            # ===== NAME FILTER =====
             if arg in ['--name', '--n']:
                 if i + 1 < len(args):
                     name_parts = []
@@ -786,21 +764,16 @@ class Utils(commands.Cog):
                         name_parts.append(args[i])
                         i += 1
                     if name_parts:
-                        # Join parts and title case (for consistency with Pokemon names)
                         pokemon_name = ' '.join(name_parts).title()
                         result['name'].append(pokemon_name)
                     continue
                 else:
                     i += 1
 
-            # ===== IV PERCENTAGE FILTER (overall IV) =====
             if arg in ['--iv', '--ivs', '--ivpercent']:
                 if i + 1 < len(args):
                     iv_str = args[i + 1].strip()
-
-                    # Parse IV percentage value
                     if iv_str.replace('.', '').replace('-', '').isdigit():
-                        # Exact value
                         val = float(iv_str)
                         result['iv_percent'] = {'min': val, 'max': val}
                     elif iv_str.startswith('>='):
@@ -813,20 +786,15 @@ class Utils(commands.Cog):
                     elif iv_str.startswith('<'):
                         val = float(iv_str[1:])
                         result['iv_percent'] = {'min': 0.0, 'max': val}
-
                     i += 2
                     continue
                 else:
                     i += 1
 
-            # ===== LEVEL FILTER =====
             if arg in ['--level', '--lvl', '--l']:
                 if i + 1 < len(args):
                     level_str = args[i + 1]
-
-                    # Parse level value
                     if level_str.isdigit():
-                        # Exact level
                         result['level'] = {'exact': int(level_str)}
                     elif level_str.startswith('>='):
                         result['level'] = {'min': int(level_str[2:]), 'max': 100}
@@ -836,13 +804,11 @@ class Utils(commands.Cog):
                         result['level'] = {'min': 1, 'max': int(level_str[2:])}
                     elif level_str.startswith('<'):
                         result['level'] = {'min': 1, 'max': int(level_str[1:]) - 1}
-
                     i += 2
                     continue
                 else:
                     i += 1
 
-            # ===== FAVORITE FILTERS =====
             if arg in ['--fav', '--favorite']:
                 result['is_favorite'] = True
                 i += 1
@@ -853,7 +819,6 @@ class Utils(commands.Cog):
                 i += 1
                 continue
 
-            # ===== NICKNAME FILTERS =====
             if arg in ['--nickname', '--nick']:
                 if i + 1 < len(args):
                     nick_parts = []
@@ -880,11 +845,10 @@ class Utils(commands.Cog):
                 else:
                     i += 1
 
-            # ===== IV FLAGS =====
             iv_flags = ['--hpiv', '--atkiv', '--defiv', '--spatkiv', '--spdefiv', '--spdiv']
             if arg in iv_flags:
                 if i + 1 < len(args):
-                    iv_name = arg[2:]  # Remove '--'
+                    iv_name = arg[2:]
                     iv_value_str = args[i + 1]
                     result[iv_name] = self.parse_iv_value(iv_value_str)
                     i += 2
@@ -892,19 +856,16 @@ class Utils(commands.Cog):
                 else:
                     i += 1
 
-            # ===== DUPLICATE IV FILTERS =====
-            # Triple (trip) - can have up to 2 values
             if arg in ['--triple', '--three', '--trip']:
                 if i + 1 < len(args) and args[i + 1].isdigit():
                     value = int(args[i + 1])
-                    if len(result['trip']) < 2:  # Max 2 trip values
+                    if len(result['trip']) < 2:
                         result['trip'].append(value)
                     i += 2
                     continue
                 else:
                     i += 1
 
-            # Quadruple (quad) - can have 1 value
             if arg in ['--quadruple', '--four', '--quadra', '--quad', '--tetra']:
                 if i + 1 < len(args) and args[i + 1].isdigit():
                     value = int(args[i + 1])
@@ -915,7 +876,6 @@ class Utils(commands.Cog):
                 else:
                     i += 1
 
-            # Pentuple (penta) - can have 1 value
             if arg in ['--pentuple', '--quintuple', '--penta', '--pent', '--five']:
                 if i + 1 < len(args) and args[i + 1].isdigit():
                     value = int(args[i + 1])
@@ -926,7 +886,6 @@ class Utils(commands.Cog):
                 else:
                     i += 1
 
-            # Hextuple (hex) - can have 1 value
             if arg in ['--hextuple', '--sextuple', '--hexa', '--hex', '--six']:
                 if i + 1 < len(args) and args[i + 1].isdigit():
                     value = int(args[i + 1])
@@ -940,9 +899,6 @@ class Utils(commands.Cog):
             i += 1
 
         # ===== AUTOMATICALLY POPULATE IMPLIED DUPLICATES =====
-        # Higher duplicates automatically include lower ones
-
-        # If hex 31 exists, it also means penta 31, quad 31, trip 31
         if result['hex']:
             value = result['hex'][0]
             if value not in result['penta']:
@@ -950,28 +906,26 @@ class Utils(commands.Cog):
             if value not in result['quad']:
                 result['quad'] = [value]
             if value not in result['trip']:
-                result['trip'].insert(0, value)  # Add at start
+                result['trip'].insert(0, value)
 
-        # If penta 31 exists, it also means quad 31, trip 31
         if result['penta']:
             value = result['penta'][0]
             if value not in result['quad']:
                 result['quad'] = [value]
             if value not in result['trip']:
-                result['trip'].insert(0, value)  # Add at start
+                result['trip'].insert(0, value)
 
-        # If quad 31 exists, it also means trip 31
         if result['quad']:
             value = result['quad'][0]
             if value not in result['trip']:
-                result['trip'].insert(0, value)  # Add at start
+                result['trip'].insert(0, value)
 
         # ===== CLEAN UP EMPTY LISTS/FIELDS =====
         if not result.get('moves'):
             result.pop('moves', None)
         if not result.get('no_moves'):
             result.pop('no_moves', None)
-        if not result.get('name'):           # ← FIXED: Clean up empty name list
+        if not result.get('name'):
             result.pop('name', None)
         if not result.get('trip'):
             result.pop('trip', None)
@@ -984,14 +938,9 @@ class Utils(commands.Cog):
 
         return result
 
-    # ===== HELPER FUNCTION TO MERGE IV RANGES =====
     def merge_iv_range(existing: dict, new: dict) -> dict:
         """
         Merge/narrow down IV range when updating
-        existing: {'min': 21, 'max': 31}
-        new: {'min': 29, 'max': 29}
-        result: {'min': 29, 'max': 29} (narrowed to exact value)
-
         Always takes the intersection of ranges to narrow down
         """
         if not existing:
@@ -1000,7 +949,6 @@ class Utils(commands.Cog):
         merged_min = max(existing.get('min', 0), new.get('min', 0))
         merged_max = min(existing.get('max', 31), new.get('max', 31))
 
-        # If ranges don't overlap, prefer the newer (more specific) value
         if merged_min > merged_max:
             return new
 
@@ -1040,9 +988,8 @@ class Utils(commands.Cog):
         """Get list of (dex_number, pokemon_name) for basic dex - one per dex number (the first/top one)"""
         entries = []
         for dex_num in sorted(self.dex_by_number.keys()):
-            # Get the first Pokemon for this dex number
             if self.dex_by_number[dex_num]:
-                first_pokemon = self.dex_by_number[dex_num][0][0]  # (name, has_gender_diff)[0] = name
+                first_pokemon = self.dex_by_number[dex_num][0][0]
                 entries.append((dex_num, first_pokemon))
         return entries
 
@@ -1068,7 +1015,7 @@ class Utils(commands.Cog):
         for dex_num in self.dex_by_number:
             for name, has_gender_diff in self.dex_by_number[dex_num]:
                 if has_gender_diff:
-                    count += 2  # Male and female
+                    count += 2
                 else:
                     count += 1
         return count
@@ -1078,7 +1025,7 @@ class Utils(commands.Cog):
         count = 0
         for name, has_gender_diff in self.event_pokemon_list:
             if has_gender_diff:
-                count += 2  # Male and female
+                count += 2
             else:
                 count += 1
         return count
@@ -1100,12 +1047,7 @@ class Utils(commands.Cog):
         return sum(1 for s in shinies_list if s.get('level', 0) == 1)
 
     def _exact_name_match(self, pokemon_name, target_name):
-        """
-        Check if Pokemon name exactly matches target name
-
-        Important: Case-insensitive, but must be exact match
-        Example: "Pikachu" matches "pikachu" but NOT "Gigantamax Pikachu"
-        """
+        """Check if Pokemon name exactly matches target name (case-insensitive)"""
         return pokemon_name.lower() == target_name.lower()
 
 
