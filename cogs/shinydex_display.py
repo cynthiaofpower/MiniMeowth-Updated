@@ -7,7 +7,7 @@ import config
 from config import EMBED_COLOR
 from database import db
 from filters import get_filter, get_all_filter_names
-from smartlist_utils import build_smartlist_sections
+from smartlist_utils import build_smartlist_sections, get_shortest_name
 from dex_image_generator import DexImageGenerator
 
 
@@ -240,7 +240,7 @@ class ShinyDexDisplay(commands.Cog):
 
     def parse_filters(self, filter_string: str):
         """Parse filter string to extract options
-        Returns: (show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names)
+        Returns: (show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names)
         """
         show_caught = True
         show_uncaught = True
@@ -257,11 +257,12 @@ class ShinyDexDisplay(commands.Cog):
         ignore_male = False
         ignore_female = False
         evo_filters = []
-        filter_name_flags = []  # NEW: supports multiple filters (intersected)
-        exclude_filter_names = []  # NEW: filter-based exclusions via --ex <filter_name>
+        filter_name_flags = []    # supports multiple filters (intersected)
+        exclude_filter_names = [] # filter-based exclusions via --ex <filter_name>
+        show_short_names = False  # use shortest cross-language name in display/list/slist
 
         if not filter_string:
-            return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names
+            return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names
 
         args = filter_string.lower().split()
 
@@ -304,6 +305,9 @@ class ShinyDexDisplay(commands.Cog):
                 i += 1
             elif arg in ['--ignorefemale', '--if']:
                 ignore_female = True
+                i += 1
+            elif arg in ['--shortname', '--sn']:
+                show_short_names = True
                 i += 1
             # --f / --filter flag
             elif arg in ['--f', '--filter']:
@@ -413,7 +417,7 @@ class ShinyDexDisplay(commands.Cog):
                         filter_name_flags.append(potential_filter)
                 i += 1
 
-        return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names
+        return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names
 
     def resolve_name_searches(self, name_searches: list, utils) -> list:
         """
@@ -481,8 +485,7 @@ class ShinyDexDisplay(commands.Cog):
         return True
 
     def resolve_exclude_filters(self, exclude_filter_names: list) -> set:
-        """Resolve a list of filter names into a set of Pokémon names to exclude.
-        Invalid/unknown filter names are silently ignored."""
+        """Resolve a list of filter names into a set of Pokémon names to exclude."""
         excluded = set()
         for filter_name in exclude_filter_names:
             filter_data = get_filter(filter_name)
@@ -491,7 +494,7 @@ class ShinyDexDisplay(commands.Cog):
         return excluded
 
     def is_excluded(self, pokemon_name: str, exclude_names: list, exclude_filter_set: set = None):
-        """Check if a Pokemon should be excluded based on exclude filters"""
+        """Check if a Pokemon should be excluded based on name or filter exclusions"""
         if exclude_filter_set and pokemon_name in exclude_filter_set:
             return True
 
@@ -751,9 +754,8 @@ class ShinyDexDisplay(commands.Cog):
 
         user_id = ctx.author.id
 
-        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names = self.parse_filters(filters)
+        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names = self.parse_filters(filters)
         exclude_filter_set = self.resolve_exclude_filters(exclude_filter_names)
-
         if show_image and (show_list or show_smartlist):
             await ctx.send("❌ Cannot use --image with --list or --smartlist!", reference=ctx.message, mention_author=False)
             return
@@ -873,7 +875,8 @@ class ShinyDexDisplay(commands.Cog):
         for dex_num, name, count in filtered_entries:
             icon = f"{config.TICK}" if count > 0 else f"{config.CROSS}"
             sparkles = f"{count} ✨" if count > 0 else "0"
-            lines.append(f"{icon} **#{dex_num}** {name} - {sparkles}")
+            display_name = get_shortest_name(name, utils) if show_short_names else name
+            lines.append(f"{icon} **#{dex_num}** {display_name} - {sparkles}")
 
         per_page = 21
         pages = []
@@ -916,7 +919,7 @@ class ShinyDexDisplay(commands.Cog):
 
         user_id = ctx.author.id
 
-        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names = self.parse_filters(filters)
+        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names = self.parse_filters(filters)
         exclude_filter_set = self.resolve_exclude_filters(exclude_filter_names)
 
         if show_image and (show_list or show_smartlist):
@@ -1077,7 +1080,8 @@ class ShinyDexDisplay(commands.Cog):
             elif gender_key == 'female':
                 gender_emoji = f" {config.GENDER_FEMALE}"
 
-            lines.append(f"{icon} **#{dex_num}** {name}{gender_emoji} - {sparkles}")
+            display_name = get_shortest_name(name, utils) if show_short_names else name
+            lines.append(f"{icon} **#{dex_num}** {display_name}{gender_emoji} - {sparkles}")
 
         per_page = 21
         pages = []
@@ -1142,7 +1146,7 @@ class ShinyDexDisplay(commands.Cog):
 
         user_id = ctx.author.id
 
-        show_caught, show_uncaught, order, region_filter, type_filters, _, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, _, exclude_filter_names = self.parse_filters(options)
+        show_caught, show_uncaught, order, region_filter, type_filters, _, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, _, exclude_filter_names, show_short_names = self.parse_filters(options)
         exclude_filter_set = self.resolve_exclude_filters(exclude_filter_names)
 
         if show_image and (show_list or show_smartlist):
@@ -1287,7 +1291,8 @@ class ShinyDexDisplay(commands.Cog):
             elif gender_key == 'female':
                 gender_emoji = f" {config.GENDER_FEMALE}"
 
-            lines.append(f"{icon} **#{dex_num}** {name}{gender_emoji} - {sparkles}")
+            display_name = get_shortest_name(name, utils) if show_short_names else name
+            lines.append(f"{icon} **#{dex_num}** {display_name}{gender_emoji} - {sparkles}")
 
         per_page = 21
         pages = []
