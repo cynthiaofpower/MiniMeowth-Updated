@@ -240,7 +240,7 @@ class ShinyDexDisplay(commands.Cog):
 
     def parse_filters(self, filter_string: str):
         """Parse filter string to extract options
-        Returns: (show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags)
+        Returns: (show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names)
         """
         show_caught = True
         show_uncaught = True
@@ -258,9 +258,10 @@ class ShinyDexDisplay(commands.Cog):
         ignore_female = False
         evo_filters = []
         filter_name_flags = []  # NEW: supports multiple filters (intersected)
+        exclude_filter_names = []  # NEW: filter-based exclusions via --ex <filter_name>
 
         if not filter_string:
-            return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags
+            return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names
 
         args = filter_string.lower().split()
 
@@ -335,13 +336,20 @@ class ShinyDexDisplay(commands.Cog):
                         exclude_parts.append(args[i])
                         i += 1
                     if exclude_parts:
-                        exclude_names.append(' '.join(exclude_parts).title())
+                        value = ' '.join(exclude_parts)
+                        if get_filter(value):
+                            exclude_filter_names.append(value)
+                        else:
+                            exclude_names.append(value.title())
                 else:
                     i += 1
             elif arg.startswith('--exclude=') or arg.startswith('--ex=') or arg.startswith('--exc='):
                 exclude_val = arg.split('=', 1)[1]
                 if exclude_val:
-                    exclude_names.append(exclude_val.title())
+                    if get_filter(exclude_val):
+                        exclude_filter_names.append(exclude_val)
+                    else:
+                        exclude_names.append(exclude_val.title())
                 i += 1
             elif arg in ['--region', '--r']:
                 if i + 1 < len(args) and args[i + 1] in valid_regions:
@@ -405,7 +413,7 @@ class ShinyDexDisplay(commands.Cog):
                         filter_name_flags.append(potential_filter)
                 i += 1
 
-        return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags
+        return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names
 
     def resolve_name_searches(self, name_searches: list, utils) -> list:
         """
@@ -472,8 +480,21 @@ class ShinyDexDisplay(commands.Cog):
 
         return True
 
-    def is_excluded(self, pokemon_name: str, exclude_names: list):
+    def resolve_exclude_filters(self, exclude_filter_names: list) -> set:
+        """Resolve a list of filter names into a set of Pokémon names to exclude.
+        Invalid/unknown filter names are silently ignored."""
+        excluded = set()
+        for filter_name in exclude_filter_names:
+            filter_data = get_filter(filter_name)
+            if filter_data:
+                excluded.update(filter_data['pokemon'])
+        return excluded
+
+    def is_excluded(self, pokemon_name: str, exclude_names: list, exclude_filter_set: set = None):
         """Check if a Pokemon should be excluded based on exclude filters"""
+        if exclude_filter_set and pokemon_name in exclude_filter_set:
+            return True
+
         if not exclude_names:
             return False
 
@@ -730,7 +751,8 @@ class ShinyDexDisplay(commands.Cog):
 
         user_id = ctx.author.id
 
-        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags = self.parse_filters(filters)
+        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names = self.parse_filters(filters)
+        exclude_filter_set = self.resolve_exclude_filters(exclude_filter_names)
 
         if show_image and (show_list or show_smartlist):
             await ctx.send("❌ Cannot use --image with --list or --smartlist!", reference=ctx.message, mention_author=False)
@@ -793,7 +815,7 @@ class ShinyDexDisplay(commands.Cog):
                 if not (matches_name or matches_evo):
                     continue
 
-            if self.is_excluded(pokemon_name, exclude_names):
+            if self.is_excluded(pokemon_name, exclude_names, exclude_filter_set):
                 continue
 
             if region_filter or type_filters:
@@ -894,7 +916,8 @@ class ShinyDexDisplay(commands.Cog):
 
         user_id = ctx.author.id
 
-        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags = self.parse_filters(filters)
+        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names = self.parse_filters(filters)
+        exclude_filter_set = self.resolve_exclude_filters(exclude_filter_names)
 
         if show_image and (show_list or show_smartlist):
             await ctx.send("❌ Cannot use --image with --list or --smartlist!", reference=ctx.message, mention_author=False)
@@ -967,7 +990,7 @@ class ShinyDexDisplay(commands.Cog):
                 if not (matches_name or matches_evo):
                     continue
 
-            if self.is_excluded(pokemon_name, exclude_names):
+            if self.is_excluded(pokemon_name, exclude_names, exclude_filter_set):
                 continue
 
             if region_filter or type_filters:
@@ -1119,7 +1142,8 @@ class ShinyDexDisplay(commands.Cog):
 
         user_id = ctx.author.id
 
-        show_caught, show_uncaught, order, region_filter, type_filters, _, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, _ = self.parse_filters(options)
+        show_caught, show_uncaught, order, region_filter, type_filters, _, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, _, exclude_filter_names = self.parse_filters(options)
+        exclude_filter_set = self.resolve_exclude_filters(exclude_filter_names)
 
         if show_image and (show_list or show_smartlist):
             await ctx.send("❌ Cannot use --image with --list or --smartlist!", reference=ctx.message, mention_author=False)
@@ -1139,7 +1163,7 @@ class ShinyDexDisplay(commands.Cog):
             if evo_family_set and pokemon_name not in evo_family_set:
                 continue
 
-            if self.is_excluded(pokemon_name, exclude_names):
+            if self.is_excluded(pokemon_name, exclude_names, exclude_filter_set):
                 continue
 
             if region_filter or type_filters:
