@@ -243,7 +243,7 @@ class ChainBreeding(commands.Cog):
                 if depth >= max_depth:
                     continue
                 if self.can_breed(current_species, target_species):
-                    final_step = {'male': f"{current_species} (from Step {len(chain)})", 'female': target_species, 'offspring': target_species, 'cost': 0}
+                    final_step = {'male': f"{current_species} (offspring from Step {len(chain)})", 'female': target_species, 'offspring': target_species, 'cost': 0}
                     if cost < best_cost:
                         best_solution = {'steps': chain + [final_step], 'total_cost': cost}
                         best_cost = cost
@@ -260,7 +260,7 @@ class ChainBreeding(commands.Cog):
                     if not any(g in current_groups for g in next_groups):
                         continue
                     next_cost = self.get_spawn_cost(next_female)
-                    next_step = {'male': f"{current_species} (from Step {len(chain)})", 'female': next_female, 'offspring': next_female, 'cost': next_cost}
+                    next_step = {'male': f"{current_species} (offspring from Step {len(chain)})", 'female': next_female, 'offspring': next_female, 'cost': next_cost}
                     visited.add(next_female)
                     queue.append((next_female, chain + [next_step], cost + next_cost, depth + 1))
 
@@ -330,7 +330,7 @@ class ChainBreeding(commands.Cog):
             if step_data['type'] == 'direct':
                 chain.add_step(male=step_data['male'], female=current_female, moves=step_data['moves'], offspring=target_species, cost=step_data['cost'])
                 if i < len(breeding_steps) - 1:
-                    current_female = f"{target_species} (from Step {len(chain.steps)})"
+                    current_female = f"{target_species} (offspring from Step {len(chain.steps)})"
             else:
                 bridge_steps = step_data['bridge_data']['steps']
                 move = step_data['moves'][0]
@@ -339,25 +339,25 @@ class ChainBreeding(commands.Cog):
                     is_last_bridge_step = (j == len(bridge_steps) - 1)
                     is_last_overall_step = (i == len(breeding_steps) - 1 and is_last_bridge_step)
                     male_name = step['male']
-                    if '(from Step' in male_name:
+                    if '(offspring from Step' in male_name:
                         import re
-                        match = re.search(r'\(from Step (\d+)\)', male_name)
+                        match = re.search(r'\(offspring from Step (\d+)\)', male_name)
                         if match:
                             actual_step_num = bridge_start_step + int(match.group(1))
-                            male_name = re.sub(r'\(from Step \d+\)', f'(from Step {actual_step_num})', male_name)
+                            male_name = re.sub(r'\(offspring from Step \d+\)', f'(offspring from Step {actual_step_num})', male_name)
                     female_name = step['female']
                     if is_last_bridge_step and len(chain.steps) > 0:
                         female_name = current_female
                     offspring = target_species if is_last_overall_step else step['offspring']
                     chain.add_step(male=male_name, female=female_name, moves=[move], offspring=offspring, cost=step['cost'])
                 if i < len(breeding_steps) - 1:
-                    current_female = f"{target_species} (from Step {len(chain.steps)})"
+                    current_female = f"{target_species} (offspring from Step {len(chain.steps)})"
 
         # Populate alternatives for step 1 (only when its male is a real Pokemon)
-        if chain.steps and '(from Step' not in chain.steps[0]['male']:
+        if chain.steps and '(offspring from Step' not in chain.steps[0]['male']:
             first_step = chain.steps[0]
             female_in_step1 = first_step['female']
-            actual_female = female_in_step1.split('(')[0].strip() if '(from Step' in female_in_step1 else female_in_step1
+            actual_female = female_in_step1.split('(')[0].strip() if '(offspring from Step' in female_in_step1 else female_in_step1
             chain.alternative_males_step1 = self.find_alternative_males_for_step1(actual_female, first_step['moves'], first_step['male'])
 
         return chain
@@ -405,7 +405,7 @@ class ChainBreeding(commands.Cog):
             accumulated_moves.update(moves)
 
             def extract_pokemon_name(name_str):
-                if '(' in name_str and 'from Step' in name_str:
+                if '(' in name_str and 'offspring from Step' in name_str:
                     return name_str.split('(')[0].strip()
                 return name_str.strip()
 
@@ -416,22 +416,22 @@ class ChainBreeding(commands.Cog):
             female_groups_str = '/'.join(self.egg_groups.get(female_pokemon, ['Unknown']))
             offspring_groups_str = '/'.join(self.egg_groups.get(offspring, ['Unknown']))
 
-            male_spawn = "Offspring" if "(from Step" in male else self.spawn_rates.get(male_pokemon, "Unknown")
+            male_spawn = "Offspring" if "(offspring from Step" in male else self.spawn_rates.get(male_pokemon, "Unknown")
             if isinstance(male_spawn, int):
                 male_spawn = f"1/{male_spawn}"
-            female_spawn = "Offspring" if "(from Step" in female else self.spawn_rates.get(female_pokemon, "Unknown")
+            female_spawn = "Offspring" if "(offspring from Step" in female else self.spawn_rates.get(female_pokemon, "Unknown")
             if isinstance(female_spawn, int):
                 female_spawn = f"1/{female_spawn}"
 
-            if "(from Step" in male:
-                step_desc = f"{config.REPLY}**♂️ Male:** {male_pokemon} ({male_groups_str}) [from Step {male.split('from Step')[1].strip().rstrip(')')}]"
+            if "(offspring from Step" in male:
+                step_desc = f"{config.REPLY}**♂️ Male:** {male_pokemon} ({male_groups_str}) [offspring from Step {male.split('offspring from Step')[1].strip().rstrip(')')}]"
             else:
                 step_desc = f"{config.REPLY}**♂️ Male:** {male_pokemon} ({male_groups_str})"
             if male_spawn != "Offspring":
                 step_desc += f" - Spawn: {male_spawn}"
 
-            if "(from Step" in female:
-                step_desc += f"\n{config.REPLY}**♀️ Female:** {female_pokemon} ({female_groups_str}) [from Step {female.split('from Step')[1].strip().rstrip(')')}]"
+            if "(offspring from Step" in female:
+                step_desc += f"\n{config.REPLY}**♀️ Female:** {female_pokemon} ({female_groups_str}) [offspring from Step {female.split('offspring from Step')[1].strip().rstrip(')')}]"
             else:
                 step_desc += f"\n{config.REPLY}**♀️ Female:** {female_pokemon} ({female_groups_str})"
             if female_spawn != "Offspring":
