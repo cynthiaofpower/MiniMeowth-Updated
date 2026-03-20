@@ -42,8 +42,8 @@ class PoketwoMonitor(commands.Cog):
                     footer   = "\n\n✅ **All 3 found — monitoring stopped.**" if all_done else ""
 
                     await session.post(WEBHOOK_URL, json={
-                        "content"          : f"<@{PING_USER}> 🟢 `#{number}` just went live!\n{url}{footer}",
-                        "username"         : "Poketwo Monitor",
+                        "content"          : f"🟢 `#{number}` just went live!\n{url}{footer}",
+                        "username"         : "Poketwo Event Monitor",
                         "avatar_url"       : "https://cdn.poketwo.net/images/50254.png",
                         "allowed_mentions" : {"users": [str(PING_USER)]}
                     })
