@@ -1,5 +1,6 @@
 from PIL import Image, ImageDraw, ImageFont, ImageColor
 import aiohttp
+import asyncio
 from io import BytesIO
 import os
 
@@ -295,8 +296,8 @@ class DexImageGenerator:
         return None
 
     async def fetch_pokemon_image(self, cdn_number: int, gender_key: str = None, has_gender_diff: bool = False):
-        """Fetch Pokemon image from Poketwo CDN"""
-        # Add 'F' suffix for female gender difference Pokemon
+        """Fetch a single Pokemon image from Poketwo CDN (creates its own session).
+        Use fetch_all_pokemon_images for bulk fetching — it's much faster."""
         if has_gender_diff and gender_key == 'female':
             url = f"https://cdn.poketwo.net/shiny/{cdn_number}F.png"
         else:
@@ -311,6 +312,32 @@ class DexImageGenerator:
             except Exception as e:
                 print(f"Error fetching image for CDN {cdn_number} (gender: {gender_key}): {e}")
         return None
+
+    async def _fetch_image_with_session(self, session: aiohttp.ClientSession, cdn_number: int, gender_key: str, has_gender_diff: bool):
+        """Fetch a single Pokemon image reusing an existing aiohttp session."""
+        if has_gender_diff and gender_key == 'female':
+            url = f"https://cdn.poketwo.net/shiny/{cdn_number}F.png"
+        else:
+            url = f"https://cdn.poketwo.net/shiny/{cdn_number}.png"
+        try:
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    data = await resp.read()
+                    return Image.open(BytesIO(data)).convert('RGBA')
+        except Exception as e:
+            print(f"Error fetching image for CDN {cdn_number} (gender: {gender_key}): {e}")
+        return None
+
+    async def fetch_all_pokemon_images(self, pokemon_entries: list, utils) -> list:
+        """Fetch all sprite images concurrently using a single shared HTTP session.
+        Returns a list of PIL Images (or None) in the same order as pokemon_entries."""
+        async with aiohttp.ClientSession() as session:
+            tasks = []
+            for dex_num, name, gender_key, count in pokemon_entries:
+                cdn_number = utils.get_cdn_number(name)
+                has_gender_diff = utils.has_gender_difference(name)
+                tasks.append(self._fetch_image_with_session(session, cdn_number, gender_key, has_gender_diff))
+            return await asyncio.gather(*tasks)
 
     def process_uncaught_pokemon(self, img: Image.Image, settings: dict):
         """Process uncaught Pokemon image based on style setting"""
@@ -635,6 +662,9 @@ class DexImageGenerator:
                 fill=settings['header_filter_color']
             )
 
+        # Fetch ALL sprites concurrently before the drawing pass (big speed win)
+        sprite_images = await self.fetch_all_pokemon_images(pokemon_entries, utils)
+
         # Now add Pokemon images and text (second pass)
         sprite_max_size = settings['sprite_max_size']
         sprite_y_offset = settings['sprite_y_offset']
@@ -646,12 +676,10 @@ class DexImageGenerator:
             x = padding + (col * (cell_width + padding))
             y = header_height + padding + (row * (cell_height + padding))
 
-            # Get CDN number
-            cdn_number = utils.get_cdn_number(name)
             has_gender_diff = utils.has_gender_difference(name)
 
-            # Fetch Pokemon image
-            poke_img = await self.fetch_pokemon_image(cdn_number, gender_key, has_gender_diff)
+            # Use pre-fetched sprite — no await needed here
+            poke_img = sprite_images[idx]
 
             if poke_img:
                 # Process uncaught Pokemon
