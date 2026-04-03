@@ -131,7 +131,6 @@ async def on_ready():
         'cogs.pokemonlisttools',
         'cogs.help',
         'cogs.fusion',
-        'cogs.poketwo_cdn',
         'cogs.customdex',
         'cogs.utility_commands',
         'cogs.inventory',
