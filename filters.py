@@ -14,7 +14,7 @@ FILTERS = {
     "regionals": {
         "name":
         "Regional Pokémon",
-        "aliases": ["regional", "reg", "regionalpokemons"],
+        "aliases": ["regional", "reg", "regs"],
         "pokemon": [
             "Galarian Zen Darmanitan", "Galarian Farfetch'd",
             "Combat Breed Tauros", "Galarian Darmanitan", "Blaze Breed Tauros",
