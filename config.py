@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Bot Configuration
+# Bot Configurationn
 PREFIX = ["m!", "M!", "n!","l!", "N!"] 
 EMBED_COLOR = 0x9c8e8b  # RGB: 156, 142, 139
 
