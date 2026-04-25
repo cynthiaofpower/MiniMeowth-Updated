@@ -1089,7 +1089,7 @@ class Incense(commands.Cog):
                 "Poketwo sends `You purchased an Incense for X shards!`\n"
                 "→ Bot restricts Poketwo in **that specific channel** only.\n"
                 "→ `pause all` / `resume all` operates at the **category level** for speed.\n"
-                f"→ Use `{bot_mention} incense resume` when your session is over."
+                f"→ Use `{bot_mention} incense resume` to resume for current channel."
             ),
             inline=False
         )
