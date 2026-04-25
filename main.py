@@ -128,7 +128,6 @@ async def on_ready():
         'cogs.shinydex_management',
         'cogs.breeding',
         'cogs.cooldown',
-        'cogs.incensehelp',
         'cogs.pokemonlisttools',
         'cogs.help',
         'cogs.fusion',
