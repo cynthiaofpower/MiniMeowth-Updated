@@ -395,10 +395,10 @@ FILTERS = {
             "Blue Plumage Squawkabilly", "Squawkabilly"
         ]
     },
-    "squawkabilly": {
+    "20s": {
         "name":
-        "Squawkabilly Pokémon",
-        "aliases": ["ikirinko", "tapatoes", "krawalloro"],
+        "20s Pokémon",
+        "aliases": ["20ss", "20", "20sss"],
         "pokemon": [
             "Tarountula", "Dragonair", "Bastiodon", "Excadrill", "Silicobra", "Clobbopus", "Cranidos", "Shieldon", "Croagunk", "Mareanie", "Dewpider", "Tangela", "Treecko", "Surskit", "Yanmega", "Drilbur", "Scraggy", "Spidops", "Grimer", "Slugma", "Paras", "Yanma"
 
