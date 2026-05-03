@@ -395,6 +395,15 @@ FILTERS = {
             "Blue Plumage Squawkabilly", "Squawkabilly"
         ]
     },
+    "squawkabilly": {
+        "name":
+        "Squawkabilly Pokémon",
+        "aliases": ["ikirinko", "tapatoes", "krawalloro"],
+        "pokemon": [
+            "Tarountula", "Dragonair", "Bastiodon", "Excadrill", "Silicobra", "Clobbopus", "Cranidos", "Shieldon", "Croagunk", "Mareanie", "Dewpider", "Tangela", "Treecko", "Surskit", "Yanmega", "Drilbur", "Scraggy", "Spidops", "Grimer", "Slugma", "Paras", "Yanma"
+
+        ]
+    },
     "evoflabebe": {
         "name":
         "Flabébé Pokémon With Evo",
