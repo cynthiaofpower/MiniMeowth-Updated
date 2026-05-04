@@ -263,9 +263,10 @@ class ShinyDexDisplay(commands.Cog):
         filter_name_flags = []    # supports multiple filters (intersected)
         exclude_filter_names = [] # filter-based exclusions via --ex <filter_name>
         show_short_names = False  # use shortest cross-language name in display/list/slist
+        user_filter_name = None   # --mf <name>  →  user's custom filter
 
         if not filter_string:
-            return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names
+            return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names, user_filter_name
 
         args = filter_string.lower().split()
 
@@ -312,6 +313,13 @@ class ShinyDexDisplay(commands.Cog):
             elif arg in ['--shortname', '--sn']:
                 show_short_names = True
                 i += 1
+            # --mf / --myfilter flag
+            elif arg in ['--mf', '--myfilter']:
+                if i + 1 < len(args):
+                    user_filter_name = args[i + 1]
+                    i += 2
+                else:
+                    i += 1
             # --f / --filter flag
             elif arg in ['--f', '--filter']:
                 if i + 1 < len(args):
@@ -420,7 +428,7 @@ class ShinyDexDisplay(commands.Cog):
                         filter_name_flags.append(potential_filter)
                 i += 1
 
-        return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names
+        return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names, user_filter_name
 
     def resolve_name_searches(self, name_searches: list, utils) -> list:
         """
@@ -762,7 +770,7 @@ class ShinyDexDisplay(commands.Cog):
 
         user_id = ctx.author.id
 
-        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names = self.parse_filters(filters)
+        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names, user_filter_name = self.parse_filters(filters)
         exclude_filter_set = self.resolve_exclude_filters(exclude_filter_names)
         if show_image and (show_list or show_smartlist):
             await ctx.send("❌ Cannot use --image with --list or --smartlist!", reference=ctx.message, mention_author=False)
@@ -777,7 +785,16 @@ class ShinyDexDisplay(commands.Cog):
 
         # Resolve filter flags - intersect all specified filters
         filter_pokemon_set = None
-        if filter_name_flags:
+        if user_filter_name:
+            mf_data = await db.get_user_filter_data(ctx.author.id, user_filter_name)
+            if not mf_data:
+                await ctx.send(
+                    f"❌ You don't have a custom filter called `{user_filter_name}`.\nUse `m!mf list` to see your filters.",
+                    reference=ctx.message, mention_author=False,
+                )
+                return
+            filter_pokemon_set = set(mf_data['pokemon'])
+        elif filter_name_flags:
             for flag in filter_name_flags:
                 filter_data = get_filter(flag)
                 if not filter_data:
@@ -893,7 +910,9 @@ class ShinyDexDisplay(commands.Cog):
             pages.append(page_content)
 
         filter_text = "basic"
-        if filter_name_flags:
+        if user_filter_name:
+            filter_text += f" - my filter: {user_filter_name}"
+        elif filter_name_flags:
             filter_text += f" - {' & '.join(filter_name_flags)}"
         if evo_filters:
             filter_text += f" - {', '.join(evo_filters)} families"
@@ -928,7 +947,7 @@ class ShinyDexDisplay(commands.Cog):
 
         user_id = ctx.author.id
 
-        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names = self.parse_filters(filters)
+        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names, user_filter_name = self.parse_filters(filters)
         exclude_filter_set = self.resolve_exclude_filters(exclude_filter_names)
 
         if show_image and (show_list or show_smartlist):
@@ -944,7 +963,16 @@ class ShinyDexDisplay(commands.Cog):
 
         # Resolve filter flags - intersect all specified filters
         filter_pokemon_set = None
-        if filter_name_flags:
+        if user_filter_name:
+            mf_data = await db.get_user_filter_data(ctx.author.id, user_filter_name)
+            if not mf_data:
+                await ctx.send(
+                    f"❌ You don't have a custom filter called `{user_filter_name}`.\nUse `m!mf list` to see your filters.",
+                    reference=ctx.message, mention_author=False,
+                )
+                return
+            filter_pokemon_set = set(mf_data['pokemon'])
+        elif filter_name_flags:
             for flag in filter_name_flags:
                 filter_data = get_filter(flag)
                 if not filter_data:
@@ -1099,7 +1127,9 @@ class ShinyDexDisplay(commands.Cog):
             pages.append(page_content)
 
         filter_text = "full"
-        if filter_name_flags:
+        if user_filter_name:
+            filter_text += f" - my filter: {user_filter_name}"
+        elif filter_name_flags:
             filter_text += f" - {' & '.join(filter_name_flags)}"
         if evo_filters:
             filter_text += f" - {', '.join(evo_filters)} families"
@@ -1156,7 +1186,7 @@ class ShinyDexDisplay(commands.Cog):
 
         user_id = ctx.author.id
 
-        show_caught, show_uncaught, order, region_filter, type_filters, _, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, _, exclude_filter_names, show_short_names = self.parse_filters(options)
+        show_caught, show_uncaught, order, region_filter, type_filters, _, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, _, exclude_filter_names, show_short_names, _ = self.parse_filters(options)
         exclude_filter_set = self.resolve_exclude_filters(exclude_filter_names)
 
         if show_image and (show_list or show_smartlist):
