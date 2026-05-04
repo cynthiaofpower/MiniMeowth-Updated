@@ -125,6 +125,7 @@ async def on_ready():
         'cogs.chainbreeding',
         'cogs.id_overrides',
         'cogs.shinydex_display',
+        'cogs.myfilter',
         'cogs.shinydex_management',
         'cogs.breeding',
         'cogs.cooldown',
