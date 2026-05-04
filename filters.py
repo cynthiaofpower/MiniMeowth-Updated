@@ -1,5 +1,5 @@
 # Custom filters for shiny dex
-# Each filter is a list of Pokemon names (exact match with base species names or forms)
+# Each filter is a list  of Pokemon names (exact match with base species names or forms)
 
 FILTERS = {
     "rare": {
