@@ -1483,5 +1483,38 @@ class Database:
         return had_settings
 
 
+    # ========================================
+    # CUSTOM USER FILTERS
+    # ========================================
+
+    async def get_user_filters(self, user_id: int) -> dict:
+        """Get all custom filters for a user. Returns {filter_name: [pokemon, ...]}"""
+        doc = await self.user_data.find_one({"user_id": user_id}, {"custom_filters": 1})
+        if doc and "custom_filters" in doc:
+            return doc["custom_filters"]
+        return {}
+
+    async def save_user_filters(self, user_id: int, filters: dict):
+        """Save the full custom_filters dict for a user."""
+        await self.user_data.update_one(
+            {"user_id": user_id},
+            {"$set": {"custom_filters": filters}},
+            upsert=True,
+        )
+
+    async def get_user_filter_data(self, user_id: int, filter_name: str) -> dict | None:
+        """Return a single custom filter as {name, pokemon} dict, or None if not found.
+        Compatible with the existing filter_data shape used in shinydex_display.py.
+        """
+        filters = await self.get_user_filters(user_id)
+        name_lower = filter_name.lower()
+        if name_lower in filters:
+            return {
+                "name": f"My Filter: {filter_name}",
+                "pokemon": filters[name_lower],
+            }
+        return None
+
+
     # Global database instance
 db = Database()
