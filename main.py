@@ -126,6 +126,7 @@ async def on_ready():
         'cogs.id_overrides',
         'cogs.shinydex_display',
         'cogs.myfilter',
+        'cogs.message_extractor',
         'cogs.shinydex_management',
         'cogs.breeding',
         'cogs.cooldown',
