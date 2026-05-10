@@ -99,6 +99,9 @@ async def suggest_commands(ctx, bot, attempted: str, prefix: str) -> None:
     import discord
     import config
 
+    if prefix not in ("m!", "M!"):
+        return
+
     suggestions = get_suggestions(bot, attempted)
 
     if not suggestions:
