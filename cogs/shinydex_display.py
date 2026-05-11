@@ -35,7 +35,7 @@ def create_shiny_dex_view(ctx, pages, total_caught, total_pokemon, dex_type="bas
         def __init__(self):
             super().__init__(
                 style=discord.ButtonStyle.secondary,
-                label="Previous",
+                label="Prev",
                 emoji="⬅️",
                 disabled=False  # Never disabled - wraps to last page
             )
@@ -98,7 +98,7 @@ def create_shiny_dex_view(ctx, pages, total_caught, total_pokemon, dex_type="bas
         def __init__(self):
             super().__init__(
                 style=discord.ButtonStyle.secondary,
-                label="Image",
+                label="Img",
                 emoji="🎨",
             )
 
@@ -160,11 +160,43 @@ def create_shiny_dex_view(ctx, pages, total_caught, total_pokemon, dex_type="bas
             except Exception as e:
                 await interaction.followup.send(f"❌ Error generating list: {str(e)}")
 
+    class CommaListButton(discord.ui.Button):
+        def __init__(self):
+            super().__init__(
+                style=discord.ButtonStyle.secondary,
+                label="C List",
+                emoji="🗒️",
+            )
+
+        async def callback(self, interaction: discord.Interaction):
+            if interaction.user.id != ctx.author.id:
+                await interaction.response.send_message("❌ This is not your shiny dex!", ephemeral=True)
+                return
+
+            if not display_cog or not filtered_entries:
+                await interaction.response.send_message("❌ Comma list export not available!", ephemeral=True)
+                return
+
+            await interaction.response.defer()
+
+            try:
+                pokemon_names = [name for _, name, _, _ in filtered_entries]
+                seen = set()
+                unique_names = []
+                for name in pokemon_names:
+                    if name not in seen:
+                        seen.add(name)
+                        unique_names.append(name)
+
+                await display_cog.send_pokemon_commalist(ctx, unique_names, utils=utils, use_short_names=show_short_names)
+            except Exception as e:
+                await interaction.followup.send(f"❌ Error generating comma list: {str(e)}")
+
     class SmartListButton(discord.ui.Button):
         def __init__(self):
             super().__init__(
                 style=discord.ButtonStyle.secondary,
-                label="Smart List",
+                label="S List",
                 emoji="📋",
             )
 
@@ -203,7 +235,7 @@ def create_shiny_dex_view(ctx, pages, total_caught, total_pokemon, dex_type="bas
             discord.ui.ActionRow(PreviousButton(), NextButton()),
             discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
             # Export options - all in one row
-            discord.ui.ActionRow(ImageButton(), ListButton(), SmartListButton()),
+            discord.ui.ActionRow(ImageButton(), ListButton(), CommaListButton(), SmartListButton()),
         )
 
         def __init__(self, timeout=180):
@@ -243,7 +275,7 @@ class ShinyDexDisplay(commands.Cog):
 
     def parse_filters(self, filter_string: str):
         """Parse filter string to extract options
-        Returns: (show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names)
+        Returns: (show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names, user_filter_name, show_commalist)
         """
         show_caught = True
         show_uncaught = True
@@ -254,6 +286,7 @@ class ShinyDexDisplay(commands.Cog):
         page = None
         show_list = False
         show_smartlist = False
+        show_commalist = False
         ignore_gender = False
         exclude_names = []
         show_image = False
@@ -266,7 +299,7 @@ class ShinyDexDisplay(commands.Cog):
         user_filter_name = None   # --mf <name>  →  user's custom filter
 
         if not filter_string:
-            return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names, user_filter_name
+            return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names, user_filter_name, show_commalist
 
         args = filter_string.lower().split()
 
@@ -294,6 +327,9 @@ class ShinyDexDisplay(commands.Cog):
                 i += 1
             elif arg == '--list':
                 show_list = True
+                i += 1
+            elif arg in ['--commalist', '--clist']:
+                show_commalist = True
                 i += 1
             elif arg in ['--smartlist', '--slist']:
                 show_smartlist = True
@@ -428,7 +464,7 @@ class ShinyDexDisplay(commands.Cog):
                         filter_name_flags.append(potential_filter)
                 i += 1
 
-        return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names, user_filter_name
+        return show_caught, show_uncaught, order, region, types, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names, user_filter_name, show_commalist
 
     def resolve_name_searches(self, name_searches: list, utils) -> list:
         """
@@ -578,6 +614,32 @@ class ShinyDexDisplay(commands.Cog):
             file = discord.File(
                 io.BytesIO(formatted_list.encode('utf-8-sig')),
                 filename='pokemon_list.txt'
+            )
+            await ctx.send(
+                f"**total: {total_count} pokemon**\n📝 list is too long! here's a file:",
+                file=file,
+                reference=ctx.message,
+                mention_author=False
+            )
+
+    async def send_pokemon_commalist(self, ctx, pokemon_names: list, utils=None, use_short_names: bool = False):
+        """Send Pokemon names as a comma-separated list (text or file)"""
+        def resolve(name):
+            if use_short_names and utils:
+                return get_shortest_name(name, utils).lower()
+            return name.lower()
+
+        formatted_list = ", ".join([resolve(name) for name in pokemon_names])
+
+        total_count = len(pokemon_names)
+        list_text = f"**total pokemon: {total_count}**\n\n{formatted_list}"
+
+        if len(list_text) <= 1900:
+            await ctx.send(list_text, reference=ctx.message, mention_author=False)
+        else:
+            file = discord.File(
+                io.BytesIO(formatted_list.encode('utf-8-sig')),
+                filename='pokemon_commalist.txt'
             )
             await ctx.send(
                 f"**total: {total_count} pokemon**\n📝 list is too long! here's a file:",
@@ -770,7 +832,7 @@ class ShinyDexDisplay(commands.Cog):
 
         user_id = ctx.author.id
 
-        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names, user_filter_name = self.parse_filters(filters)
+        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names, user_filter_name, show_commalist = self.parse_filters(filters)
         exclude_filter_set = self.resolve_exclude_filters(exclude_filter_names)
         if show_image and (show_list or show_smartlist):
             await ctx.send("❌ Cannot use --image with --list or --smartlist!", reference=ctx.message, mention_author=False)
@@ -887,6 +949,11 @@ class ShinyDexDisplay(commands.Cog):
             await self.send_pokemon_list_simple(ctx, pokemon_names, utils=utils, use_short_names=show_short_names)
             return
 
+        if show_commalist:
+            pokemon_names = [name for _, name, _ in filtered_entries]
+            await self.send_pokemon_commalist(ctx, pokemon_names, utils=utils, use_short_names=show_short_names)
+            return
+
         if show_smartlist:
             pokemon_data = [(name, None, count) for _, name, count in filtered_entries]
             await self.send_pokemon_smartlist(ctx, pokemon_data, utils, use_short_names=show_short_names)
@@ -947,7 +1014,7 @@ class ShinyDexDisplay(commands.Cog):
 
         user_id = ctx.author.id
 
-        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names, user_filter_name = self.parse_filters(filters)
+        show_caught, show_uncaught, order, region_filter, type_filters, name_searches, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, filter_name_flags, exclude_filter_names, show_short_names, user_filter_name, show_commalist = self.parse_filters(filters)
         exclude_filter_set = self.resolve_exclude_filters(exclude_filter_names)
 
         if show_image and (show_list or show_smartlist):
@@ -1097,6 +1164,17 @@ class ShinyDexDisplay(commands.Cog):
             await self.send_pokemon_list_simple(ctx, unique_names, utils=utils, use_short_names=show_short_names)
             return
 
+        if show_commalist:
+            pokemon_names = [name for _, name, _, _ in filtered_entries]
+            seen = set()
+            unique_names = []
+            for name in pokemon_names:
+                if name not in seen:
+                    seen.add(name)
+                    unique_names.append(name)
+            await self.send_pokemon_commalist(ctx, unique_names, utils=utils, use_short_names=show_short_names)
+            return
+
         if show_smartlist:
             pokemon_data = [(name, gender_key, count) for _, name, gender_key, count in filtered_entries]
             await self.send_pokemon_smartlist(ctx, pokemon_data, utils, use_short_names=show_short_names)
@@ -1186,7 +1264,7 @@ class ShinyDexDisplay(commands.Cog):
 
         user_id = ctx.author.id
 
-        show_caught, show_uncaught, order, region_filter, type_filters, _, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, _, exclude_filter_names, show_short_names, _ = self.parse_filters(options)
+        show_caught, show_uncaught, order, region_filter, type_filters, _, page, show_list, show_smartlist, ignore_gender, exclude_names, show_image, ignore_male, ignore_female, evo_filters, _, exclude_filter_names, show_short_names, _, show_commalist = self.parse_filters(options)
         exclude_filter_set = self.resolve_exclude_filters(exclude_filter_names)
 
         if show_image and (show_list or show_smartlist):
@@ -1309,6 +1387,17 @@ class ShinyDexDisplay(commands.Cog):
                     seen.add(name)
                     unique_names.append(name)
             await self.send_pokemon_list_simple(ctx, unique_names, utils=utils, use_short_names=show_short_names)
+            return
+
+        if show_commalist:
+            pokemon_names = [name for _, name, _, _ in filtered_entries]
+            seen = set()
+            unique_names = []
+            for name in pokemon_names:
+                if name not in seen:
+                    seen.add(name)
+                    unique_names.append(name)
+            await self.send_pokemon_commalist(ctx, unique_names, utils=utils, use_short_names=show_short_names)
             return
 
         if show_smartlist:
