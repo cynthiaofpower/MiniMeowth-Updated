@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 class Breeding(commands.Cog):
     """
-    Advanced breeding pair generation with dual priority system and phase-based pairing .
+    Advanced breeding pair generation with dual priority system and phase-based pairing.
 
     Breeding Rules:
     - Female × Male (same dex number OR common egg group)
