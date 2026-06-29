@@ -31,9 +31,9 @@ TYPE_EMOJI = {
 
 # Move category emojis
 CAT_EMOJI = {
-    "Physical": "<:physical:1521053308461256705>",
-    "Special":  "<:special:1521053278152949831>",
-    "Status":   "<:status:1521053324160401490>",
+    "Physical": "<:physical:1521150444859035708>",
+    "Special":  "<:special:1521150449464381541>",
+    "Status":   "<:status:1521150447023423568>",
     "Egg":      "🥚",
 }
 
