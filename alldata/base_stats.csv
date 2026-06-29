@@ -1,0 +1,1386 @@
+key,dex_number,name,HP,Attack,Defense,Sp. Atk,Sp. Def,Speed
+0_MissingNo.,0,MissingNo.,,,,,,
+1_Bulbasaur,1,Bulbasaur,45,49,49,65,65,45
+2_Ivysaur,2,Ivysaur,60,62,63,80,80,60
+3_Gigantamax Venusaur,3,Gigantamax Venusaur,80,112,93,130,110,100
+3_Mega Venusaur,3,Mega Venusaur,80,100,123,122,120,80
+3_Venusaur,3,Venusaur,80,82,83,100,100,80
+4_Charmander,4,Charmander,39,52,43,60,50,65
+5_Charmeleon,5,Charmeleon,58,64,58,80,65,80
+6_Charizard,6,Charizard,78,84,78,109,85,100
+6_Gigantamax Charizard,6,Gigantamax Charizard,78,139,83,139,85,100
+6_Mega Charizard X,6,Mega Charizard X,78,130,111,130,85,100
+6_Mega Charizard Y,6,Mega Charizard Y,78,104,78,159,115,100
+7_Squirtle,7,Squirtle,44,48,65,50,64,43
+8_Wartortle,8,Wartortle,59,63,80,65,80,58
+9_Blastoise,9,Blastoise,79,83,100,85,105,78
+9_Gigantamax Blastoise,9,Gigantamax Blastoise,79,106,115,125,105,100
+9_Mega Blastoise,9,Mega Blastoise,79,103,120,135,115,78
+10_Caterpie,10,Caterpie,45,30,35,20,20,45
+11_Metapod,11,Metapod,50,20,55,25,25,30
+12_Butterfree,12,Butterfree,60,45,50,90,80,70
+12_Gigantamax Butterfree,12,Gigantamax Butterfree,60,75,65,100,85,110
+13_Weedle,13,Weedle,40,35,30,20,20,50
+14_Kakuna,14,Kakuna,45,25,50,25,25,35
+15_Beedrill,15,Beedrill,65,90,40,45,80,75
+15_Mega Beedrill,15,Mega Beedrill,65,150,40,15,80,145
+16_Pidgey,16,Pidgey,40,45,40,35,35,56
+17_Pidgeotto,17,Pidgeotto,63,60,55,50,50,71
+18_Mega Pidgeot,18,Mega Pidgeot,83,80,80,135,80,121
+18_Pidgeot,18,Pidgeot,83,80,75,70,70,101
+19_Alolan Rattata,19,Alolan Rattata,30,56,35,25,35,72
+19_Rattata,19,Rattata,30,56,35,25,35,72
+20_Alolan Raticate,20,Alolan Raticate,75,71,70,40,80,77
+20_Raticate,20,Raticate,55,81,60,50,70,97
+21_Spearow,21,Spearow,40,60,30,31,31,70
+22_Fearow,22,Fearow,65,90,65,61,61,100
+23_Ekans,23,Ekans,35,60,44,40,54,55
+24_Arbok,24,Arbok,60,95,69,65,79,80
+25_Gigantamax Pikachu,25,Gigantamax Pikachu,35,90,70,105,80,60
+25_Partner Pikachu,25,Partner Pikachu,45,80,50,75,60,120
+25_Pikachu,25,Pikachu,35,55,40,50,50,90
+26_Alolan Raichu,26,Alolan Raichu,60,85,50,95,85,110
+26_Raichu,26,Raichu,60,90,55,90,80,110
+27_Alolan Sandshrew,27,Alolan Sandshrew,50,75,90,10,35,40
+27_Sandshrew,27,Sandshrew,50,75,85,20,30,40
+28_Alolan Sandslash,28,Alolan Sandslash,75,100,120,25,65,65
+28_Sandslash,28,Sandslash,75,100,110,45,55,65
+29_Nidoran♀️,29,Nidoran♀️,55,47,52,40,40,41
+30_Nidorina,30,Nidorina,70,62,67,55,55,56
+31_Nidoqueen,31,Nidoqueen,90,92,87,75,85,76
+32_Nidoran♂️,32,Nidoran♂️,46,57,40,40,40,50
+33_Nidorino,33,Nidorino,61,72,57,55,55,65
+34_Nidoking,34,Nidoking,81,102,77,85,75,85
+35_Clefairy,35,Clefairy,70,45,48,60,65,35
+36_Clefable,36,Clefable,95,70,73,95,90,60
+37_Alolan Vulpix,37,Alolan Vulpix,38,41,40,50,65,65
+37_Vulpix,37,Vulpix,38,41,40,50,65,65
+38_Alolan Ninetales,38,Alolan Ninetales,73,67,75,81,100,109
+38_Ninetales,38,Ninetales,73,76,75,81,100,100
+39_Jigglypuff,39,Jigglypuff,115,45,20,45,25,20
+40_Wigglytuff,40,Wigglytuff,140,70,45,85,50,45
+41_Zubat,41,Zubat,40,45,35,30,40,55
+42_Golbat,42,Golbat,75,80,70,65,75,90
+43_Oddish,43,Oddish,45,50,55,75,65,30
+44_Gloom,44,Gloom,60,65,70,85,75,40
+45_Vileplume,45,Vileplume,75,80,85,110,90,50
+46_Paras,46,Paras,35,70,55,45,55,25
+47_Parasect,47,Parasect,60,95,80,60,80,30
+48_Venonat,48,Venonat,60,55,50,40,55,45
+49_Venomoth,49,Venomoth,70,65,60,90,75,90
+50_Alolan Diglett,50,Alolan Diglett,10,55,30,35,45,90
+50_Diglett,50,Diglett,10,55,25,35,45,95
+51_Alolan Dugtrio,51,Alolan Dugtrio,35,100,60,50,70,110
+51_Dugtrio,51,Dugtrio,35,100,50,50,70,120
+52_Alolan Meowth,52,Alolan Meowth,40,35,35,50,40,90
+52_Galarian Meowth,52,Galarian Meowth,50,65,55,40,40,40
+52_Gigantamax Meowth,52,Gigantamax Meowth,40,90,45,60,45,130
+52_Meowth,52,Meowth,40,45,35,40,40,90
+53_Alolan Persian,53,Alolan Persian,65,60,60,75,65,115
+53_Persian,53,Persian,65,70,60,65,65,115
+54_Psyduck,54,Psyduck,50,52,48,65,50,55
+55_Golduck,55,Golduck,80,82,78,95,80,85
+56_Mankey,56,Mankey,40,80,35,35,45,70
+57_Primeape,57,Primeape,65,105,60,60,70,95
+58_Growlithe,58,Growlithe,55,70,45,70,50,60
+58_Hisuian Growlithe,58,Hisuian Growlithe,60,75,45,65,50,55
+59_Arcanine,59,Arcanine,90,110,80,100,80,95
+59_Hisuian Arcanine,59,Hisuian Arcanine,95,115,80,95,80,90
+60_Poliwag,60,Poliwag,40,50,40,40,40,90
+61_Poliwhirl,61,Poliwhirl,65,65,65,50,50,90
+62_Poliwrath,62,Poliwrath,90,95,95,70,90,70
+63_Abra,63,Abra,25,20,15,105,55,90
+64_Kadabra,64,Kadabra,40,35,30,120,70,105
+65_Alakazam,65,Alakazam,55,50,45,135,95,120
+65_Mega Alakazam,65,Mega Alakazam,55,50,65,175,105,150
+66_Machop,66,Machop,70,80,50,35,35,35
+67_Machoke,67,Machoke,80,100,70,50,60,45
+68_Gigantamax Machamp,68,Gigantamax Machamp,90,145,95,75,105,85
+68_Machamp,68,Machamp,90,130,80,65,85,55
+69_Bellsprout,69,Bellsprout,50,75,35,70,30,40
+70_Weepinbell,70,Weepinbell,65,90,50,85,45,55
+71_Victreebel,71,Victreebel,80,105,65,100,70,70
+72_Tentacool,72,Tentacool,40,40,35,50,100,70
+73_Tentacruel,73,Tentacruel,80,70,65,80,120,100
+74_Alolan Geodude,74,Alolan Geodude,40,80,100,30,30,20
+74_Geodude,74,Geodude,40,80,100,30,30,20
+75_Alolan Graveler,75,Alolan Graveler,55,95,115,45,45,35
+75_Graveler,75,Graveler,55,95,115,45,45,35
+76_Alolan Golem,76,Alolan Golem,80,120,130,55,65,45
+76_Golem,76,Golem,80,120,130,55,65,45
+77_Galarian Ponyta,77,Galarian Ponyta,50,85,55,65,65,90
+77_Ponyta,77,Ponyta,50,85,55,65,65,90
+78_Galarian Rapidash,78,Galarian Rapidash,65,100,70,80,80,105
+78_Rapidash,78,Rapidash,65,100,70,80,80,105
+79_Galarian Slowpoke,79,Galarian Slowpoke,90,65,65,40,40,15
+79_Slowpoke,79,Slowpoke,90,65,65,40,40,15
+80_Galarian Slowbro,80,Galarian Slowbro,95,100,95,100,70,30
+80_Mega Slowbro,80,Mega Slowbro,95,75,180,130,80,30
+80_Slowbro,80,Slowbro,95,75,110,100,80,30
+81_Magnemite,81,Magnemite,25,35,70,95,55,45
+82_Magneton,82,Magneton,50,60,95,120,70,70
+83_Farfetch'd,83,Farfetch'd,52,90,55,58,62,60
+83_Galarian Farfetch'd,83,Galarian Farfetch'd,52,95,55,58,62,55
+84_Doduo,84,Doduo,35,85,45,35,35,75
+85_Dodrio,85,Dodrio,60,110,70,60,60,110
+86_Seel,86,Seel,65,45,55,45,70,45
+87_Dewgong,87,Dewgong,90,70,80,70,95,70
+88_Alolan Grimer,88,Alolan Grimer,80,80,50,40,50,25
+88_Grimer,88,Grimer,80,80,50,40,50,25
+89_Alolan Muk,89,Alolan Muk,105,105,75,65,100,50
+89_Muk,89,Muk,105,105,75,65,100,50
+90_Shellder,90,Shellder,30,65,100,45,25,40
+91_Cloyster,91,Cloyster,50,95,180,85,45,70
+92_Gastly,92,Gastly,30,35,30,100,35,80
+93_Haunter,93,Haunter,45,50,45,115,55,95
+94_Gengar,94,Gengar,60,65,60,130,75,110
+94_Gigantamax Gengar,94,Gigantamax Gengar,60,109,70,150,85,126
+94_Mega Gengar,94,Mega Gengar,60,65,80,170,95,130
+95_Onix,95,Onix,35,45,160,30,45,70
+96_Drowzee,96,Drowzee,60,48,45,43,90,42
+97_Hypno,97,Hypno,85,73,70,73,115,67
+98_Krabby,98,Krabby,30,105,90,25,25,50
+99_Gigantamax Kingler,99,Gigantamax Kingler,55,165,115,105,65,75
+99_Kingler,99,Kingler,55,130,115,50,50,75
+100_Hisuian Voltorb,100,Hisuian Voltorb,40,30,50,55,55,100
+100_Voltorb,100,Voltorb,40,30,50,55,55,100
+101_Electrode,101,Electrode,60,50,70,80,80,150
+101_Hisuian Electrode,101,Hisuian Electrode,60,50,70,80,80,150
+102_Exeggcute,102,Exeggcute,60,40,80,60,45,40
+103_Alolan Exeggutor,103,Alolan Exeggutor,95,105,85,125,75,45
+103_Exeggutor,103,Exeggutor,95,95,85,125,75,55
+104_Cubone,104,Cubone,50,50,95,40,50,35
+105_Alolan Marowak,105,Alolan Marowak,60,80,110,50,80,45
+105_Marowak,105,Marowak,60,80,110,50,80,45
+106_Hitmonlee,106,Hitmonlee,50,120,53,35,110,87
+107_Hitmonchan,107,Hitmonchan,50,105,79,35,110,76
+108_Lickitung,108,Lickitung,90,55,75,60,75,30
+109_Koffing,109,Koffing,40,65,95,60,45,35
+110_Galarian Weezing,110,Galarian Weezing,65,90,120,85,70,60
+110_Weezing,110,Weezing,65,90,120,85,70,60
+111_Rhyhorn,111,Rhyhorn,80,85,95,30,30,25
+112_Rhydon,112,Rhydon,105,130,120,45,45,40
+113_Chansey,113,Chansey,250,5,5,35,105,50
+114_Tangela,114,Tangela,65,55,115,100,40,60
+115_Kangaskhan,115,Kangaskhan,105,95,80,40,80,90
+115_Mega Kangaskhan,115,Mega Kangaskhan,105,125,100,60,100,100
+116_Horsea,116,Horsea,30,40,70,70,25,60
+117_Seadra,117,Seadra,55,65,95,95,45,85
+118_Goldeen,118,Goldeen,45,67,60,35,50,63
+119_Seaking,119,Seaking,80,92,65,65,80,68
+120_Staryu,120,Staryu,30,45,55,70,55,85
+121_Starmie,121,Starmie,60,75,85,100,85,115
+122_Galarian Mr. Mime,122,Galarian Mr. Mime,50,65,65,90,90,100
+122_Mr. Mime,122,Mr. Mime,40,45,65,100,120,90
+123_Scyther,123,Scyther,70,110,80,55,80,105
+124_Jynx,124,Jynx,65,50,35,115,95,95
+125_Electabuzz,125,Electabuzz,65,83,57,95,85,105
+126_Magmar,126,Magmar,65,95,57,100,85,93
+127_Mega Pinsir,127,Mega Pinsir,65,155,120,65,90,105
+127_Pinsir,127,Pinsir,65,125,100,55,70,85
+128_Aqua Breed Tauros,128,Aqua Breed Tauros,75,110,105,30,70,100
+128_Blaze Breed Tauros,128,Blaze Breed Tauros,75,110,105,30,70,100
+128_Combat Breed Tauros,128,Combat Breed Tauros,75,110,105,30,70,100
+128_Tauros,128,Tauros,75,100,95,40,70,110
+129_Magikarp,129,Magikarp,20,10,55,15,20,80
+130_Gyarados,130,Gyarados,95,125,79,60,100,81
+130_Mega Gyarados,130,Mega Gyarados,95,155,109,70,130,81
+131_Gigantamax Lapras,131,Gigantamax Lapras,130,100,95,145,105,60
+131_Lapras,131,Lapras,130,85,80,85,95,60
+132_Ditto,132,Ditto,48,48,48,48,48,48
+133_Eevee,133,Eevee,55,55,50,45,65,55
+133_Gigantamax Eevee,133,Gigantamax Eevee,95,105,50,45,65,85
+133_Partner Eevee,133,Partner Eevee,65,75,70,65,85,75
+134_Vaporeon,134,Vaporeon,130,65,60,110,95,65
+135_Jolteon,135,Jolteon,65,65,60,110,95,130
+136_Flareon,136,Flareon,65,130,60,95,110,65
+137_Porygon,137,Porygon,65,60,70,85,75,40
+138_Omanyte,138,Omanyte,35,40,100,90,55,35
+139_Omastar,139,Omastar,70,60,125,115,70,55
+140_Kabuto,140,Kabuto,30,80,90,55,45,55
+141_Kabutops,141,Kabutops,60,115,105,65,70,80
+142_Aerodactyl,142,Aerodactyl,80,105,65,60,75,130
+142_Mega Aerodactyl,142,Mega Aerodactyl,80,135,85,70,95,150
+143_Gigantamax Snorlax,143,Gigantamax Snorlax,170,130,75,95,125,45
+143_Snorlax,143,Snorlax,160,110,65,65,110,30
+144_Articuno,144,Articuno,90,85,100,95,125,85
+144_Galarian Articuno,144,Galarian Articuno,90,85,85,125,100,95
+145_Galarian Zapdos,145,Galarian Zapdos,90,125,90,85,90,100
+145_Zapdos,145,Zapdos,90,90,85,125,90,100
+146_Galarian Moltres,146,Galarian Moltres,90,85,90,100,125,90
+146_Moltres,146,Moltres,90,100,90,125,85,90
+147_Dratini,147,Dratini,41,64,45,50,50,50
+148_Dragonair,148,Dragonair,61,84,65,70,70,70
+149_Dragonite,149,Dragonite,91,134,95,100,100,80
+150_Mega Mewtwo X,150,Mega Mewtwo X,106,190,100,154,100,130
+150_Mega Mewtwo Y,150,Mega Mewtwo Y,106,150,70,194,120,140
+150_Mewtwo,150,Mewtwo,106,110,90,154,90,130
+151_Mew,151,Mew,100,100,100,100,100,100
+152_Chikorita,152,Chikorita,45,49,65,49,65,45
+153_Bayleef,153,Bayleef,60,62,80,63,80,60
+154_Meganium,154,Meganium,80,82,100,83,100,80
+155_Cyndaquil,155,Cyndaquil,39,52,43,60,50,65
+156_Quilava,156,Quilava,58,64,58,80,65,80
+157_Hisuian Typhlosion,157,Hisuian Typhlosion,73,84,78,119,85,95
+157_Typhlosion,157,Typhlosion,78,84,78,109,85,100
+158_Totodile,158,Totodile,50,65,64,44,48,43
+159_Croconaw,159,Croconaw,65,80,80,59,63,58
+160_Feraligatr,160,Feraligatr,85,105,100,79,83,78
+161_Sentret,161,Sentret,35,46,34,35,45,20
+162_Furret,162,Furret,85,76,64,45,55,90
+163_Hoothoot,163,Hoothoot,60,30,30,36,56,50
+164_Noctowl,164,Noctowl,100,50,50,86,96,70
+165_Ledyba,165,Ledyba,40,20,30,40,80,55
+166_Ledian,166,Ledian,55,35,50,55,110,85
+167_Spinarak,167,Spinarak,40,60,40,40,40,30
+168_Ariados,168,Ariados,70,90,70,60,70,40
+169_Crobat,169,Crobat,85,90,80,70,80,130
+170_Chinchou,170,Chinchou,75,38,38,56,56,67
+171_Lanturn,171,Lanturn,125,58,58,76,76,67
+172_Pichu,172,Pichu,20,40,15,35,35,60
+172_Spiky-eared Pichu,172,Spiky-eared Pichu,20,40,15,35,35,60
+173_Cleffa,173,Cleffa,50,25,28,45,55,15
+174_Igglybuff,174,Igglybuff,90,30,15,40,20,15
+175_Togepi,175,Togepi,35,20,65,40,65,20
+176_Togetic,176,Togetic,55,40,85,80,105,40
+177_Natu,177,Natu,40,50,45,70,45,70
+178_Xatu,178,Xatu,65,75,70,95,70,95
+179_Mareep,179,Mareep,55,40,40,65,45,35
+180_Flaaffy,180,Flaaffy,70,55,55,80,60,45
+181_Ampharos,181,Ampharos,90,75,85,115,90,55
+181_Mega Ampharos,181,Mega Ampharos,90,95,105,165,110,45
+182_Bellossom,182,Bellossom,75,80,95,90,100,50
+183_Marill,183,Marill,70,20,50,20,50,40
+184_Azumarill,184,Azumarill,100,50,80,60,80,50
+185_Sudowoodo,185,Sudowoodo,70,100,115,30,65,30
+186_Politoed,186,Politoed,90,75,75,90,100,70
+187_Hoppip,187,Hoppip,35,35,40,35,55,50
+188_Skiploom,188,Skiploom,55,45,50,45,65,80
+189_Jumpluff,189,Jumpluff,75,55,70,55,95,110
+190_Aipom,190,Aipom,55,70,55,40,55,85
+191_Sunkern,191,Sunkern,30,30,30,30,30,30
+192_Sunflora,192,Sunflora,75,75,55,105,85,30
+193_Yanma,193,Yanma,65,65,45,75,45,95
+194_Paldean Wooper,194,Paldean Wooper,55,45,45,25,25,15
+194_Wooper,194,Wooper,55,45,45,25,25,15
+195_Quagsire,195,Quagsire,95,85,85,65,65,35
+196_Espeon,196,Espeon,65,65,60,130,95,110
+197_Umbreon,197,Umbreon,95,65,110,60,130,65
+198_Murkrow,198,Murkrow,60,85,42,85,42,91
+199_Galarian Slowking,199,Galarian Slowking,95,65,80,110,110,30
+199_Slowking,199,Slowking,95,75,80,100,110,30
+200_Misdreavus,200,Misdreavus,60,60,60,85,85,85
+201_Unown,201,Unown,48,72,48,72,48,48
+201_Unown A,201,Unown A,48,72,48,72,48,48
+201_Unown B,201,Unown B,48,72,48,72,48,48
+201_Unown C,201,Unown C,48,72,48,72,48,48
+201_Unown D,201,Unown D,48,72,48,72,48,48
+201_Unown E,201,Unown E,48,72,48,72,48,48
+201_Unown Exclamation,201,Unown Exclamation,48,72,48,72,48,48
+201_Unown G,201,Unown G,48,72,48,72,48,48
+201_Unown H,201,Unown H,48,72,48,72,48,48
+201_Unown I,201,Unown I,48,72,48,72,48,48
+201_Unown J,201,Unown J,48,72,48,72,48,48
+201_Unown K,201,Unown K,48,72,48,72,48,48
+201_Unown L,201,Unown L,48,72,48,72,48,48
+201_Unown M,201,Unown M,48,72,48,72,48,48
+201_Unown N,201,Unown N,48,72,48,72,48,48
+201_Unown O,201,Unown O,48,72,48,72,48,48
+201_Unown P,201,Unown P,48,72,48,72,48,48
+201_Unown Q,201,Unown Q,48,72,48,72,48,48
+201_Unown Question,201,Unown Question,48,72,48,72,48,48
+201_Unown R,201,Unown R,48,72,48,72,48,48
+201_Unown S,201,Unown S,48,72,48,72,48,48
+201_Unown T,201,Unown T,48,72,48,72,48,48
+201_Unown U,201,Unown U,48,72,48,72,48,48
+201_Unown V,201,Unown V,48,72,48,72,48,48
+201_Unown W,201,Unown W,48,72,48,72,48,48
+201_Unown X,201,Unown X,48,72,48,72,48,48
+201_Unown Y,201,Unown Y,48,72,48,72,48,48
+201_Unown Z,201,Unown Z,48,72,48,72,48,48
+202_Wobbuffet,202,Wobbuffet,190,33,58,33,58,33
+203_Girafarig,203,Girafarig,70,80,65,90,65,85
+204_Pineco,204,Pineco,50,65,90,35,35,15
+205_Forretress,205,Forretress,75,90,140,60,60,40
+206_Dunsparce,206,Dunsparce,100,70,70,65,65,45
+207_Gligar,207,Gligar,65,75,105,35,65,85
+208_Mega Steelix,208,Mega Steelix,75,125,230,55,95,30
+208_Steelix,208,Steelix,75,85,200,55,65,30
+209_Snubbull,209,Snubbull,60,80,50,40,40,30
+210_Granbull,210,Granbull,90,120,75,60,60,45
+211_Hisuian Qwilfish,211,Hisuian Qwilfish,65,95,85,55,55,85
+211_Qwilfish,211,Qwilfish,65,95,85,55,55,85
+212_Mega Scizor,212,Mega Scizor,70,150,140,65,100,75
+212_Scizor,212,Scizor,70,130,100,55,80,65
+213_Shuckle,213,Shuckle,20,10,230,10,230,5
+214_Heracross,214,Heracross,80,125,75,40,95,85
+214_Mega Heracross,214,Mega Heracross,80,185,115,40,105,75
+215_Hisuian Sneasel,215,Hisuian Sneasel,55,95,55,35,75,115
+215_Sneasel,215,Sneasel,55,95,55,35,75,115
+216_Teddiursa,216,Teddiursa,60,80,50,50,50,40
+217_Ursaring,217,Ursaring,90,130,75,75,75,55
+218_Slugma,218,Slugma,40,40,40,70,40,20
+219_Magcargo,219,Magcargo,60,50,120,90,80,30
+220_Swinub,220,Swinub,50,50,40,30,30,50
+221_Piloswine,221,Piloswine,100,100,80,60,60,50
+222_Corsola,222,Corsola,65,55,95,65,95,35
+222_Galarian Corsola,222,Galarian Corsola,60,55,100,65,100,30
+223_Remoraid,223,Remoraid,35,65,35,65,35,65
+224_Octillery,224,Octillery,75,105,75,105,75,45
+225_Delibird,225,Delibird,45,55,45,65,45,75
+226_Mantine,226,Mantine,85,40,70,80,140,70
+227_Skarmory,227,Skarmory,65,80,140,40,70,70
+228_Houndour,228,Houndour,45,60,30,80,50,65
+229_Houndoom,229,Houndoom,75,90,50,110,80,95
+229_Mega Houndoom,229,Mega Houndoom,75,90,90,140,90,115
+230_Kingdra,230,Kingdra,75,95,95,95,95,85
+231_Phanpy,231,Phanpy,90,60,60,40,40,40
+232_Donphan,232,Donphan,90,120,120,60,60,50
+233_Porygon2,233,Porygon2,85,80,90,105,95,60
+234_Stantler,234,Stantler,73,95,62,85,65,85
+235_Smeargle,235,Smeargle,55,20,35,20,45,75
+236_Tyrogue,236,Tyrogue,35,35,35,35,35,35
+237_Hitmontop,237,Hitmontop,50,95,95,35,110,70
+238_Smoochum,238,Smoochum,45,30,15,85,65,65
+239_Elekid,239,Elekid,45,63,37,65,55,95
+240_Magby,240,Magby,45,75,37,70,55,83
+241_Miltank,241,Miltank,95,80,105,40,70,100
+242_Blissey,242,Blissey,255,10,10,75,135,55
+243_Raikou,243,Raikou,90,85,75,115,100,115
+244_Entei,244,Entei,115,115,85,90,75,100
+245_Suicune,245,Suicune,100,75,115,90,115,85
+246_Larvitar,246,Larvitar,50,64,50,45,50,41
+247_Pupitar,247,Pupitar,70,84,70,65,70,51
+248_Mega Tyranitar,248,Mega Tyranitar,100,164,150,95,120,71
+248_Tyranitar,248,Tyranitar,100,134,110,95,100,61
+249_Lugia,249,Lugia,106,90,130,90,154,110
+250_Ho-Oh,250,Ho-Oh,106,130,90,110,154,90
+251_Celebi,251,Celebi,100,100,100,100,100,100
+252_Treecko,252,Treecko,40,45,35,65,55,70
+253_Grovyle,253,Grovyle,50,65,45,85,65,95
+254_Mega Sceptile,254,Mega Sceptile,70,110,75,145,85,145
+254_Sceptile,254,Sceptile,70,85,65,105,85,120
+255_Torchic,255,Torchic,45,60,40,70,50,45
+256_Combusken,256,Combusken,60,85,60,85,60,55
+257_Blaziken,257,Blaziken,80,120,70,110,70,80
+257_Mega Blaziken,257,Mega Blaziken,80,160,80,130,80,100
+258_Mudkip,258,Mudkip,50,70,50,50,50,40
+259_Marshtomp,259,Marshtomp,70,85,70,60,70,50
+260_Mega Swampert,260,Mega Swampert,100,150,110,95,110,70
+260_Swampert,260,Swampert,100,110,90,85,90,60
+261_Poochyena,261,Poochyena,35,55,35,30,30,35
+262_Mightyena,262,Mightyena,70,90,70,60,60,70
+263_Galarian Zigzagoon,263,Galarian Zigzagoon,38,30,41,30,41,60
+263_Zigzagoon,263,Zigzagoon,38,30,41,30,41,60
+264_Galarian Linoone,264,Galarian Linoone,78,70,61,50,61,100
+264_Linoone,264,Linoone,78,70,61,50,61,100
+265_Wurmple,265,Wurmple,45,45,35,20,30,20
+266_Silcoon,266,Silcoon,50,35,55,25,25,15
+267_Beautifly,267,Beautifly,60,70,50,100,50,65
+268_Cascoon,268,Cascoon,50,35,55,25,25,15
+269_Dustox,269,Dustox,60,50,70,50,90,65
+270_Lotad,270,Lotad,40,30,30,40,50,30
+271_Lombre,271,Lombre,60,50,50,60,70,50
+272_Ludicolo,272,Ludicolo,80,70,70,90,100,70
+273_Seedot,273,Seedot,40,40,50,30,30,30
+274_Nuzleaf,274,Nuzleaf,70,70,40,60,40,60
+275_Shiftry,275,Shiftry,90,100,60,90,60,80
+276_Taillow,276,Taillow,40,55,30,30,30,85
+277_Swellow,277,Swellow,60,85,60,75,50,125
+278_Wingull,278,Wingull,40,30,30,55,30,85
+279_Pelipper,279,Pelipper,60,50,100,95,70,65
+280_Ralts,280,Ralts,28,25,25,45,35,40
+281_Kirlia,281,Kirlia,38,35,35,65,55,50
+282_Gardevoir,282,Gardevoir,68,65,65,125,115,80
+282_Mega Gardevoir,282,Mega Gardevoir,68,85,65,165,135,100
+283_Surskit,283,Surskit,40,30,32,50,52,65
+284_Masquerain,284,Masquerain,70,60,62,100,82,80
+285_Shroomish,285,Shroomish,60,40,60,40,60,35
+286_Breloom,286,Breloom,60,130,80,60,60,70
+287_Slakoth,287,Slakoth,60,60,60,35,35,30
+288_Vigoroth,288,Vigoroth,80,80,80,55,55,90
+289_Slaking,289,Slaking,150,160,100,95,65,100
+290_Nincada,290,Nincada,31,45,90,30,30,40
+291_Ninjask,291,Ninjask,61,90,45,50,50,160
+292_Shedinja,292,Shedinja,1,90,45,30,30,40
+293_Whismur,293,Whismur,64,51,23,51,23,28
+294_Loudred,294,Loudred,84,71,43,71,43,48
+295_Exploud,295,Exploud,104,91,63,91,73,68
+296_Makuhita,296,Makuhita,72,60,30,20,30,25
+297_Hariyama,297,Hariyama,144,120,60,40,60,50
+298_Azurill,298,Azurill,50,20,40,20,40,20
+299_Nosepass,299,Nosepass,30,45,135,45,90,30
+300_Skitty,300,Skitty,50,45,45,35,35,50
+301_Delcatty,301,Delcatty,70,65,65,55,55,90
+302_Mega Sableye,302,Mega Sableye,50,85,125,85,115,20
+302_Sableye,302,Sableye,50,75,75,65,65,50
+303_Mawile,303,Mawile,50,85,85,55,55,50
+303_Mega Mawile,303,Mega Mawile,50,105,125,55,95,50
+304_Aron,304,Aron,50,70,100,40,40,30
+305_Lairon,305,Lairon,60,90,140,50,50,40
+306_Aggron,306,Aggron,70,110,180,60,60,50
+306_Mega Aggron,306,Mega Aggron,70,140,230,60,80,50
+307_Meditite,307,Meditite,30,40,55,40,55,60
+308_Medicham,308,Medicham,60,60,75,60,75,80
+308_Mega Medicham,308,Mega Medicham,60,100,85,80,85,100
+309_Electrike,309,Electrike,40,45,40,65,40,65
+310_Manectric,310,Manectric,70,75,60,105,60,105
+310_Mega Manectric,310,Mega Manectric,70,75,80,135,80,135
+311_Plusle,311,Plusle,60,50,40,85,75,95
+312_Minun,312,Minun,60,40,50,75,85,95
+313_Volbeat,313,Volbeat,65,73,75,47,85,85
+314_Illumise,314,Illumise,65,47,75,73,85,85
+315_Roselia,315,Roselia,50,60,45,100,80,65
+316_Gulpin,316,Gulpin,70,43,53,43,53,40
+317_Swalot,317,Swalot,100,73,83,73,83,55
+318_Carvanha,318,Carvanha,45,90,20,65,20,65
+319_Mega Sharpedo,319,Mega Sharpedo,70,140,70,110,65,105
+319_Sharpedo,319,Sharpedo,70,120,40,95,40,95
+320_Wailmer,320,Wailmer,130,70,35,70,35,60
+321_Wailord,321,Wailord,170,90,45,90,45,60
+322_Numel,322,Numel,60,60,40,65,45,35
+323_Camerupt,323,Camerupt,70,100,70,105,75,40
+323_Mega Camerupt,323,Mega Camerupt,70,120,100,145,105,20
+324_Torkoal,324,Torkoal,70,85,140,85,70,20
+325_Spoink,325,Spoink,60,25,35,70,80,60
+326_Grumpig,326,Grumpig,80,45,65,90,110,80
+327_Spinda,327,Spinda,60,60,60,60,60,60
+328_Trapinch,328,Trapinch,45,100,45,45,45,10
+329_Vibrava,329,Vibrava,50,70,50,50,50,70
+330_Flygon,330,Flygon,80,100,80,80,80,100
+331_Cacnea,331,Cacnea,50,85,40,85,40,35
+332_Cacturne,332,Cacturne,70,115,60,115,60,55
+333_Swablu,333,Swablu,45,40,60,40,75,50
+334_Altaria,334,Altaria,75,70,90,70,105,80
+334_Mega Altaria,334,Mega Altaria,75,110,110,110,105,80
+335_Zangoose,335,Zangoose,73,115,60,60,60,90
+336_Seviper,336,Seviper,73,100,60,100,60,65
+337_Lunatone,337,Lunatone,90,55,65,95,85,70
+338_Solrock,338,Solrock,90,95,85,55,65,70
+339_Barboach,339,Barboach,50,48,43,46,41,60
+340_Whiscash,340,Whiscash,110,78,73,76,71,60
+341_Corphish,341,Corphish,43,80,65,50,35,35
+342_Crawdaunt,342,Crawdaunt,63,120,85,90,55,55
+343_Baltoy,343,Baltoy,40,40,55,40,70,55
+344_Claydol,344,Claydol,60,70,105,70,120,75
+345_Lileep,345,Lileep,66,41,77,61,87,23
+346_Cradily,346,Cradily,86,81,97,81,107,43
+347_Anorith,347,Anorith,45,95,50,40,50,75
+348_Armaldo,348,Armaldo,75,125,100,70,80,45
+349_Feebas,349,Feebas,20,15,20,10,55,80
+350_Milotic,350,Milotic,95,60,79,100,125,81
+351_Castform,351,Castform,70,70,70,70,70,70
+351_Rainy Castform,351,Rainy Castform,70,70,70,70,70,70
+351_Snowy Castform,351,Snowy Castform,70,70,70,70,70,70
+351_Sunny Castform,351,Sunny Castform,70,70,70,70,70,70
+352_Kecleon,352,Kecleon,60,90,70,60,120,40
+353_Shuppet,353,Shuppet,44,75,35,63,33,45
+354_Banette,354,Banette,64,115,65,83,63,65
+354_Mega Banette,354,Mega Banette,64,165,75,93,83,75
+355_Duskull,355,Duskull,20,40,90,30,90,25
+356_Dusclops,356,Dusclops,40,70,130,60,130,25
+357_Tropius,357,Tropius,99,68,83,72,87,51
+358_Chimecho,358,Chimecho,75,50,80,95,90,65
+359_Absol,359,Absol,65,130,60,75,60,75
+359_Mega Absol,359,Mega Absol,65,150,60,115,60,115
+360_Wynaut,360,Wynaut,95,23,48,23,48,23
+361_Snorunt,361,Snorunt,50,50,50,50,50,50
+362_Glalie,362,Glalie,80,80,80,80,80,80
+362_Mega Glalie,362,Mega Glalie,80,120,80,120,80,100
+363_Spheal,363,Spheal,70,40,50,55,50,25
+364_Sealeo,364,Sealeo,90,60,70,75,70,45
+365_Walrein,365,Walrein,110,80,90,95,90,65
+366_Clamperl,366,Clamperl,35,64,85,74,55,32
+367_Huntail,367,Huntail,55,104,105,94,75,52
+368_Gorebyss,368,Gorebyss,55,84,105,114,75,52
+369_Relicanth,369,Relicanth,100,90,130,45,65,55
+370_Luvdisc,370,Luvdisc,43,30,55,40,65,97
+371_Bagon,371,Bagon,45,75,60,40,30,50
+372_Shelgon,372,Shelgon,65,95,100,60,50,50
+373_Mega Salamence,373,Mega Salamence,95,145,130,120,90,120
+373_Salamence,373,Salamence,95,135,80,110,80,100
+374_Beldum,374,Beldum,40,55,80,35,60,30
+375_Metang,375,Metang,60,75,100,55,80,50
+376_Mega Metagross,376,Mega Metagross,80,145,150,105,110,110
+376_Metagross,376,Metagross,80,135,130,95,90,70
+377_Regirock,377,Regirock,80,100,200,50,100,50
+378_Regice,378,Regice,80,50,100,100,200,50
+379_Registeel,379,Registeel,80,75,150,75,150,50
+380_Latias,380,Latias,80,80,90,110,130,110
+380_Mega Latias,380,Mega Latias,80,100,120,140,150,110
+381_Latios,381,Latios,80,90,80,130,110,110
+381_Mega Latios,381,Mega Latios,80,130,100,160,120,110
+382_Kyogre,382,Kyogre,100,100,90,150,140,90
+382_Primal Kyogre,382,Primal Kyogre,100,150,90,180,160,90
+383_Groudon,383,Groudon,100,150,140,100,90,90
+383_Primal Groudon,383,Primal Groudon,100,180,160,150,90,90
+384_Mega Rayquaza,384,Mega Rayquaza,105,180,100,180,100,115
+384_Rayquaza,384,Rayquaza,105,150,90,150,90,95
+385_Jirachi,385,Jirachi,100,100,100,100,100,100
+386_Attack Deoxys,386,Attack Deoxys,50,180,20,180,20,150
+386_Defense Deoxys,386,Defense Deoxys,50,70,160,70,160,90
+386_Deoxys,386,Deoxys,50,150,50,150,50,150
+386_Speed Deoxys,386,Speed Deoxys,50,95,90,95,90,180
+387_Turtwig,387,Turtwig,55,68,64,45,55,31
+388_Grotle,388,Grotle,75,89,85,55,65,36
+389_Torterra,389,Torterra,95,109,105,75,85,56
+390_Chimchar,390,Chimchar,44,58,44,58,44,61
+391_Monferno,391,Monferno,64,78,52,78,52,81
+392_Infernape,392,Infernape,76,104,71,104,71,108
+393_Piplup,393,Piplup,53,51,53,61,56,40
+394_Prinplup,394,Prinplup,64,66,68,81,76,50
+395_Empoleon,395,Empoleon,84,86,88,111,101,60
+396_Starly,396,Starly,40,55,30,30,30,60
+397_Staravia,397,Staravia,55,75,50,40,40,80
+398_Staraptor,398,Staraptor,85,120,70,50,60,100
+399_Bidoof,399,Bidoof,59,45,40,35,40,31
+400_Bibarel,400,Bibarel,79,85,60,55,60,71
+401_Kricketot,401,Kricketot,37,25,41,25,41,25
+402_Kricketune,402,Kricketune,77,85,51,55,51,65
+403_Shinx,403,Shinx,45,65,34,40,34,45
+404_Luxio,404,Luxio,60,85,49,60,49,60
+405_Luxray,405,Luxray,80,120,79,95,79,70
+406_Budew,406,Budew,40,30,35,50,70,55
+407_Roserade,407,Roserade,60,70,65,125,105,90
+408_Cranidos,408,Cranidos,67,125,40,30,30,58
+409_Rampardos,409,Rampardos,97,165,60,65,50,58
+410_Shieldon,410,Shieldon,30,42,118,42,88,30
+411_Bastiodon,411,Bastiodon,60,52,168,47,138,30
+412_Burmy,412,Burmy,40,29,45,29,45,36
+412_Sandy Burmy,412,Sandy Burmy,40,29,45,29,45,36
+412_Trash Burmy,412,Trash Burmy,40,29,45,29,45,36
+413_Sandy Wormadam,413,Sandy Wormadam,60,79,105,59,85,36
+413_Trash Wormadam,413,Trash Wormadam,60,69,95,69,95,36
+413_Wormadam,413,Wormadam,60,59,85,79,105,36
+414_Mothim,414,Mothim,70,94,50,94,50,66
+415_Combee,415,Combee,30,30,42,30,42,70
+416_Vespiquen,416,Vespiquen,70,80,102,80,102,40
+417_Pachirisu,417,Pachirisu,60,45,70,45,90,95
+418_Buizel,418,Buizel,55,65,35,60,30,85
+419_Floatzel,419,Floatzel,85,105,55,85,50,115
+420_Cherubi,420,Cherubi,45,35,45,62,53,35
+421_Cherrim,421,Cherrim,70,60,70,87,78,85
+421_Sunshine Cherrim,421,Sunshine Cherrim,70,60,70,87,78,85
+422_East Sea Shellos,422,East Sea Shellos,76,48,48,57,62,34
+422_Shellos,422,Shellos,76,48,48,57,62,34
+423_East Sea Gastrodon,423,East Sea Gastrodon,111,83,68,92,82,39
+423_Gastrodon,423,Gastrodon,111,83,68,92,82,39
+424_Ambipom,424,Ambipom,75,100,66,60,66,115
+425_Drifloon,425,Drifloon,90,50,34,60,44,70
+426_Drifblim,426,Drifblim,150,80,44,90,54,80
+427_Buneary,427,Buneary,55,66,44,44,56,85
+428_Lopunny,428,Lopunny,65,76,84,54,96,105
+428_Mega Lopunny,428,Mega Lopunny,65,136,94,54,96,135
+429_Mismagius,429,Mismagius,60,60,60,105,105,105
+430_Honchkrow,430,Honchkrow,100,125,52,105,52,71
+431_Glameow,431,Glameow,49,55,42,42,37,85
+432_Purugly,432,Purugly,71,82,64,64,59,112
+433_Chingling,433,Chingling,45,30,50,65,50,45
+434_Stunky,434,Stunky,63,63,47,41,41,74
+435_Skuntank,435,Skuntank,103,93,67,71,61,84
+436_Bronzor,436,Bronzor,57,24,86,24,86,23
+437_Bronzong,437,Bronzong,67,89,116,79,116,33
+438_Bonsly,438,Bonsly,50,80,95,10,45,10
+439_Mime Jr.,439,Mime Jr.,20,25,45,70,90,60
+440_Happiny,440,Happiny,100,5,5,15,65,30
+441_Chatot,441,Chatot,76,65,45,92,42,91
+442_Spiritomb,442,Spiritomb,50,92,108,92,108,35
+443_Gible,443,Gible,58,70,45,40,45,42
+444_Gabite,444,Gabite,68,90,65,50,55,82
+445_Garchomp,445,Garchomp,108,130,95,80,85,102
+445_Mega Garchomp,445,Mega Garchomp,108,170,115,120,95,92
+446_Munchlax,446,Munchlax,135,85,40,40,85,5
+447_Riolu,447,Riolu,40,70,40,35,40,60
+448_Lucario,448,Lucario,70,110,70,115,70,90
+448_Mega Lucario,448,Mega Lucario,70,145,88,140,70,112
+449_Hippopotas,449,Hippopotas,68,72,78,38,42,32
+450_Hippowdon,450,Hippowdon,108,112,118,68,72,47
+451_Skorupi,451,Skorupi,40,50,90,30,55,65
+452_Drapion,452,Drapion,70,90,110,60,75,95
+453_Croagunk,453,Croagunk,48,61,40,61,40,50
+454_Toxicroak,454,Toxicroak,83,106,65,86,65,85
+455_Carnivine,455,Carnivine,74,100,72,90,72,46
+456_Finneon,456,Finneon,49,49,56,49,61,66
+457_Lumineon,457,Lumineon,69,69,76,69,86,91
+458_Mantyke,458,Mantyke,45,20,50,60,120,50
+459_Snover,459,Snover,60,62,50,62,60,40
+460_Abomasnow,460,Abomasnow,90,92,75,92,85,60
+460_Mega Abomasnow,460,Mega Abomasnow,90,132,105,132,105,30
+461_Weavile,461,Weavile,70,120,65,45,85,125
+462_Magnezone,462,Magnezone,70,70,115,130,90,60
+463_Lickilicky,463,Lickilicky,110,85,95,80,95,50
+464_Rhyperior,464,Rhyperior,115,140,130,55,55,40
+465_Tangrowth,465,Tangrowth,100,100,125,110,50,50
+466_Electivire,466,Electivire,75,123,67,95,85,95
+467_Magmortar,467,Magmortar,75,95,67,125,95,83
+468_Togekiss,468,Togekiss,85,50,95,120,115,80
+469_Yanmega,469,Yanmega,86,76,86,116,56,95
+470_Leafeon,470,Leafeon,65,110,130,60,65,95
+471_Glaceon,471,Glaceon,65,60,110,130,95,65
+472_Gliscor,472,Gliscor,75,95,125,45,75,95
+473_Mamoswine,473,Mamoswine,110,130,80,70,60,80
+474_Porygon-Z,474,Porygon-Z,85,80,70,135,75,90
+475_Gallade,475,Gallade,68,125,65,65,115,80
+475_Mega Gallade,475,Mega Gallade,68,165,95,65,115,110
+476_Probopass,476,Probopass,60,55,145,75,150,40
+477_Dusknoir,477,Dusknoir,45,100,135,65,135,45
+478_Froslass,478,Froslass,70,80,70,80,70,110
+479_Fan Rotom,479,Fan Rotom,50,65,107,105,107,86
+479_Frost Rotom,479,Frost Rotom,50,65,107,105,107,86
+479_Heat Rotom,479,Heat Rotom,50,65,107,105,107,86
+479_Mow Rotom,479,Mow Rotom,50,65,107,105,107,86
+479_Rotom,479,Rotom,50,50,77,95,77,91
+479_Rotom Drone,479,Rotom Drone,50,65,107,105,107,86
+479_Rotom Phone,479,Rotom Phone,50,65,107,105,107,86
+479_Rotom Pokédex,479,Rotom Pokédex,50,65,107,105,107,86
+479_Wash Rotom,479,Wash Rotom,50,65,107,105,107,86
+480_Uxie,480,Uxie,75,75,130,75,130,95
+481_Mesprit,481,Mesprit,80,105,105,105,105,80
+482_Azelf,482,Azelf,75,125,70,125,70,115
+483_Dialga,483,Dialga,100,120,120,150,100,90
+483_Origin Dialga,483,Origin Dialga,100,100,120,150,120,90
+484_Origin Palkia,484,Origin Palkia,90,100,100,150,120,120
+484_Palkia,484,Palkia,90,120,100,150,120,100
+485_Heatran,485,Heatran,91,90,106,130,106,77
+486_Regigigas,486,Regigigas,110,160,110,80,110,100
+487_Giratina,487,Giratina,150,100,120,100,120,90
+487_Origin Giratina,487,Origin Giratina,150,120,100,120,100,90
+488_Cresselia,488,Cresselia,120,70,120,75,130,85
+489_Phione,489,Phione,80,80,80,80,80,80
+490_Manaphy,490,Manaphy,100,100,100,100,100,100
+491_Darkrai,491,Darkrai,70,90,90,135,90,125
+492_Shaymin,492,Shaymin,100,100,100,100,100,100
+492_Sky Shaymin,492,Sky Shaymin,100,103,75,120,75,127
+493_Arceus,493,Arceus,120,120,120,120,120,120
+493_Bug Arceus,493,Bug Arceus,120,120,120,120,120,120
+493_Dark Arceus,493,Dark Arceus,120,120,120,120,120,120
+493_Dragon Arceus,493,Dragon Arceus,120,120,120,120,120,120
+493_Electric Arceus,493,Electric Arceus,120,120,120,120,120,120
+493_Fairy Arceus,493,Fairy Arceus,120,120,120,120,120,120
+493_Fighting Arceus,493,Fighting Arceus,120,120,120,120,120,120
+493_Fire Arceus,493,Fire Arceus,120,120,120,120,120,120
+493_Flying Arceus,493,Flying Arceus,120,120,120,120,120,120
+493_Ghost Arceus,493,Ghost Arceus,120,120,120,120,120,120
+493_Grass Arceus,493,Grass Arceus,120,120,120,120,120,120
+493_Ground Arceus,493,Ground Arceus,120,120,120,120,120,120
+493_Ice Arceus,493,Ice Arceus,120,120,120,120,120,120
+493_Poison Arceus,493,Poison Arceus,120,120,120,120,120,120
+493_Psychic Arceus,493,Psychic Arceus,120,120,120,120,120,120
+493_Rock Arceus,493,Rock Arceus,120,120,120,120,120,120
+493_Steel Arceus,493,Steel Arceus,120,120,120,120,120,120
+493_Water Arceus,493,Water Arceus,120,120,120,120,120,120
+494_Victini,494,Victini,100,100,100,100,100,100
+495_Snivy,495,Snivy,45,45,55,45,55,63
+496_Servine,496,Servine,60,60,75,60,75,83
+497_Serperior,497,Serperior,75,75,95,75,95,113
+498_Tepig,498,Tepig,65,63,45,45,45,45
+499_Pignite,499,Pignite,90,93,55,70,55,55
+500_Emboar,500,Emboar,110,123,65,100,65,65
+501_Oshawott,501,Oshawott,55,55,45,63,45,45
+502_Dewott,502,Dewott,75,75,60,83,60,60
+503_Hisuian Samurott,503,Hisuian Samurott,90,108,80,100,65,85
+503_Samurott,503,Samurott,95,100,85,108,70,70
+504_Patrat,504,Patrat,45,55,39,35,39,42
+505_Watchog,505,Watchog,60,85,69,60,69,77
+506_Lillipup,506,Lillipup,45,60,45,25,45,55
+507_Herdier,507,Herdier,65,80,65,35,65,60
+508_Stoutland,508,Stoutland,85,110,90,45,90,80
+509_Purrloin,509,Purrloin,41,50,37,50,37,66
+510_Liepard,510,Liepard,64,88,50,88,50,106
+511_Pansage,511,Pansage,50,53,48,53,48,64
+512_Simisage,512,Simisage,75,98,63,98,63,101
+513_Pansear,513,Pansear,50,53,48,53,48,64
+514_Simisear,514,Simisear,75,98,63,98,63,101
+515_Panpour,515,Panpour,50,53,48,53,48,64
+516_Simipour,516,Simipour,75,98,63,98,63,101
+517_Munna,517,Munna,76,25,45,67,55,24
+518_Musharna,518,Musharna,116,55,85,107,95,29
+519_Pidove,519,Pidove,50,55,50,36,30,43
+520_Tranquill,520,Tranquill,62,77,62,50,42,65
+521_Unfezant,521,Unfezant,80,115,80,65,55,93
+522_Blitzle,522,Blitzle,45,60,32,50,32,76
+523_Zebstrika,523,Zebstrika,75,100,63,80,63,116
+524_Roggenrola,524,Roggenrola,55,75,85,25,25,15
+525_Boldore,525,Boldore,70,105,105,50,40,20
+526_Gigalith,526,Gigalith,85,135,130,60,80,25
+527_Woobat,527,Woobat,65,45,43,55,43,72
+528_Swoobat,528,Swoobat,67,57,55,77,55,114
+529_Drilbur,529,Drilbur,60,85,40,30,45,68
+530_Excadrill,530,Excadrill,110,135,60,50,65,88
+531_Audino,531,Audino,103,60,86,60,86,50
+531_Mega Audino,531,Mega Audino,103,60,126,80,126,50
+532_Timburr,532,Timburr,75,80,55,25,35,35
+533_Gurdurr,533,Gurdurr,85,105,85,40,50,40
+534_Conkeldurr,534,Conkeldurr,105,140,95,55,65,45
+535_Tympole,535,Tympole,50,50,40,50,40,64
+536_Palpitoad,536,Palpitoad,75,65,55,65,55,69
+537_Seismitoad,537,Seismitoad,105,95,75,85,75,74
+538_Throh,538,Throh,120,100,85,30,85,45
+539_Sawk,539,Sawk,75,125,75,30,75,85
+540_Sewaddle,540,Sewaddle,45,53,70,40,60,42
+541_Swadloon,541,Swadloon,55,63,90,50,80,42
+542_Leavanny,542,Leavanny,75,103,80,70,80,92
+543_Venipede,543,Venipede,30,45,59,30,39,57
+544_Whirlipede,544,Whirlipede,40,55,99,40,79,47
+545_Scolipede,545,Scolipede,60,100,89,55,69,112
+546_Cottonee,546,Cottonee,40,27,60,37,50,66
+547_Whimsicott,547,Whimsicott,60,67,85,77,75,116
+548_Petilil,548,Petilil,45,35,50,70,50,30
+549_Hisuian Lilligant,549,Hisuian Lilligant,70,105,75,50,75,105
+549_Lilligant,549,Lilligant,70,60,75,110,75,90
+550_Basculin,550,Basculin,70,92,65,80,55,98
+550_Blue-Striped Basculin,550,Blue-Striped Basculin,70,92,65,80,55,98
+550_White-Striped Basculin,550,White-Striped Basculin,70,92,65,80,55,98
+551_Sandile,551,Sandile,50,72,35,35,35,65
+552_Krokorok,552,Krokorok,60,82,45,45,45,74
+553_Krookodile,553,Krookodile,95,117,80,65,70,92
+554_Darumaka,554,Darumaka,70,90,45,15,45,50
+554_Galarian Darumaka,554,Galarian Darumaka,70,90,45,15,45,50
+555_Darmanitan,555,Darmanitan,105,140,55,30,55,95
+555_Galarian Darmanitan,555,Galarian Darmanitan,105,140,55,30,55,95
+555_Galarian Zen Darmanitan,555,Galarian Zen Darmanitan,105,160,55,30,55,135
+555_Zen Darmanitan,555,Zen Darmanitan,105,30,105,140,105,55
+556_Maractus,556,Maractus,75,86,67,106,67,60
+557_Dwebble,557,Dwebble,50,65,85,35,35,55
+558_Crustle,558,Crustle,70,105,125,65,75,45
+559_Scraggy,559,Scraggy,50,75,70,35,70,48
+560_Scrafty,560,Scrafty,65,90,115,45,115,58
+561_Sigilyph,561,Sigilyph,72,58,80,103,80,97
+562_Galarian Yamask,562,Galarian Yamask,38,55,85,30,65,30
+562_Yamask,562,Yamask,38,30,85,55,65,30
+563_Cofagrigus,563,Cofagrigus,58,50,145,95,105,30
+564_Tirtouga,564,Tirtouga,54,78,103,53,45,22
+565_Carracosta,565,Carracosta,74,108,133,83,65,32
+566_Archen,566,Archen,55,112,45,74,45,70
+567_Archeops,567,Archeops,75,140,65,112,65,110
+568_Trubbish,568,Trubbish,50,50,62,40,62,65
+569_Garbodor,569,Garbodor,80,95,82,60,82,75
+569_Gigantamax Garbodor,569,Gigantamax Garbodor,80,125,92,110,92,75
+570_Hisuian Zorua,570,Hisuian Zorua,35,60,40,85,40,70
+570_Zorua,570,Zorua,40,65,40,80,40,65
+571_Hisuian Zoroark,571,Hisuian Zoroark,55,100,60,125,60,110
+571_Zoroark,571,Zoroark,60,105,60,120,60,105
+572_Minccino,572,Minccino,55,50,40,40,40,75
+573_Cinccino,573,Cinccino,75,95,60,65,60,115
+574_Gothita,574,Gothita,45,30,50,55,65,45
+575_Gothorita,575,Gothorita,60,45,70,75,85,55
+576_Gothitelle,576,Gothitelle,70,55,95,95,110,65
+577_Solosis,577,Solosis,45,30,40,105,50,20
+578_Duosion,578,Duosion,65,40,50,125,60,30
+579_Reuniclus,579,Reuniclus,110,65,75,125,85,30
+580_Ducklett,580,Ducklett,62,44,50,44,50,55
+581_Swanna,581,Swanna,75,87,63,87,63,98
+582_Vanillite,582,Vanillite,36,50,50,65,60,44
+583_Vanillish,583,Vanillish,51,65,65,80,75,59
+584_Vanilluxe,584,Vanilluxe,71,95,85,110,95,79
+585_Autumn Deerling,585,Autumn Deerling,60,60,50,40,50,75
+585_Deerling,585,Deerling,60,60,50,40,50,75
+585_Summer Deerling,585,Summer Deerling,60,60,50,40,50,75
+585_Winter Deerling,585,Winter Deerling,60,60,50,40,50,75
+586_Autumn Sawsbuck,586,Autumn Sawsbuck,80,100,70,60,70,95
+586_Sawsbuck,586,Sawsbuck,80,100,70,60,70,95
+586_Summer Sawsbuck,586,Summer Sawsbuck,80,100,70,60,70,95
+586_Winter Sawsbuck,586,Winter Sawsbuck,80,100,70,60,70,95
+587_Emolga,587,Emolga,55,75,60,75,60,103
+588_Karrablast,588,Karrablast,50,75,45,40,45,60
+589_Escavalier,589,Escavalier,70,135,105,60,105,20
+590_Foongus,590,Foongus,69,55,45,55,55,15
+591_Amoonguss,591,Amoonguss,114,85,70,85,80,30
+592_Frillish,592,Frillish,55,40,50,65,85,40
+593_Jellicent,593,Jellicent,100,60,70,85,105,60
+594_Alomomola,594,Alomomola,165,75,80,40,45,65
+595_Joltik,595,Joltik,50,47,50,57,50,65
+596_Galvantula,596,Galvantula,70,77,60,97,60,108
+597_Ferroseed,597,Ferroseed,44,50,91,24,86,10
+598_Ferrothorn,598,Ferrothorn,74,94,131,54,116,20
+599_Klink,599,Klink,40,55,70,45,60,30
+600_Klang,600,Klang,60,80,95,70,85,50
+601_Klinklang,601,Klinklang,60,100,115,70,85,90
+602_Tynamo,602,Tynamo,35,55,40,45,40,60
+603_Eelektrik,603,Eelektrik,65,85,70,75,70,40
+604_Eelektross,604,Eelektross,85,115,80,105,80,50
+605_Elgyem,605,Elgyem,55,55,55,85,55,30
+606_Beheeyem,606,Beheeyem,75,75,75,125,95,40
+607_Litwick,607,Litwick,50,30,55,65,55,20
+608_Lampent,608,Lampent,60,40,60,95,60,55
+609_Chandelure,609,Chandelure,60,55,90,145,90,80
+610_Axew,610,Axew,46,87,60,30,40,57
+611_Fraxure,611,Fraxure,66,117,70,40,50,67
+612_Haxorus,612,Haxorus,76,147,90,60,70,97
+613_Cubchoo,613,Cubchoo,55,70,40,60,40,40
+614_Beartic,614,Beartic,95,130,80,70,80,50
+615_Cryogonal,615,Cryogonal,80,50,50,95,135,105
+616_Shelmet,616,Shelmet,50,40,85,40,65,25
+617_Accelgor,617,Accelgor,80,70,40,100,60,145
+618_Galarian Stunfisk,618,Galarian Stunfisk,109,81,99,66,84,32
+618_Stunfisk,618,Stunfisk,109,66,84,81,99,32
+619_Mienfoo,619,Mienfoo,45,85,50,55,50,65
+620_Mienshao,620,Mienshao,65,125,60,95,60,105
+621_Druddigon,621,Druddigon,77,120,90,60,90,48
+622_Golett,622,Golett,59,74,50,35,50,35
+623_Golurk,623,Golurk,89,124,80,55,80,55
+624_Pawniard,624,Pawniard,45,85,70,40,40,60
+625_Bisharp,625,Bisharp,65,125,100,60,70,70
+626_Bouffalant,626,Bouffalant,95,110,95,40,95,55
+627_Rufflet,627,Rufflet,70,83,50,37,50,60
+628_Braviary,628,Braviary,100,123,75,57,75,80
+628_Hisuian Braviary,628,Hisuian Braviary,110,83,70,112,70,65
+629_Vullaby,629,Vullaby,70,55,75,45,65,60
+630_Mandibuzz,630,Mandibuzz,110,65,105,55,95,80
+631_Heatmor,631,Heatmor,85,97,66,105,66,65
+632_Durant,632,Durant,58,109,112,48,48,109
+633_Deino,633,Deino,52,65,50,45,50,38
+634_Zweilous,634,Zweilous,72,85,70,65,70,58
+635_Hydreigon,635,Hydreigon,92,105,90,125,90,98
+636_Larvesta,636,Larvesta,55,85,55,50,55,60
+637_Volcarona,637,Volcarona,85,60,65,135,105,100
+638_Cobalion,638,Cobalion,91,90,129,90,72,108
+639_Terrakion,639,Terrakion,91,129,90,72,90,108
+640_Virizion,640,Virizion,91,90,72,90,129,108
+641_Therian Tornadus,641,Therian Tornadus,79,100,80,110,90,121
+641_Tornadus,641,Tornadus,79,115,70,125,80,111
+642_Therian Thundurus,642,Therian Thundurus,79,105,70,145,80,101
+642_Thundurus,642,Thundurus,79,115,70,125,80,111
+643_Reshiram,643,Reshiram,100,120,100,150,120,90
+644_Zekrom,644,Zekrom,100,150,120,120,100,90
+645_Landorus,645,Landorus,89,125,90,115,80,101
+645_Therian Landorus,645,Therian Landorus,89,145,90,105,80,91
+646_Black Kyurem,646,Black Kyurem,125,170,100,120,90,95
+646_Kyurem,646,Kyurem,125,130,90,130,90,95
+646_White Kyurem,646,White Kyurem,125,120,90,170,100,95
+647_Keldeo,647,Keldeo,91,72,90,129,90,108
+647_Resolute Keldeo,647,Resolute Keldeo,91,72,90,129,90,108
+648_Meloetta,648,Meloetta,100,77,77,128,128,90
+648_Pirouette Meloetta,648,Pirouette Meloetta,100,128,90,77,77,128
+649_Genesect,649,Genesect,71,120,95,120,95,99
+649_High-speed Flight Configuration Genesect,649,High-speed Flight Configuration Genesect,71,120,95,120,95,99
+650_Chespin,650,Chespin,56,61,65,48,45,38
+651_Quilladin,651,Quilladin,61,78,95,56,58,57
+652_Chesnaught,652,Chesnaught,88,107,122,74,75,64
+653_Fennekin,653,Fennekin,40,45,40,62,60,60
+654_Braixen,654,Braixen,59,59,58,90,70,73
+655_Delphox,655,Delphox,75,69,72,114,100,104
+656_Froakie,656,Froakie,41,56,40,62,44,71
+657_Frogadier,657,Frogadier,54,63,52,83,56,97
+658_Greninja,658,Greninja,72,95,67,103,71,122
+659_Bunnelby,659,Bunnelby,38,36,38,32,36,57
+660_Diggersby,660,Diggersby,85,56,77,50,77,78
+661_Fletchling,661,Fletchling,45,50,43,40,38,62
+662_Fletchinder,662,Fletchinder,62,73,55,56,52,84
+663_Talonflame,663,Talonflame,78,81,71,74,69,126
+664_Scatterbug,664,Scatterbug,38,35,40,27,25,35
+665_Spewpa,665,Spewpa,45,22,60,27,30,29
+666_Archipelago Vivillon,666,Archipelago Vivillon,80,52,50,90,50,89
+666_Continental Vivillon,666,Continental Vivillon,80,52,50,90,50,89
+666_Elegant Vivillon,666,Elegant Vivillon,80,52,50,90,50,89
+666_Fancy Vivillon,666,Fancy Vivillon,80,52,50,90,50,89
+666_Garden Vivillon,666,Garden Vivillon,80,52,50,90,50,89
+666_High Plain Vivillon,666,High Plain Vivillon,80,52,50,90,50,89
+666_Icy Snow Vivillon,666,Icy Snow Vivillon,80,52,50,90,50,89
+666_Jungle Vivillon,666,Jungle Vivillon,80,52,50,90,50,89
+666_Marine Vivillon,666,Marine Vivillon,80,52,50,90,50,89
+666_Modern Vivillon,666,Modern Vivillon,80,52,50,90,50,89
+666_Monsoon Vivillon,666,Monsoon Vivillon,80,52,50,90,50,89
+666_Ocean Vivillon,666,Ocean Vivillon,80,52,50,90,50,89
+666_Poké Ball Vivillon,666,Poké Ball Vivillon,80,52,50,90,50,89
+666_Polar Vivillon,666,Polar Vivillon,80,52,50,90,50,89
+666_River Vivillon,666,River Vivillon,80,52,50,90,50,89
+666_Sandstorm Vivillon,666,Sandstorm Vivillon,80,52,50,90,50,89
+666_Savanna Vivillon,666,Savanna Vivillon,80,52,50,90,50,89
+666_Sun Vivillon,666,Sun Vivillon,80,52,50,90,50,89
+666_Tundra Vivillon,666,Tundra Vivillon,80,52,50,90,50,89
+666_Vivillon,666,Vivillon,80,52,50,90,50,89
+667_Litleo,667,Litleo,62,50,58,73,54,72
+668_Pyroar,668,Pyroar,86,68,72,109,66,106
+669_Blue Flower Flabébé,669,Blue Flower Flabébé,44,38,39,61,79,42
+669_Flabébé,669,Flabébé,44,38,39,61,79,42
+669_Orange Flower Flabébé,669,Orange Flower Flabébé,44,38,39,61,79,42
+669_White Flower Flabébé,669,White Flower Flabébé,44,38,39,61,79,42
+669_Yellow Flower Flabébé,669,Yellow Flower Flabébé,44,38,39,61,79,42
+670_Blue Flower Floette,670,Blue Flower Floette,54,45,47,75,98,52
+670_Floette,670,Floette,54,45,47,75,98,52
+670_Orange Flower Floette,670,Orange Flower Floette,54,45,47,75,98,52
+670_White Flower Floette,670,White Flower Floette,54,45,47,75,98,52
+670_Yellow Flower Floette,670,Yellow Flower Floette,54,45,47,75,98,52
+671_Blue Flower Florges,671,Blue Flower Florges,78,65,68,112,154,75
+671_Florges,671,Florges,78,65,68,112,154,75
+671_Orange Flower Florges,671,Orange Flower Florges,78,65,68,112,154,75
+671_White Flower Florges,671,White Flower Florges,78,65,68,112,154,75
+671_Yellow Flower Florges,671,Yellow Flower Florges,78,65,68,112,154,75
+672_Skiddo,672,Skiddo,66,65,48,62,57,52
+673_Gogoat,673,Gogoat,123,100,62,97,81,68
+674_Pancham,674,Pancham,67,82,62,46,48,43
+675_Pangoro,675,Pangoro,95,124,78,69,71,58
+676_Dandy Trim Furfrou,676,Dandy Trim Furfrou,75,80,60,65,90,102
+676_Debutante Trim Furfrou,676,Debutante Trim Furfrou,75,80,60,65,90,102
+676_Diamond Trim Furfrou,676,Diamond Trim Furfrou,75,80,60,65,90,102
+676_Furfrou,676,Furfrou,75,80,60,65,90,102
+676_Heart Trim Furfrou,676,Heart Trim Furfrou,75,80,60,65,90,102
+676_Kabuki Trim Furfrou,676,Kabuki Trim Furfrou,75,80,60,65,90,102
+676_La Reine Trim Furfrou,676,La Reine Trim Furfrou,75,80,60,65,90,102
+676_Matron Trim Furfrou,676,Matron Trim Furfrou,75,80,60,65,90,102
+676_Pharaoh Trim Furfrou,676,Pharaoh Trim Furfrou,75,80,60,65,90,102
+676_Star Trim Furfrou,676,Star Trim Furfrou,75,80,60,65,90,102
+677_Espurr,677,Espurr,62,48,54,63,60,68
+678_Meowstic,678,Meowstic,74,48,76,83,81,104
+679_Honedge,679,Honedge,45,80,100,35,37,28
+680_Doublade,680,Doublade,59,110,150,45,49,35
+681_Aegislash,681,Aegislash,60,50,150,50,150,60
+681_Blade Aegislash,681,Blade Aegislash,60,150,50,150,50,60
+682_Spritzee,682,Spritzee,78,52,60,63,65,23
+683_Aromatisse,683,Aromatisse,101,72,72,99,89,29
+684_Swirlix,684,Swirlix,62,48,66,59,57,49
+685_Slurpuff,685,Slurpuff,82,80,86,85,75,72
+686_Inkay,686,Inkay,53,54,53,37,46,45
+687_Malamar,687,Malamar,86,92,88,68,75,73
+688_Binacle,688,Binacle,42,52,67,39,56,50
+689_Barbaracle,689,Barbaracle,72,105,115,54,86,68
+690_Skrelp,690,Skrelp,50,60,60,60,60,30
+691_Dragalge,691,Dragalge,65,75,90,97,123,44
+692_Clauncher,692,Clauncher,50,53,62,58,63,44
+693_Clawitzer,693,Clawitzer,71,73,88,120,89,59
+694_Helioptile,694,Helioptile,44,38,33,61,43,70
+695_Heliolisk,695,Heliolisk,62,55,52,109,94,109
+696_Tyrunt,696,Tyrunt,58,89,77,45,45,48
+697_Tyrantrum,697,Tyrantrum,82,121,119,69,59,71
+698_Amaura,698,Amaura,77,59,50,67,63,46
+699_Aurorus,699,Aurorus,123,77,72,99,92,58
+700_Sylveon,700,Sylveon,95,65,65,110,130,60
+701_Hawlucha,701,Hawlucha,78,92,75,74,63,118
+702_Dedenne,702,Dedenne,67,58,57,81,67,101
+703_Carbink,703,Carbink,50,50,150,50,150,50
+704_Goomy,704,Goomy,45,50,35,55,75,40
+705_Hisuian Sliggoo,705,Hisuian Sliggoo,58,75,83,83,113,40
+705_Sliggoo,705,Sliggoo,68,75,53,83,113,60
+706_Goodra,706,Goodra,90,100,70,110,150,80
+706_Hisuian Goodra,706,Hisuian Goodra,80,100,100,110,150,60
+707_Klefki,707,Klefki,57,80,91,80,87,75
+708_Phantump,708,Phantump,43,70,48,50,60,38
+709_Trevenant,709,Trevenant,85,110,76,65,82,56
+710_Pumpkaboo,710,Pumpkaboo,49,66,70,44,55,51
+711_Gourgeist,711,Gourgeist,65,90,122,58,75,84
+712_Bergmite,712,Bergmite,55,69,85,32,35,28
+713_Avalugg,713,Avalugg,95,117,184,44,46,28
+713_Hisuian Avalugg,713,Hisuian Avalugg,95,127,184,34,36,38
+714_Noibat,714,Noibat,40,30,35,45,40,55
+715_Noivern,715,Noivern,85,70,80,97,80,123
+716_Neutral Xerneas,716,Neutral Xerneas,126,131,95,131,98,99
+716_Xerneas,716,Xerneas,126,131,95,131,98,99
+717_Yveltal,717,Yveltal,126,131,95,131,98,99
+718_10% Zygarde,718,10% Zygarde,54,100,71,61,85,115
+718_Complete Zygarde,718,Complete Zygarde,216,100,121,91,95,85
+718_Zygarde,718,Zygarde,108,100,121,81,95,95
+718_Zygarde Cell,718,Zygarde Cell,1,1,1,1,1,1
+718_Zygarde Core,718,Zygarde Core,11,5,6,5,5,4
+719_Diancie,719,Diancie,50,100,150,100,150,50
+719_Mega Diancie,719,Mega Diancie,50,160,110,160,110,110
+720_Hoopa,720,Hoopa,80,110,60,150,130,70
+720_Hoopa Unbound,720,Hoopa Unbound,80,160,60,170,130,80
+721_Volcanion,721,Volcanion,80,110,120,130,90,70
+722_Rowlet,722,Rowlet,68,55,55,50,50,42
+723_Dartrix,723,Dartrix,78,75,75,70,70,52
+724_Decidueye,724,Decidueye,78,107,75,100,100,70
+724_Hisuian Decidueye,724,Hisuian Decidueye,88,112,80,95,95,60
+725_Litten,725,Litten,45,65,40,60,40,70
+726_Torracat,726,Torracat,65,85,50,80,50,90
+727_Incineroar,727,Incineroar,95,115,90,80,90,60
+728_Popplio,728,Popplio,50,54,54,66,56,40
+729_Brionne,729,Brionne,60,69,69,91,81,50
+730_Primarina,730,Primarina,80,74,74,126,116,60
+731_Pikipek,731,Pikipek,35,75,30,30,30,65
+732_Trumbeak,732,Trumbeak,55,85,50,40,50,75
+733_Toucannon,733,Toucannon,80,120,75,75,75,60
+734_Yungoos,734,Yungoos,48,70,30,30,30,45
+735_Gumshoos,735,Gumshoos,88,110,60,55,60,45
+736_Grubbin,736,Grubbin,47,62,45,55,45,46
+737_Charjabug,737,Charjabug,57,82,95,55,75,36
+738_Vikavolt,738,Vikavolt,77,70,90,145,75,43
+739_Crabrawler,739,Crabrawler,47,82,57,42,47,63
+740_Crabominable,740,Crabominable,97,132,77,62,67,43
+741_Oricorio,741,Oricorio,75,70,70,98,70,93
+741_Pa'u Oricorio,741,Pa'u Oricorio,75,70,70,98,70,93
+741_Pom-pom Oricorio,741,Pom-pom Oricorio,75,70,70,98,70,93
+741_Sensu Oricorio,741,Sensu Oricorio,75,70,70,98,70,93
+742_Cutiefly,742,Cutiefly,40,45,40,55,40,84
+743_Ribombee,743,Ribombee,60,55,60,95,70,124
+744_Rockruff,744,Rockruff,45,65,40,30,40,60
+745_Dusk Lycanroc,745,Dusk Lycanroc,75,117,65,55,65,110
+745_Lycanroc,745,Lycanroc,75,115,65,55,65,112
+745_Midnight Lycanroc,745,Midnight Lycanroc,85,115,75,55,75,82
+746_School Wishiwashi,746,School Wishiwashi,45,140,130,140,135,30
+746_Wishiwashi,746,Wishiwashi,45,20,20,25,25,40
+747_Mareanie,747,Mareanie,50,53,62,43,52,45
+748_Toxapex,748,Toxapex,50,63,152,53,142,35
+749_Mudbray,749,Mudbray,70,100,70,45,55,45
+750_Mudsdale,750,Mudsdale,100,125,100,55,85,35
+751_Dewpider,751,Dewpider,38,40,52,40,72,27
+752_Araquanid,752,Araquanid,68,70,92,50,132,42
+753_Fomantis,753,Fomantis,40,55,35,50,35,35
+754_Lurantis,754,Lurantis,70,105,90,80,90,45
+755_Morelull,755,Morelull,40,35,55,65,75,15
+756_Shiinotic,756,Shiinotic,60,45,80,90,100,30
+757_Salandit,757,Salandit,48,44,40,71,40,77
+758_Salazzle,758,Salazzle,68,64,60,111,60,117
+759_Stufful,759,Stufful,70,75,50,45,50,50
+760_Bewear,760,Bewear,120,125,80,55,60,60
+761_Bounsweet,761,Bounsweet,42,30,38,30,38,32
+762_Steenee,762,Steenee,52,40,48,40,48,62
+763_Tsareena,763,Tsareena,72,120,98,50,98,72
+764_Comfey,764,Comfey,51,52,90,82,110,100
+765_Oranguru,765,Oranguru,90,60,80,90,110,60
+766_Passimian,766,Passimian,100,120,90,40,60,80
+767_Wimpod,767,Wimpod,25,35,40,20,30,80
+768_Golisopod,768,Golisopod,75,125,140,60,90,40
+769_Sandygast,769,Sandygast,55,55,80,70,45,15
+770_Palossand,770,Palossand,85,75,110,100,75,35
+771_Pyukumuku,771,Pyukumuku,55,60,130,30,130,5
+772_Type: Null,772,Type: Null,95,95,95,95,95,59
+773_Bug Silvally,773,Bug Silvally,95,95,95,95,95,95
+773_Dark Silvally,773,Dark Silvally,95,95,95,95,95,95
+773_Dragon Silvally,773,Dragon Silvally,95,95,95,95,95,95
+773_Electric Silvally,773,Electric Silvally,95,95,95,95,95,95
+773_Fairy Silvally,773,Fairy Silvally,95,95,95,95,95,95
+773_Fighting Silvally,773,Fighting Silvally,95,95,95,95,95,95
+773_Fire Silvally,773,Fire Silvally,95,95,95,95,95,95
+773_Flying Silvally,773,Flying Silvally,95,95,95,95,95,95
+773_Ghost Silvally,773,Ghost Silvally,95,95,95,95,95,95
+773_Grass Silvally,773,Grass Silvally,95,95,95,95,95,95
+773_Ground Silvally,773,Ground Silvally,95,95,95,95,95,95
+773_Ice Silvally,773,Ice Silvally,95,95,95,95,95,95
+773_Poison Silvally,773,Poison Silvally,95,95,95,95,95,95
+773_Psychic Silvally,773,Psychic Silvally,95,95,95,95,95,95
+773_Rock Silvally,773,Rock Silvally,95,95,95,95,95,95
+773_Silvally,773,Silvally,95,95,95,95,95,95
+773_Steel Silvally,773,Steel Silvally,95,95,95,95,95,95
+773_Water Silvally,773,Water Silvally,95,95,95,95,95,95
+774_Blue Core Minior,774,Blue Core Minior,60,100,60,100,60,120
+774_Blue Meteor Minior,774,Blue Meteor Minior,60,60,100,60,100,60
+774_Green Core Minior,774,Green Core Minior,60,100,60,100,60,120
+774_Green Meteor Minior,774,Green Meteor Minior,60,60,100,60,100,60
+774_Indigo Core Minior,774,Indigo Core Minior,60,100,60,100,60,120
+774_Indigo Meteor Minior,774,Indigo Meteor Minior,60,60,100,60,100,60
+774_Minior,774,Minior,60,60,100,60,100,60
+774_Orange Core Minior,774,Orange Core Minior,60,100,60,100,60,120
+774_Orange Meteor Minior,774,Orange Meteor Minior,60,60,100,60,100,60
+774_Red Core Minior,774,Red Core Minior,60,100,60,100,60,120
+774_Red Meteor Minior,774,Red Meteor Minior,60,60,100,60,100,60
+774_Violet Core Minior,774,Violet Core Minior,60,100,60,100,60,120
+774_Violet Meteor Minior,774,Violet Meteor Minior,60,60,100,60,100,60
+774_Yellow Core Minior,774,Yellow Core Minior,60,100,60,100,60,120
+774_Yellow Meteor Minior,774,Yellow Meteor Minior,60,60,100,60,100,60
+775_Komala,775,Komala,65,115,65,75,95,65
+776_Turtonator,776,Turtonator,60,78,135,91,85,36
+777_Togedemaru,777,Togedemaru,65,98,63,40,73,96
+778_Mimikyu,778,Mimikyu,55,90,80,50,105,96
+779_Bruxish,779,Bruxish,68,105,70,70,70,92
+780_Drampa,780,Drampa,78,60,85,135,91,36
+781_Dhelmise,781,Dhelmise,70,131,100,86,90,40
+782_Jangmo-o,782,Jangmo-o,45,55,65,45,45,45
+783_Hakamo-o,783,Hakamo-o,55,75,90,65,70,65
+784_Kommo-o,784,Kommo-o,75,110,125,100,105,85
+785_Tapu Koko,785,Tapu Koko,70,115,85,95,75,130
+786_Tapu Lele,786,Tapu Lele,70,85,75,130,115,95
+787_Tapu Bulu,787,Tapu Bulu,70,130,115,85,95,75
+788_Tapu Fini,788,Tapu Fini,70,75,115,95,130,85
+789_Cosmog,789,Cosmog,43,29,31,29,31,37
+790_Cosmoem,790,Cosmoem,43,29,131,29,131,37
+791_Solgaleo,791,Solgaleo,137,137,107,113,89,97
+792_Lunala,792,Lunala,137,113,89,137,107,97
+793_Nihilego,793,Nihilego,109,53,47,127,131,103
+794_Buzzwole,794,Buzzwole,107,139,139,53,53,79
+795_Pheromosa,795,Pheromosa,71,137,37,137,37,151
+796_Xurkitree,796,Xurkitree,83,89,71,173,71,83
+797_Celesteela,797,Celesteela,97,101,103,107,101,61
+798_Kartana,798,Kartana,59,181,131,59,31,109
+799_Guzzlord,799,Guzzlord,223,101,53,97,53,43
+800_Dawn Wings Necrozma,800,Dawn Wings Necrozma,97,113,109,157,127,77
+800_Dusk Mane Necrozma,800,Dusk Mane Necrozma,97,157,127,113,109,77
+800_Necrozma,800,Necrozma,97,107,101,127,89,79
+800_Ultra Necrozma,800,Ultra Necrozma,97,167,97,167,97,129
+801_Magearna,801,Magearna,80,95,115,130,115,65
+801_Original Magearna,801,Original Magearna,80,95,115,130,115,65
+802_Marshadow,802,Marshadow,90,125,80,90,90,125
+802_Zenith Marshadow,802,Zenith Marshadow,90,125,80,90,90,125
+803_Poipole,803,Poipole,67,73,67,73,67,73
+804_Naganadel,804,Naganadel,73,73,73,127,73,121
+805_Stakataka,805,Stakataka,61,131,211,53,101,13
+806_Blacephalon,806,Blacephalon,53,127,53,151,79,107
+807_Zeraora,807,Zeraora,88,112,75,102,80,143
+808_Meltan,808,Meltan,46,65,65,55,35,34
+809_Gigantamax Melmetal,809,Gigantamax Melmetal,135,143,113,113,78,118
+809_Melmetal,809,Melmetal,135,143,143,80,65,34
+810_Grookey,810,Grookey,50,65,50,40,40,65
+811_Thwackey,811,Thwackey,70,85,70,55,60,80
+812_Gigantamax Rillaboom,812,Gigantamax Rillaboom,100,140,100,95,95,100
+812_Rillaboom,812,Rillaboom,100,125,90,60,70,85
+813_Scorbunny,813,Scorbunny,50,71,40,40,40,69
+814_Raboot,814,Raboot,65,86,60,55,60,94
+815_Cinderace,815,Cinderace,80,116,75,65,75,119
+815_Gigantamax Cinderace,815,Gigantamax Cinderace,80,145,92,85,92,131
+816_Sobble,816,Sobble,50,40,40,70,40,70
+817_Drizzile,817,Drizzile,65,60,55,95,55,90
+818_Gigantamax Inteleon,818,Gigantamax Inteleon,70,120,65,155,70,150
+818_Inteleon,818,Inteleon,70,85,65,125,65,120
+819_Skwovet,819,Skwovet,70,55,55,35,35,25
+820_Greedent,820,Greedent,120,95,95,55,75,20
+821_Rookidee,821,Rookidee,38,47,35,33,35,57
+822_Corvisquire,822,Corvisquire,68,67,55,43,55,77
+823_Corviknight,823,Corviknight,98,87,105,53,85,67
+823_Gigantamax Corviknight,823,Gigantamax Corviknight,98,127,120,58,105,87
+824_Blipbug,824,Blipbug,25,20,20,25,45,45
+825_Dottler,825,Dottler,50,35,80,50,90,30
+826_Gigantamax Orbeetle,826,Gigantamax Orbeetle,60,85,120,115,130,95
+826_Orbeetle,826,Orbeetle,60,45,110,80,120,90
+827_Nickit,827,Nickit,40,28,28,47,52,50
+828_Thievul,828,Thievul,70,58,58,87,92,90
+829_Gossifleur,829,Gossifleur,40,40,60,40,60,10
+830_Eldegoss,830,Eldegoss,60,50,90,80,120,60
+831_Wooloo,831,Wooloo,42,40,55,40,45,48
+832_Dubwool,832,Dubwool,72,80,100,60,90,88
+833_Chewtle,833,Chewtle,50,64,50,38,38,44
+834_Drednaw,834,Drednaw,90,115,90,48,68,74
+834_Gigantamax Drednaw,834,Gigantamax Drednaw,90,155,110,68,83,79
+835_Yamper,835,Yamper,59,45,50,40,50,26
+836_Boltund,836,Boltund,69,90,60,90,60,121
+837_Rolycoly,837,Rolycoly,30,40,50,40,50,30
+838_Carkol,838,Carkol,80,60,90,60,70,50
+839_Coalossal,839,Coalossal,110,80,120,80,90,30
+839_Gigantamax Coalossal,839,Gigantamax Coalossal,110,120,120,120,100,40
+840_Applin,840,Applin,40,40,80,40,40,20
+841_Flapple,841,Flapple,70,110,80,95,60,70
+841_Gigantamax Flapple,841,Gigantamax Flapple,70,145,90,105,80,95
+842_Appletun,842,Appletun,110,85,80,100,80,30
+842_Gigantamax Appletun,842,Gigantamax Appletun,110,90,105,130,105,45
+843_Silicobra,843,Silicobra,52,57,75,35,50,46
+844_Gigantamax Sandaconda,844,Gigantamax Sandaconda,72,147,135,65,80,111
+844_Sandaconda,844,Sandaconda,72,107,125,65,70,71
+845_Cramorant,845,Cramorant,70,85,55,85,95,85
+845_Gorging Cramorant,845,Gorging Cramorant,70,85,55,85,95,85
+845_Gulping Cramorant,845,Gulping Cramorant,70,85,55,85,95,85
+846_Arrokuda,846,Arrokuda,41,63,40,40,30,66
+847_Barraskewda,847,Barraskewda,61,123,60,60,50,136
+848_Toxel,848,Toxel,40,38,35,54,35,40
+849_Amped Toxtricity,849,Amped Toxtricity,75,98,70,114,70,75
+849_Gigantamax Amped Toxtricity,849,Gigantamax Amped Toxtricity,75,118,80,147,80,102
+849_Gigantamax Low Key Toxtricity,849,Gigantamax Low Key Toxtricity,75,118,80,147,80,102
+849_Low Key Toxtricity,849,Low Key Toxtricity,75,98,70,114,70,75
+850_Sizzlipede,850,Sizzlipede,50,65,45,50,50,45
+851_Centiskorch,851,Centiskorch,100,115,65,90,90,65
+851_Gigantamax Centiskorch,851,Gigantamax Centiskorch,100,125,75,120,95,110
+852_Clobbopus,852,Clobbopus,50,68,60,50,50,32
+853_Grapploct,853,Grapploct,80,118,90,70,80,42
+854_Sinistea,854,Sinistea,40,45,45,74,54,50
+855_Polteageist,855,Polteageist,60,65,65,134,114,70
+856_Hatenna,856,Hatenna,42,30,45,56,53,39
+857_Hattrem,857,Hattrem,57,40,65,86,73,49
+858_Gigantamax Hatterene,858,Gigantamax Hatterene,57,100,115,166,123,49
+858_Hatterene,858,Hatterene,57,90,95,136,103,29
+859_Impidimp,859,Impidimp,45,45,30,55,40,50
+860_Morgrem,860,Morgrem,65,60,45,75,55,70
+861_Gigantamax Grimmsnarl,861,Gigantamax Grimmsnarl,95,150,75,125,85,80
+861_Grimmsnarl,861,Grimmsnarl,95,120,65,95,75,60
+862_Obstagoon,862,Obstagoon,93,90,101,60,81,95
+863_Perrserker,863,Perrserker,70,110,100,50,60,50
+864_Cursola,864,Cursola,60,95,50,145,130,30
+865_Sirfetch'd,865,Sirfetch'd,62,135,95,68,82,65
+866_Mr. Rime,866,Mr. Rime,80,85,75,110,100,70
+867_Runerigus,867,Runerigus,58,95,145,50,105,30
+868_Milcery,868,Milcery,45,40,40,50,61,34
+869_Alcremie,869,Alcremie,65,60,75,110,121,64
+869_Gigantamax Alcremie,869,Gigantamax Alcremie,85,70,75,140,141,74
+869_Vanilla Cream Berry Sweet Alcremie,869,Vanilla Cream Berry Sweet Alcremie,65,60,75,110,121,64
+869_Vanilla Cream Clover Sweet Alcremie,869,Vanilla Cream Clover Sweet Alcremie,65,60,75,110,121,64
+869_Vanilla Cream Flower Sweet Alcremie,869,Vanilla Cream Flower Sweet Alcremie,65,60,75,110,121,64
+869_Vanilla Cream Love Sweet Alcremie,869,Vanilla Cream Love Sweet Alcremie,65,60,75,110,121,64
+869_Vanilla Cream Ribbon Sweet Alcremie,869,Vanilla Cream Ribbon Sweet Alcremie,65,60,75,110,121,64
+869_Vanilla Cream Star Sweet Alcremie,869,Vanilla Cream Star Sweet Alcremie,65,60,75,110,121,64
+870_Falinks,870,Falinks,65,100,100,70,60,75
+871_Pincurchin,871,Pincurchin,48,101,95,91,85,15
+872_Snom,872,Snom,30,25,35,45,30,20
+873_Frosmoth,873,Frosmoth,70,65,60,125,90,65
+874_Stonjourner,874,Stonjourner,100,125,135,20,20,70
+875_Eiscue,875,Eiscue,75,80,110,65,90,50
+875_Noice Face Eiscue,875,Noice Face Eiscue,75,80,70,65,50,130
+876_Indeedee,876,Indeedee,60,65,55,105,95,95
+877_Hangry Morpeko,877,Hangry Morpeko,58,95,58,70,58,97
+877_Morpeko,877,Morpeko,58,95,58,70,58,97
+878_Cufant,878,Cufant,72,80,49,40,49,40
+879_Copperajah,879,Copperajah,122,130,69,80,69,30
+879_Gigantamax Copperajah,879,Gigantamax Copperajah,122,140,99,80,99,60
+880_Dracozolt,880,Dracozolt,90,100,90,80,70,75
+881_Arctozolt,881,Arctozolt,90,100,90,90,80,55
+882_Dracovish,882,Dracovish,90,90,100,70,80,75
+883_Arctovish,883,Arctovish,90,90,100,80,90,55
+884_Duraludon,884,Duraludon,70,95,115,120,50,85
+884_Gigantamax Duraludon,884,Gigantamax Duraludon,70,115,135,155,75,85
+885_Dreepy,885,Dreepy,28,60,30,40,30,82
+886_Drakloak,886,Drakloak,68,80,50,60,50,102
+887_Dragapult,887,Dragapult,88,120,75,100,75,142
+888_Crowned Zacian,888,Crowned Zacian,92,150,115,80,115,148
+888_Zacian,888,Zacian,92,120,115,80,115,138
+889_Crowned Zamazenta,889,Crowned Zamazenta,92,120,140,80,140,128
+889_Zamazenta,889,Zamazenta,92,120,115,80,115,138
+890_Eternamax Eternatus,890,Eternamax Eternatus,150,120,120,165,120,105
+890_Eternatus,890,Eternatus,140,85,95,145,95,130
+891_Kubfu,891,Kubfu,60,90,60,53,50,72
+892_Gigantamax Rapid Strike Urshifu,892,Gigantamax Rapid Strike Urshifu,100,145,100,93,90,122
+892_Gigantamax Single Strike Urshifu,892,Gigantamax Single Strike Urshifu,100,145,115,93,100,97
+892_Rapid Strike Urshifu,892,Rapid Strike Urshifu,100,130,100,63,60,97
+892_Urshifu,892,Urshifu,100,130,100,63,60,97
+893_Dada Zarude,893,Dada Zarude,105,120,105,70,95,105
+893_Zarude,893,Zarude,105,120,105,70,95,105
+894_Regieleki,894,Regieleki,80,100,50,100,50,200
+895_Regidrago,895,Regidrago,200,100,50,100,50,80
+896_Glastrier,896,Glastrier,100,145,130,65,110,30
+897_Spectrier,897,Spectrier,100,65,60,145,80,130
+898_Calyrex,898,Calyrex,100,80,80,80,80,80
+898_Ice Rider Calyrex,898,Ice Rider Calyrex,100,165,150,85,130,50
+898_Shadow Rider Calyrex,898,Shadow Rider Calyrex,100,85,80,165,100,150
+899_Wyrdeer,899,Wyrdeer,103,105,72,105,75,65
+900_Kleavor,900,Kleavor,70,135,95,45,70,85
+901_Bloodmoon Ursaluna,901,Bloodmoon Ursaluna,113,70,120,135,65,52
+901_Ursaluna,901,Ursaluna,130,140,105,45,80,50
+902_Basculegion,902,Basculegion,120,112,65,80,75,78
+903_Sneasler,903,Sneasler,80,130,60,40,80,120
+904_Overqwil,904,Overqwil,85,115,95,65,65,85
+905_Enamorus,905,Enamorus,74,115,70,135,80,106
+905_Therian Enamorus,905,Therian Enamorus,74,115,110,135,100,46
+906_Sprigatito,906,Sprigatito,40,61,54,45,45,65
+907_Floragato,907,Floragato,61,80,63,60,63,83
+908_Meowscarada,908,Meowscarada,76,110,70,81,70,123
+909_Fuecoco,909,Fuecoco,67,45,59,63,40,36
+910_Crocalor,910,Crocalor,81,55,78,90,58,49
+911_Skeledirge,911,Skeledirge,104,75,100,110,75,66
+912_Quaxly,912,Quaxly,55,65,45,50,45,50
+913_Quaxwell,913,Quaxwell,70,85,65,65,60,65
+914_Quaquaval,914,Quaquaval,85,120,80,85,75,85
+915_Lechonk,915,Lechonk,54,45,40,35,45,35
+916_Oinkologne,916,Oinkologne,110,100,75,59,80,65
+917_Tarountula,917,Tarountula,35,41,45,29,40,20
+918_Spidops,918,Spidops,60,79,92,52,86,35
+919_Nymble,919,Nymble,33,46,40,21,25,45
+920_Lokix,920,Lokix,71,102,78,52,55,92
+921_Pawmi,921,Pawmi,45,50,20,40,25,60
+922_Pawmo,922,Pawmo,60,75,40,50,40,85
+923_Pawmot,923,Pawmot,70,115,70,70,60,105
+924_Tandemaus,924,Tandemaus,50,50,45,40,45,75
+925_Family of Three Maushold,925,Family of Three Maushold,74,75,70,65,75,111
+925_Maushold,925,Maushold,74,75,70,65,75,111
+926_Fidough,926,Fidough,37,55,70,30,55,65
+927_Dachsbun,927,Dachsbun,57,80,115,50,80,95
+928_Smoliv,928,Smoliv,41,35,45,58,51,30
+929_Dolliv,929,Dolliv,52,53,60,78,78,33
+930_Arboliva,930,Arboliva,78,69,90,125,109,39
+931_Blue Plumage Squawkabilly,931,Blue Plumage Squawkabilly,82,96,51,45,51,92
+931_Squawkabilly,931,Squawkabilly,82,96,51,45,51,92
+931_White Plumage Squawkabilly,931,White Plumage Squawkabilly,82,96,51,45,51,92
+931_Yellow Plumage Squawkabilly,931,Yellow Plumage Squawkabilly,82,96,51,45,51,92
+932_Nacli,932,Nacli,55,55,75,35,35,25
+933_Naclstack,933,Naclstack,60,60,100,35,65,35
+934_Garganacl,934,Garganacl,100,100,130,45,90,35
+935_Charcadet,935,Charcadet,40,50,40,50,40,35
+936_Armarouge,936,Armarouge,85,60,100,125,80,75
+937_Ceruledge,937,Ceruledge,75,125,80,60,100,85
+938_Tadbulb,938,Tadbulb,61,31,41,59,35,45
+939_Bellibolt,939,Bellibolt,109,64,91,103,83,45
+940_Wattrel,940,Wattrel,40,40,35,55,40,70
+941_Kilowattrel,941,Kilowattrel,70,70,60,105,60,125
+942_Maschiff,942,Maschiff,60,78,60,40,51,51
+943_Mabosstiff,943,Mabosstiff,80,120,90,60,70,85
+944_Shroodle,944,Shroodle,40,65,35,40,35,75
+945_Grafaiai,945,Grafaiai,63,95,65,80,72,110
+946_Bramblin,946,Bramblin,40,65,30,45,35,60
+947_Brambleghast,947,Brambleghast,55,115,70,80,70,90
+948_Toedscool,948,Toedscool,40,40,35,50,100,70
+949_Toedscruel,949,Toedscruel,80,70,65,80,120,100
+950_Klawf,950,Klawf,70,100,115,35,55,75
+951_Capsakid,951,Capsakid,50,62,40,62,40,50
+952_Scovillain,952,Scovillain,65,108,65,108,65,75
+953_Rellor,953,Rellor,41,50,60,31,58,30
+954_Rabsca,954,Rabsca,75,50,85,115,100,45
+955_Flittle,955,Flittle,30,35,30,55,30,75
+956_Espathra,956,Espathra,95,60,60,101,60,105
+957_Tinkatink,957,Tinkatink,50,45,45,35,64,58
+958_Tinkatuff,958,Tinkatuff,65,55,55,45,82,78
+959_Tinkaton,959,Tinkaton,85,75,77,70,105,94
+960_Wiglett,960,Wiglett,10,55,25,35,25,95
+961_Wugtrio,961,Wugtrio,35,100,50,50,70,120
+962_Bombirdier,962,Bombirdier,70,103,85,60,85,82
+963_Finizen,963,Finizen,70,45,40,45,40,75
+964_Hero Palafin,964,Hero Palafin,100,160,97,106,87,100
+964_Palafin,964,Palafin,100,70,72,53,62,100
+965_Varoom,965,Varoom,45,70,63,30,45,47
+966_Revavroom,966,Revavroom,80,119,90,54,67,90
+967_Battle Cyclizar,967,Battle Cyclizar,70,95,65,85,65,121
+967_Cyclizar,967,Cyclizar,70,95,65,85,65,121
+967_Ride Cyclizar,967,Ride Cyclizar,70,95,65,85,65,121
+968_Orthworm,968,Orthworm,70,85,145,60,55,65
+969_Glimmet,969,Glimmet,48,35,42,105,60,60
+970_Glimmora,970,Glimmora,83,55,90,130,81,86
+971_Greavard,971,Greavard,50,61,60,30,55,34
+972_Houndstone,972,Houndstone,72,101,100,50,97,68
+973_Flamigo,973,Flamigo,82,115,74,75,64,90
+974_Cetoddle,974,Cetoddle,108,68,45,30,40,43
+975_Cetitan,975,Cetitan,170,113,65,45,55,73
+976_Veluza,976,Veluza,90,102,73,78,65,70
+977_Dondozo,977,Dondozo,150,100,115,65,65,35
+978_Droopy Tatsugiri,978,Droopy Tatsugiri,68,50,60,120,95,82
+978_Stretchy Tatsugiri,978,Stretchy Tatsugiri,68,50,60,120,95,82
+978_Tatsugiri,978,Tatsugiri,68,50,60,120,95,82
+979_Annihilape,979,Annihilape,110,115,80,50,90,90
+980_Clodsire,980,Clodsire,130,75,60,45,100,20
+981_Farigiraf,981,Farigiraf,120,90,70,110,70,60
+982_Dudunsparce,982,Dudunsparce,125,100,80,85,75,55
+982_Three-Segment Dudunsparce,982,Three-Segment Dudunsparce,125,100,80,85,75,55
+983_Kingambit,983,Kingambit,100,135,120,60,85,50
+984_Great Tusk,984,Great Tusk,115,131,131,53,53,87
+985_Scream Tail,985,Scream Tail,115,65,99,65,115,111
+986_Brute Bonnet,986,Brute Bonnet,111,127,99,79,99,55
+987_Flutter Mane,987,Flutter Mane,55,55,55,135,135,135
+988_Slither Wing,988,Slither Wing,85,135,79,85,105,81
+989_Sandy Shocks,989,Sandy Shocks,85,81,97,121,85,101
+990_Iron Treads,990,Iron Treads,90,112,120,72,70,106
+991_Iron Bundle,991,Iron Bundle,56,80,114,124,60,136
+992_Iron Hands,992,Iron Hands,154,140,108,50,68,50
+993_Iron Jugulis,993,Iron Jugulis,94,80,86,122,80,108
+994_Iron Moth,994,Iron Moth,80,70,60,140,110,110
+995_Iron Thorns,995,Iron Thorns,100,134,110,70,84,72
+996_Frigibax,996,Frigibax,65,75,45,35,45,55
+997_Arctibax,997,Arctibax,90,95,66,45,65,62
+998_Baxcalibur,998,Baxcalibur,115,145,92,75,86,87
+999_Gimmighoul,999,Gimmighoul,45,30,70,75,70,10
+999_Roaming Gimmighoul,999,Roaming Gimmighoul,45,30,25,75,45,80
+1000_Gholdengo,1000,Gholdengo,87,60,95,133,91,84
+1001_Wo-Chien,1001,Wo-Chien,85,85,100,95,135,70
+1002_Chien-Pao,1002,Chien-Pao,80,120,80,90,65,135
+1003_Ting-Lu,1003,Ting-Lu,155,110,125,55,80,45
+1004_Chi-Yu,1004,Chi-Yu,55,80,80,135,120,100
+1005_Roaring Moon,1005,Roaring Moon,105,139,71,55,101,119
+1006_Iron Valiant,1006,Iron Valiant,74,130,90,120,60,116
+1007_Gliding Build Koraidon,1007,Gliding Build Koraidon,100,135,115,85,100,135
+1007_Koraidon,1007,Koraidon,100,135,115,85,100,135
+1007_Sprinting Build Koraidon,1007,Sprinting Build Koraidon,100,135,115,85,100,135
+1008_Drive Mode Miraidon,1008,Drive Mode Miraidon,100,85,100,135,115,135
+1008_Glide Mode Miraidon,1008,Glide Mode Miraidon,100,85,100,135,115,135
+1008_Miraidon,1008,Miraidon,100,85,100,135,115,135
+1009_Walking Wake,1009,Walking Wake,99,83,91,125,83,109
+1010_Iron Leaves,1010,Iron Leaves,90,130,88,70,108,104
+1011_Dipplin,1011,Dipplin,80,80,110,95,80,40
+1012_Poltchageist,1012,Poltchageist,40,45,45,73,54,50
+1013_Sinistcha,1013,Sinistcha,71,60,106,121,80,70
+1014_Okidogi,1014,Okidogi,88,128,115,58,86,80
+1015_Munkidori,1015,Munkidori,88,75,66,130,90,106
+1016_Fezandipiti,1016,Fezandipiti,88,91,82,70,125,99
+1017_Cornerstone Mask Ogerpon,1017,Cornerstone Mask Ogerpon,80,120,84,60,96,110
+1017_Hearthflame Mask Ogerpon,1017,Hearthflame Mask Ogerpon,80,120,84,60,96,110
+1017_Ogerpon,1017,Ogerpon,80,120,84,60,96,110
+1017_Wellspring Mask Ogerpon,1017,Wellspring Mask Ogerpon,80,120,84,60,96,110
+1018_Archaludon,1018,Archaludon,90,105,130,125,65,85
+1019_Hydrapple,1019,Hydrapple,106,80,110,120,80,44
+1020_Gouging Fire,1020,Gouging Fire,105,115,121,65,93,91
+1021_Raging Bolt,1021,Raging Bolt,125,73,91,137,89,75
+1022_Iron Boulder,1022,Iron Boulder,90,120,80,68,108,124
+1023_Iron Crown,1023,Iron Crown,90,72,100,122,108,98
+1024_Terapagos,1024,Terapagos,90,65,85,65,85,60
+1024_Terastal Terapagos,1024,Terastal Terapagos,95,95,110,105,110,85
+1025_Pecharunt,1025,Pecharunt,88,88,160,88,88,88
