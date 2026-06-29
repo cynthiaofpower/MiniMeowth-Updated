@@ -10,6 +10,20 @@ import heapq
 import unicodedata
 
 
+def _move_emoji_prefix(move_name: str, movedex: dict) -> str:
+    """Return '<TypeEmoji><CatEmoji> ' prefix for a move, or '' if unknown."""
+    key = ''.join(
+        c for c in unicodedata.normalize('NFD', move_name.lower())
+        if unicodedata.category(c) != 'Mn'
+    )
+    info = movedex.get(key, {})
+    mtype = info.get('type', '')
+    mcat  = info.get('category', '')
+    type_e = config.TYPE_EMOJI.get(mtype, '')
+    cat_e  = config.CAT_EMOJI.get(mcat, '')
+    prefix = f"{type_e}{cat_e}"
+    return f"{prefix} " if prefix.strip() else ''
+
 def normalize_string(s):
     """Remove accents from string for comparisonn"""
     return ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
@@ -52,6 +66,7 @@ class ChainBreeding(commands.Cog):
         self.egg_groups = {}
         self.spawn_rates = {}
         self.pokemon_list = []
+        self.movedex = {}
         self.learns_naturally = defaultdict(set)
         self.learns_breeding = defaultdict(set)
         self.load_data()
@@ -60,8 +75,25 @@ class ChainBreeding(commands.Cog):
         self.load_movesets()
         self.load_egg_groups()
         self.load_spawn_rates()
+        self.load_movedex()
         self.build_move_indexes()
         print("✅ Chain Breeding data loaded successfully")
+
+    def load_movedex(self):
+        try:
+            with open('alldata/movedex.json', 'r', encoding='utf-8') as f:
+                raw = json.load(f)
+            for entry in raw:
+                move = entry.get('current', {})
+                if move.get('name'):
+                    key = ''.join(
+                        c for c in unicodedata.normalize('NFD', move['name'].lower())
+                        if unicodedata.category(c) != 'Mn'
+                    )
+                    self.movedex[key] = move
+            print(f"✅ [ChainBreeding] Loaded {len(self.movedex)} moves from movedex")
+        except Exception as e:
+            print(f"⚠️ [ChainBreeding] movedex.json not loaded: {e}")
 
     def load_movesets(self):
         try:
@@ -364,6 +396,134 @@ class ChainBreeding(commands.Cog):
 
         return chain
 
+    def create_egg_move_picker_view(self, ctx, target_species: str):
+        """
+        Build a Components V2 view that lists all egg moves for target_species,
+        shows which ones are breedable (✅) or not (❌), and gives a multi-select
+        dropdown. On submit it runs find_breeding_chain and posts the result.
+        """
+        cog = self
+
+        breeding_moves: List[str] = self.movesets[target_species].get('breeding', [])
+
+        if not breeding_moves:
+            class NoMovesView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(
+                        content=f"❌ **{target_species}** has no egg moves in the database."
+                    )
+                )
+            return NoMovesView(), False
+
+        # Check which moves actually have a working chain
+        possible: List[str] = []
+        impossible: List[str] = []
+        for move in breeding_moves:
+            chain = self.find_breeding_chain(target_species, [move])
+            if chain is not None:
+                possible.append(move)
+            else:
+                impossible.append(move)
+
+        # Build the display text
+        lines: List[str] = [f"**🥚 Egg Moves for {target_species}**", ""]
+        if possible:
+            lines.append("**✅ Possible via breeding:**")
+            for m in sorted(possible):
+                prefix = _move_emoji_prefix(m, self.movedex)
+                lines.append(f"  {prefix}**{m}**")
+            lines.append("")
+        if impossible:
+            lines.append("**❌ No chain found (currently unchainable):**")
+            for m in sorted(impossible):
+                prefix = _move_emoji_prefix(m, self.movedex)
+                lines.append(f"  {prefix}{m}")
+            lines.append("")
+        if possible:
+            lines.append("_Select the moves you want from the dropdown, then press **Get Chain**._")
+        else:
+            lines.append("_No egg moves can currently be obtained via chain breeding._")
+
+        embed_text = "\n".join(lines)
+        selectable = possible[:25]
+        has_selectable = bool(selectable)
+
+        class EggMoveSelect(discord.ui.Select):
+            def __init__(self):
+                options = [discord.SelectOption(label=move, value=move) for move in selectable]
+                super().__init__(
+                    placeholder="Choose egg move(s) you want…",
+                    min_values=1,
+                    max_values=min(len(selectable), 25),
+                    options=options,
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                self.view._selected_moves = self.values
+                await interaction.response.defer()
+
+        class GetChainButton(discord.ui.Button):
+            def __init__(self):
+                super().__init__(
+                    style=discord.ButtonStyle.success,
+                    label="Get Chain",
+                    emoji="🧬",
+                    disabled=not has_selectable,
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                selected = getattr(self.view, '_selected_moves', None)
+                if not selected:
+                    await interaction.response.send_message(
+                        "⚠️ Please select at least one move from the dropdown first!", ephemeral=True
+                    )
+                    return
+
+                await interaction.response.defer()
+
+                chain = None
+                skipped: List[str] = []
+                attempted = list(selected)
+                while attempted and chain is None:
+                    chain = cog.find_breeding_chain(target_species, attempted)
+                    if chain is None:
+                        skipped.insert(0, attempted.pop())
+
+                if not chain:
+                    class ErrView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(
+                                content=f"❌ **No breeding chain found for {target_species}** "
+                                        f"with: {', '.join(f'`{m}`' for m in selected)}\n\n"
+                                        "This combination may be currently unchainable."
+                            )
+                        )
+                    await interaction.followup.send(view=ErrView())
+                    return
+
+                if skipped:
+                    class WarnView(discord.ui.LayoutView):
+                        container1 = discord.ui.Container(
+                            discord.ui.TextDisplay(
+                                content=f"⚠️ No chain found for: {', '.join(f'`{m}`' for m in skipped)}\n"
+                                        f"✅ Showing chain for: {', '.join(f'`{m}`' for m in attempted)}"
+                            )
+                        )
+                    await interaction.followup.send(view=WarnView())
+
+                result_view = cog.create_chain_view(target_species, attempted, chain, page=1)
+                await interaction.followup.send(view=result_view)
+
+        picker_components = [discord.ui.TextDisplay(content=embed_text)]
+        class PickerView(discord.ui.LayoutView):
+            _selected_moves: List[str] = []
+            container1 = discord.ui.Container(*picker_components)
+            if has_selectable:
+                action_row1 = discord.ui.ActionRow(EggMoveSelect())
+            action_row2 = discord.ui.ActionRow(GetChainButton())
+
+        return PickerView(), has_selectable
+
     def create_chain_view(self, target_species: str, target_moves: List[str], chain: BreedingChain, page: int = 1) -> discord.ui.LayoutView:
         """
         Build the Components V2 view for a breeding chain result with pagination.
@@ -446,10 +606,16 @@ class ChainBreeding(commands.Cog):
             if female_spawn != "Offspring":
                 step_desc += f" - Spawn: {female_spawn}"
 
-            step_desc += f"\n{config.REPLY}**Moves Taught:** {', '.join(moves)}"
+            step_desc += f"\n{config.REPLY}**Moves Taught:**"
+            for mv in moves:
+                prefix = _move_emoji_prefix(mv, self.movedex)
+                step_desc += f"\n{config.REPLY}  {prefix}**{mv}**"
             step_desc += f"\n{config.REPLY}**Offspring:** {offspring} ({offspring_groups_str})"
             if len(accumulated_moves) > len(moves):
-                step_desc += f"\n**Total Moves on Offspring:** {', '.join(sorted(accumulated_moves))}"
+                move_list_str = "  ·  ".join(
+                    f"{_move_emoji_prefix(m, self.movedex)}{m}" for m in sorted(accumulated_moves)
+                )
+                step_desc += f"\n**Total Moves on Offspring:** {move_list_str}"
 
             components.append(discord.ui.TextDisplay(content=f"**Step {step_num}/{len(chain.steps)}**\n{step_desc}"))
 
@@ -459,8 +625,8 @@ class ChainBreeding(commands.Cog):
 
         # Add pagination info if multiple pages
         if total_pages > 1:
-            components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
-            components.append(discord.ui.TextDisplay(content=f"_Page {page}/{total_pages}_"))
+            components.append(discord.ui.Separator(visible=False, spacing=discord.SeparatorSpacing.small))
+            components.append(discord.ui.TextDisplay(content=f"-# Page {page}/{total_pages}"))
 
         # Footer (only on last page)
         if page == total_pages:
@@ -603,9 +769,7 @@ class ChainBreeding(commands.Cog):
                 new_view = cog.create_chain_view(target_species, target_moves, chain, self.current_page + 1)
                 await interaction.response.edit_message(view=new_view)
 
-        # ── Final view with buttons ───────────────────────────────────────────────
-        components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
-
+        # ── Final view with buttons outside the container ────────────────────────
         # Create action row with appropriate buttons
         action_row_buttons = []
 
@@ -618,10 +782,11 @@ class ChainBreeding(commands.Cog):
         action_row_buttons.append(ShowAlternativesButton())
         action_row_buttons.append(ShowTipsButton())
 
-        components.append(discord.ui.ActionRow(*action_row_buttons))
+        chain_action_row = discord.ui.ActionRow(*action_row_buttons)
 
         class ChainView(discord.ui.LayoutView):
-            container1 = discord.ui.Container(*components)
+            container1   = discord.ui.Container(*components)
+            buttons_row  = chain_action_row
 
         return ChainView()
 
@@ -660,14 +825,44 @@ class ChainBreeding(commands.Cog):
                     pokemon = parts[0].strip()
                     moves = parts[1].strip()
                 else:
-                    class ErrorView(discord.ui.LayoutView):
+                    # Only a pokemon name was given → show egg-move picker
+                    pokemon_clean = pokemon.strip().strip('"').strip("'")
+
+                    utils = self.bot.get_cog('Utils')
+                    if utils:
+                        pokemon_clean = utils.resolve_pokemon_name(pokemon_clean)
+
+                    target_species = None
+                    pkmn_norm = normalize_string(pokemon_clean.lower())
+                    for pkmn_name in self.pokemon_list:
+                        if normalize_string(pkmn_name.lower()) == pkmn_norm:
+                            target_species = pkmn_name
+                            break
+
+                    if not target_species:
+                        class ErrorView(discord.ui.LayoutView):
+                            container1 = discord.ui.Container(
+                                discord.ui.TextDisplay(
+                                    content=f"❌ Pokemon `{pokemon_clean}` not found in database!"
+                                )
+                            )
+                        await ctx.send(view=ErrorView(), reference=ctx.message,
+                                       allowed_mentions=discord.AllowedMentions(replied_user=False))
+                        return
+
+                    class ScanView(discord.ui.LayoutView):
                         container1 = discord.ui.Container(
                             discord.ui.TextDisplay(
-                                content="❌ Invalid format! Use: `m!iwant \"pokemon name\" move1, move2, move3`\n"
-                                        "Example: `m!iwant \"ralts\" shadow sneak, mystical fire`"
-                            ),
+                                content=f"🔍 Checking egg moves for **{target_species}**…"
+                            )
                         )
-                    await ctx.send(view=ErrorView(), reference=ctx.message, allowed_mentions=discord.AllowedMentions(replied_user=False))
+                    scan_msg = await ctx.send(view=ScanView(), reference=ctx.message,
+                                              allowed_mentions=discord.AllowedMentions(replied_user=False))
+
+                    picker_view, _ = self.create_egg_move_picker_view(ctx, target_species)
+                    await scan_msg.delete()
+                    await ctx.send(view=picker_view, reference=ctx.message,
+                                   allowed_mentions=discord.AllowedMentions(replied_user=False))
                     return
 
         pokemon = pokemon.strip().strip('"').strip("'")
