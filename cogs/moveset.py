@@ -439,6 +439,14 @@ def build_compare_layout(
     return CompareView()
 
 
+def _safe_int(val) -> Optional[int]:
+    """Convert CSV cell to int, returning None for empty/missing values."""
+    try:
+        return int(val) if val and str(val).strip() else None
+    except (ValueError, TypeError):
+        return None
+
+
 # ════════════════════════════════════════════════════════════════════════════════
 #  COG
 # ════════════════════════════════════════════════════════════════════════════════
@@ -451,7 +459,8 @@ class Moveset(commands.Cog):
         self.movesets:         dict = {}
         self.movedex:          dict = {}
         self.pokemon_types:    dict = {}   # canonical_name → [type1, type2?]  (from CSV, for display)
-        self.all_pokemon_types: list = []  # [(type1, type2?), ...]  (from JSON, for coverage scoring)
+        self.all_pokemon_types: list = []  # [(type1, type2?), ...]  (from CSV, for coverage scoring)
+        self.base_stats:        dict = {}  # norm_name → {HP, Attack, Defense, Sp. Atk, Sp. Def, Speed}
         self._load_data()
 
     # ── Data ─────────────────────────────────────────────────────────────────
@@ -486,29 +495,45 @@ class Moveset(commands.Cog):
             print(f"❌ [Moveset] pokemon_data.csv: {e}")
 
         try:
-            with open('alldata/pokemon_data.json', 'r', encoding='utf-8') as f:
-                pdata = json.load(f)
-            # Accept both a list of dicts and a dict of dicts
-            entries = pdata if isinstance(pdata, list) else pdata.values()
-            seen = set()
-            for p in entries:
-                t1 = (p.get('type1') or p.get('Type1') or '').strip().title()
-                t2 = (p.get('type2') or p.get('Type2') or '').strip().title()
-                combo = (t1, t2) if t2 else (t1,)
-                if t1 and combo not in seen:
-                    seen.add(combo)
-                    self.all_pokemon_types.append(list(combo))
-            print(f"✅ [Moveset] Loaded {len(self.all_pokemon_types)} type combos for coverage scoring")
+            with open('alldata/base_stats.csv', 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                seen = set()
+                for row in reader:
+                    name   = row.get('name', '').strip()
+                    types  = self.pokemon_types.get(normalize_string(name), [])
+                    # Store base stats keyed by canonical name for coverage filtering
+                    self.base_stats[normalize_string(name)] = {
+                        'HP':      _safe_int(row.get('HP')),
+                        'Attack':  _safe_int(row.get('Attack')),
+                        'Defense': _safe_int(row.get('Defense')),
+                        'Sp. Atk': _safe_int(row.get('Sp. Atk')),
+                        'Sp. Def': _safe_int(row.get('Sp. Def')),
+                        'Speed':   _safe_int(row.get('Speed')),
+                    }
+                    if types:
+                        combo = tuple(types)
+                        if combo not in seen:
+                            seen.add(combo)
+                            self.all_pokemon_types.append(list(combo))
+            print(f"✅ [Moveset] Loaded {len(self.all_pokemon_types)} type combos + base stats from base_stats.csv")
         except Exception as e:
-            print(f"❌ [Moveset] pokemon_data.json: {e}")
+            print(f"❌ [Moveset] base_stats.csv: {e}")
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
     def _find_pokemon(self, name: str) -> Optional[str]:
-        norm = normalize_string(name)
+        """Resolve alias/nickname first, then case-insensitive accent-normalised lookup."""
+        resolved = self._resolve_name(name)
+        norm = normalize_string(resolved)
         for key in self.movesets:
             if normalize_string(key) == norm:
                 return key
+        # Fallback to raw input in case Utils isn't loaded or returned same string
+        if resolved.lower() != name.lower():
+            norm_raw = normalize_string(name)
+            for key in self.movesets:
+                if normalize_string(key) == norm_raw:
+                    return key
         return None
 
     def _get_types(self, canonical: str) -> list[str]:
@@ -656,38 +681,60 @@ class Moveset(commands.Cog):
                        allowed_mentions=discord.AllowedMentions(replied_user=False))
 
 
+    # Known priority moves (priority > 0)
+    PRIORITY_MOVES: set[str] = {
+        "fake out", "quick attack", "extreme speed", "aqua jet", "bullet punch",
+        "ice shard", "mach punch", "shadow sneak", "sucker punch", "water shuriken",
+        "accelerock", "first impression", "vacuum wave", "jet punch", "grassy glide",
+    }
+
     def _best_coverage_moves(
         self,
         canonical: str,
         stab_types: list[str],
         n: int = 4,
-    ) -> tuple[list[tuple], int, int]:
+    ) -> tuple[list[tuple], int, int, list[tuple]]:
         """
-        Find the n moves from canonical's learnset (level-up + egg, damage moves only)
-        that together hit the most unique type combinations super-effectively (×2 or ×4).
+        Find the n moves that give the best type coverage, filtered by the
+        Pokémon's offensive stats (Attack vs Sp. Atk, threshold = 15 points):
+          - Attack >> Sp. Atk : Physical only
+          - Sp. Atk >> Attack : Special only
+          - Balanced           : both categories
 
-        STAB moves get a scoring bonus: they're treated as hitting one extra type combo
-        when comparing equally-sized super-effective sets, since STAB raises effective power.
+        Priority moves are pulled out separately and returned alongside the
+        coverage picks (they never consume a coverage slot).
 
         Returns:
-            (best_combo, se_count, total_type_combos)
-            best_combo: list of (move_name, info_dict, is_stab)
+            (best_combo, se_count, total_type_combos, priority_moves)
         """
-        moveset  = self.movesets.get(canonical, {})
+        moveset    = self.movesets.get(canonical, {})
         all_combos = self.all_pokemon_types or []
-        total    = len(all_combos)
+        total      = len(all_combos)
 
-        # Collect all damaging moves (power > 0) from level-up + egg
-        candidates: list[tuple[str, dict, bool]] = []  # (name, info, is_stab)
-        seen_types: set[str] = set()  # deduplicate by move type to keep combos varied
+        # ── Stat-based class filter ───────────────────────────────────────────
+        stats     = self.base_stats.get(normalize_string(canonical), {})
+        atk       = stats.get('Attack')  or 0
+        spatk     = stats.get('Sp. Atk') or 0
+        diff      = atk - spatk
+        THRESHOLD = 15
+
+        if diff > THRESHOLD:
+            allowed_classes = {"Physical"}
+        elif diff < -THRESHOLD:
+            allowed_classes = {"Special"}
+        else:
+            allowed_classes = {"Physical", "Special"}
+
+        # ── Collect damaging moves ────────────────────────────────────────────
+        candidates: list[tuple[str, dict, bool]] = []
 
         def collect(entries, is_egg=False):
             for entry in entries:
                 name = self._parse_move_name(entry) if not is_egg else entry
                 info = self._move_info(name)
                 if not info.get('power'):
-                    continue  # skip status moves
-                if info.get('damage_class') == 'Status':
+                    continue
+                if info.get('damage_class', '') not in allowed_classes:
                     continue
                 candidates.append((name, info, info.get('type') in stab_types))
 
@@ -695,117 +742,487 @@ class Moveset(commands.Cog):
         collect(moveset.get('breeding', []), is_egg=True)
 
         if not candidates:
-            return [], 0, total
+            return [], 0, total, []
 
-        # Precompute per-move SE sets (type combos this move hits ×2 or ×4)
-        def se_set(move_type: str) -> frozenset[int]:
-            return frozenset(
-                i for i, dtypes in enumerate(all_combos)
-                if type_effectiveness(move_type, dtypes) >= 2.0
-            )
+        # ── Split priority moves from coverage pool ───────────────────────────
+        priority_moves: list[tuple[str, dict, bool]] = []
+        coverage_pool:  list[tuple[str, dict, bool]] = []
+        seen_prio: set[str] = set()
 
-        move_se: list[tuple[str, dict, bool, frozenset]] = []
         for name, info, is_stab in candidates:
+            norm = normalize_string(name)
+            if norm in self.PRIORITY_MOVES and norm not in seen_prio:
+                priority_moves.append((name, info, is_stab))
+                seen_prio.add(norm)
+            else:
+                coverage_pool.append((name, info, is_stab))
+
+        # ── Precompute per-move effective-damage scores vs every type combo ─────
+        # Score for a move against combo i  =  power × type_mult × stab_mult
+        #   type_mult  : 0 / 0.5 / 1 / 2 / 4  from the type chart
+        #   stab_mult  : 1.5 if move type matches one of the Pokémon's types, else 1
+        # We sum this across all combos not yet "covered" (covered meaning we
+        # already have a move that out-damages a neutral hit there).
+        # A STAB Normal 120BP move against a neutral target scores 120×1.5 = 180,
+        # which beats a non-STAB 60BP move hitting for 2× (60×2 = 120).
+        # This naturally includes Normal-type STAB and any non-STAB high-power move.
+
+        def move_damage_map(move_type: str, power: int, is_stab: bool) -> list[float]:
+            """Return effective-damage value vs each type combo (index = combo index)."""
+            stab_mult = 1.5 if is_stab else 1.0
+            return [
+                power * type_effectiveness(move_type, dtypes) * stab_mult
+                for dtypes in all_combos
+            ]
+
+        move_data = []
+        for name, info, is_stab in coverage_pool:
             mtype = info.get('type', '')
-            move_se.append((name, info, is_stab, se_set(mtype)))
+            power = info.get('power') or 0
+            dmg   = move_damage_map(mtype, power, is_stab)
+            move_data.append((name, info, is_stab, dmg))
 
-        # Greedy search: pick moves one at a time maximising new SE coverage.
-        # Tie-break: prefer STAB, then higher power.
-        chosen: list[tuple[str, dict, bool, frozenset]] = []
-        covered: frozenset[int] = frozenset()
+        # ── Greedy coverage search (damage-output based) ──────────────────────
+        # Returns groups: each slot is a list of equivalent moves (same type +
+        # power + stab = identical damage profile). Ties are shown together on
+        # one line: "Thrash/Double-Edge  `120`  `100%` / `90%`"
+        chosen_groups: list[list] = []   # list of groups; each group = list of move tuples
+        chosen_flat:   list       = []   # flat list for "already picked" checks
+        dominated: set[int] = set()
 
-        for _ in range(min(n, len(move_se))):
-            best = None
-            best_new = -1
-            for m in move_se:
-                if m in chosen:
+        for _ in range(min(n, len(move_data))):
+            best       = None
+            best_score = -1.0
+
+            for m in move_data:
+                if m in chosen_flat:
                     continue
-                new_cover = len(m[3] - covered)
-                stab_bonus = 0.5 if m[2] else 0   # slight preference for STAB
-                pwr_bonus  = (m[1].get('power') or 0) / 10000
-                score = new_cover + stab_bonus + pwr_bonus
-                if score > best_new:
-                    best_new = score
+                name, info, is_stab, dmg = m
+                power = info.get('power') or 0
+                neutral_baseline = power * 1.0
+
+                new_damage = sum(
+                    dmg[i] for i in range(len(all_combos))
+                    if i not in dominated and dmg[i] > neutral_baseline
+                )
+                new_combos = sum(
+                    1 for i in range(len(all_combos))
+                    if i not in dominated and dmg[i] > neutral_baseline
+                )
+                score = new_combos * 10000 + new_damage
+                if score > best_score:
+                    best_score = score
                     best = m
+
+            if best is None:
+                for m in sorted(move_data, key=lambda x: (x[1].get('power') or 0), reverse=True):
+                    if m not in chosen_flat:
+                        best = m
+                        break
             if best is None:
                 break
-            chosen.append(best)
-            covered |= best[3]
 
-        result = [(name, info, is_stab) for (name, info, is_stab, _) in chosen]
-        return result, len(covered), total
+            # Collect all moves with the identical damage profile (same type+power+stab)
+            best_name, best_info, best_is_stab, best_dmg = best
+            best_type  = best_info.get('type', '')
+            best_power = best_info.get('power') or 0
+            group = [best]
+            for m in move_data:
+                if m in chosen_flat or m is best:
+                    continue
+                mn, mi, ms, md = m
+                if (mi.get('type', '') == best_type
+                        and (mi.get('power') or 0) == best_power
+                        and ms == best_is_stab):
+                    group.append(m)
+
+            chosen_groups.append(group)
+            chosen_flat.extend(group)
+            power = best_power
+            dominated |= {i for i, d in enumerate(best_dmg) if d > power * 1.0}
+
+        # Flatten groups into result tuples (7-tuple: name, info, is_stab, is_egg, is_priority, alt_names, alt_accs)
+        result = []
+        for group in chosen_groups:
+            primary_name, primary_info, primary_is_stab, _ = group[0]
+            alt_names = [g[0] for g in group[1:]]
+            alt_accs  = [g[1].get('accuracy') for g in group[1:]]
+            result.append((primary_name, primary_info, primary_is_stab, False, False, alt_names, alt_accs))
+        return result, len(dominated), total, priority_moves
 
     # ── m!coverage ───────────────────────────────────────────────────────────
 
-    @commands.command(name='coverage', aliases=['cov'])
-    async def coverage_cmd(self, ctx, pokemon_name: str = None):
-        """
-        Find the 4 moves that give the best type coverage for a Pokémon.
+    def _resolve_name(self, raw: str) -> str:
+        """Resolve nickname / foreign name → canonical English name via Utils cog."""
+        utils = self.bot.get_cog('Utils')
+        if utils and hasattr(utils, 'resolve_pokemon_name'):
+            raw = utils.resolve_pokemon_name(raw)
+        return raw
 
-        Usage:   m!coverage <pokemon>
-        Example: m!coverage sneasel
+    def _fmt_move_line_with_egg(
+        self,
+        name: str,
+        info: dict,
+        stab_types: list[str],
+        is_egg: bool,
+        alt_names:   list[str] = None,
+        alt_accs:    list      = None,
+        is_priority: bool      = False,
+    ) -> str:
         """
-        if not pokemon_name:
+        Render one coverage slot as a single line.
+        If alt_names is provided (ties with identical type+power+stab), they are
+        shown joined with '/' on the same line:
+          <TypeEmoji> **Thrash/Double-Edge** [STAB]  `120`  `100%`/`90%`  🥚
+        Priority moves that earned a main slot are tagged inline with ⚡.
+        """
+        mtype    = info.get('type', '?')
+        power    = info.get('power')
+        accuracy = info.get('accuracy')
+
+        type_e    = TYPE_EMOJI.get(mtype, f"[{mtype}]")
+        stab_part = f" {STAB_EMOJI}" if mtype in stab_types else ""
+        pwr       = f"`{power}`" if power else "`—`"
+
+        # Primary accuracy
+        pri_acc = f"`{accuracy}%`" if accuracy else "`—`"
+
+        # Alt accuracies (may differ even though power is the same)
+        if alt_names:
+            all_names = "/".join([name] + (alt_names or []))
+            acc_parts = [pri_acc] + [
+                (f"`{a}%`" if a else "`—`") for a in (alt_accs or [])
+            ]
+            acc_str = "/".join(acc_parts)
+        else:
+            all_names = name
+            acc_str   = pri_acc
+
+        egg_badge  = "  🥚" if is_egg else ""
+        prio_badge = "  ⚡" if is_priority else ""
+        return f"{type_e} **{all_names}**{stab_part}  {pwr}  {acc_str}{egg_badge}{prio_badge}\n"
+
+    def _best_coverage_moves_combined(
+        self,
+        canonicals: list[str],
+        stab_types: list[str],
+        n: int = 4,
+    ) -> tuple[list[tuple], int, int, list[tuple]]:
+        """
+        Same as _best_coverage_moves but pools level-up AND egg moves from
+        ALL canonicals together before running the greedy coverage search.
+
+        Each candidate tuple gains a 4th bool `is_egg` so the display can
+        badge egg moves with 🥚.
+
+        Returns:
+            (best_combo, se_count, total_type_combos, priority_moves)
+            best_combo:     list of (move_name, info_dict, is_stab, is_egg)
+            priority_moves: list of (move_name, info_dict, is_stab, is_egg)
+        """
+        all_combos = self.all_pokemon_types or []
+        total      = len(all_combos)
+
+        # ── Stat-based class filter (use first canonical that has stats) ──────
+        allowed_classes: set[str] = set()
+        for canonical in canonicals:
+            stats  = self.base_stats.get(normalize_string(canonical), {})
+            atk    = stats.get('Attack')  or 0
+            spatk  = stats.get('Sp. Atk') or 0
+            diff   = atk - spatk
+            if diff > 15:
+                allowed_classes |= {"Physical"}
+            elif diff < -15:
+                allowed_classes |= {"Special"}
+            else:
+                allowed_classes |= {"Physical", "Special"}
+        # If any Pokémon is balanced, allow both (union across the group)
+        if not allowed_classes:
+            allowed_classes = {"Physical", "Special"}
+
+        # ── Collect damaging moves from all canonicals (dedup by norm name) ───
+        seen_move_names: set[str] = set()
+        candidates: list[tuple[str, dict, bool, bool]] = []  # name, info, is_stab, is_egg
+
+        for canonical in canonicals:
+            moveset = self.movesets.get(canonical, {})
+
+            for entry in moveset.get('level_up', []):
+                name = self._parse_move_name(entry)
+                norm = normalize_string(name)
+                if norm in seen_move_names:
+                    continue
+                info = self._move_info(name)
+                if not info.get('power'):
+                    continue
+                if info.get('damage_class', '') not in allowed_classes:
+                    continue
+                seen_move_names.add(norm)
+                candidates.append((name, info, info.get('type') in stab_types, False))
+
+            for name in moveset.get('breeding', []):
+                norm = normalize_string(name)
+                if norm in seen_move_names:
+                    continue
+                info = self._move_info(name)
+                if not info.get('power'):
+                    continue
+                if info.get('damage_class', '') not in allowed_classes:
+                    continue
+                seen_move_names.add(norm)
+                candidates.append((name, info, info.get('type') in stab_types, True))
+
+        if not candidates:
+            return [], 0, total, []
+
+        # ── Decide which priority moves are strong enough to compete for a slot ─
+        # A priority move earns a main slot if it has STAB or decent power (≥60).
+        # Weaker / non-STAB priority moves fall back to the separate sidebar list.
+        priority_moves: list[tuple] = []   # sidebar-only (weak priority moves)
+        coverage_pool:  list[tuple] = []
+        seen_prio: set[str] = set()
+
+        for name, info, is_stab, is_egg in candidates:
+            norm  = normalize_string(name)
+            power = info.get('power') or 0
+            if norm in self.PRIORITY_MOVES and norm not in seen_prio:
+                seen_prio.add(norm)
+                good_priority = is_stab or power >= 60
+                if good_priority:
+                    # Treat it like any other coverage candidate (tagged is_priority=True
+                    # by storing it as a 5-tuple so the display can add ⚡ inline)
+                    coverage_pool.append((name, info, is_stab, is_egg, True))
+                else:
+                    priority_moves.append((name, info, is_stab, is_egg))
+            else:
+                coverage_pool.append((name, info, is_stab, is_egg, False))
+
+        # ── Precompute per-move effective-damage map ──────────────────────────
+        def move_damage_map(move_type: str, power: int, is_stab: bool) -> list[float]:
+            stab_mult = 1.5 if is_stab else 1.0
+            return [
+                power * type_effectiveness(move_type, dtypes) * stab_mult
+                for dtypes in all_combos
+            ]
+
+        move_data = []
+        for name, info, is_stab, is_egg, is_priority in coverage_pool:
+            mtype = info.get('type', '')
+            power = info.get('power') or 0
+            dmg   = move_damage_map(mtype, power, is_stab)
+            move_data.append((name, info, is_stab, is_egg, is_priority, dmg))
+
+        # ── Greedy coverage search (damage-output based, ties bundled) ──────────
+        chosen_groups: list[list] = []
+        chosen_flat:   list       = []
+        dominated: set[int] = set()
+
+        for _ in range(min(n, len(move_data))):
+            best       = None
+            best_score = -1.0
+
+            for m in move_data:
+                if m in chosen_flat:
+                    continue
+                name, info, is_stab, is_egg, is_priority, dmg = m
+                power = info.get('power') or 0
+                neutral_baseline = power * 1.0
+
+                new_damage = sum(
+                    dmg[i] for i in range(len(all_combos))
+                    if i not in dominated and dmg[i] > neutral_baseline
+                )
+                new_combos = sum(
+                    1 for i in range(len(all_combos))
+                    if i not in dominated and dmg[i] > neutral_baseline
+                )
+                score = new_combos * 10000 + new_damage
+                if score > best_score:
+                    best_score = score
+                    best = m
+
+            if best is None:
+                for m in sorted(move_data, key=lambda x: (x[1].get('power') or 0), reverse=True):
+                    if m not in chosen_flat:
+                        best = m
+                        break
+            if best is None:
+                break
+
+            best_name, best_info, best_is_stab, best_is_egg, best_is_priority, best_dmg = best
+            best_type  = best_info.get('type', '')
+            best_power = best_info.get('power') or 0
+            group = [best]
+            for m in move_data:
+                if m in chosen_flat or m is best:
+                    continue
+                mn, mi, ms, me, mp, md = m
+                if (mi.get('type', '') == best_type
+                        and (mi.get('power') or 0) == best_power
+                        and ms == best_is_stab):
+                    group.append(m)
+
+            chosen_groups.append(group)
+            chosen_flat.extend(group)
+            dominated |= {i for i, d in enumerate(best_dmg) if d > best_power * 1.0}
+
+        result = []
+        for group in chosen_groups:
+            primary_name, primary_info, primary_is_stab, primary_is_egg, primary_is_priority, _ = group[0]
+            alt_names = [g[0] for g in group[1:]]
+            alt_accs  = [g[1].get('accuracy') for g in group[1:]]
+            any_egg   = any(g[3] for g in group)
+            any_prio  = any(g[4] for g in group)
+            result.append((primary_name, primary_info, primary_is_stab, any_egg, any_prio, alt_names, alt_accs))
+        return result, len(dominated), total, priority_moves
+
+    @commands.command(name='coverage', aliases=['cov'])
+    async def coverage_cmd(self, ctx, *, args: str = None):
+        """
+        Find the 4 best coverage moves for one or more Pokémon (movesets pooled).
+        Supports nicknames/foreign names. Egg moves are marked with 🥚.
+
+        Usage:
+          m!coverage <pokemon>
+          m!coverage <pokemon1>, <pokemon2>, <pokemon3>
+
+        Examples:
+          m!coverage sneasel
+          m!coverage bulbasaur, ivysaur, venusaur
+          m!cov mauzi          ← foreign/nickname for Meowth
+        """
+        if not args:
             await ctx.send(
-                "❌ Provide a Pokémon name.\n"
-                "`m!coverage <pokemon>`"
+                "❌ Provide a Pokémon name (or comma-separated list).\n"
+                "`m!coverage <pokemon>` or `m!coverage pkmn1, pkmn2, pkmn3`"
             )
             return
 
-        canonical = self._find_pokemon(pokemon_name)
-        if not canonical:
-            await ctx.send(f"❌ **{pokemon_name.title()}** not found.")
-            return
-
         if not self.all_pokemon_types:
-            await ctx.send("❌ Coverage data not loaded (`alldata/pokemon_data.json` missing).")
+            await ctx.send("❌ Coverage data not loaded (`alldata/base_stats.csv` missing).")
             return
 
-        stab_types = self._get_types(canonical)
-        best_moves, se_count, total = self._best_coverage_moves(canonical, stab_types)
+        # ── Parse + resolve names ─────────────────────────────────────────────
+        raw_names = [n.strip() for n in args.split(',') if n.strip()]
+        canonicals: list[str] = []
+        not_found:  list[str] = []
+
+        for raw in raw_names:
+            resolved  = self._resolve_name(raw)
+            canonical = self._find_pokemon(resolved)
+            if canonical:
+                if canonical not in canonicals:
+                    canonicals.append(canonical)
+            else:
+                not_found.append(raw)
+
+        if not_found:
+            await ctx.send(
+                f"❌ Not found: {', '.join(f'**{n}**' for n in not_found)}\n"
+                f"Check spelling or try the English name."
+            )
+            if not canonicals:
+                return
+
+        # ── Run coverage ──────────────────────────────────────────────────────
+        # STAB types = union across all Pokémon in the group
+        stab_types: list[str] = []
+        for c in canonicals:
+            for t in self._get_types(c):
+                if t not in stab_types:
+                    stab_types.append(t)
+
+        best_moves, se_count, total, priority_moves = self._best_coverage_moves_combined(
+            canonicals, stab_types
+        )
 
         if not best_moves:
-            await ctx.send(f"❌ No damaging moves found for **{canonical}**.")
+            await ctx.send(
+                f"❌ No damaging moves found for **{', '.join(canonicals)}**."
+            )
             return
 
-        type_icons  = " ".join(TYPE_EMOJI.get(t, t) for t in stab_types)
-        type_str    = " / ".join(stab_types) if stab_types else "Unknown"
-        pct         = round(se_count / total * 100, 1) if total else 0
+        # ── Stat focus label (show per-Pokémon if multiple) ───────────────────
+        def focus_label_for(canonical: str) -> str:
+            stats = self.base_stats.get(normalize_string(canonical), {})
+            atk   = stats.get('Attack')  or 0
+            spatk = stats.get('Sp. Atk') or 0
+            diff  = atk - spatk
+            if diff > 15:
+                return f"⚔️ {canonical} (Atk {atk} / SpA {spatk})"
+            elif diff < -15:
+                return f"✨ {canonical} (SpA {spatk} / Atk {atk})"
+            else:
+                return f"⚖️ {canonical} (Atk {atk} / SpA {spatk})"
 
-        # Build move lines
+        if len(canonicals) == 1:
+            stats = self.base_stats.get(normalize_string(canonicals[0]), {})
+            atk   = stats.get('Attack')  or 0
+            spatk = stats.get('Sp. Atk') or 0
+            diff  = atk - spatk
+            if diff > 15:
+                focus_str = f"⚔️ Physical focus (Atk {atk} vs SpA {spatk})"
+            elif diff < -15:
+                focus_str = f"✨ Special focus (SpA {spatk} vs Atk {atk})"
+            else:
+                focus_str = f"⚖️ Balanced (Atk {atk} / SpA {spatk})"
+            title_name = canonicals[0]
+        else:
+            focus_str  = "  ·  ".join(focus_label_for(c) for c in canonicals)
+            title_name = " + ".join(canonicals)
+
+        type_icons = " ".join(TYPE_EMOJI.get(t, t) for t in stab_types)
+        type_str   = " / ".join(stab_types) if stab_types else "Unknown"
+        pct        = round(se_count / total * 100, 1) if total else 0
+        has_stab   = any(s for _, _, s, _, _, _, _ in best_moves)
+        stab_note  = f"  ·  {STAB_EMOJI} = STAB" if has_stab else ""
+        egg_note   = "  ·  🥚 = Egg move" if any(e for _, _, _, e, _, _, _ in best_moves) else ""
+        prio_note  = "  ·  ⚡ = Priority" if any(p for _, _, _, _, p, _, _ in best_moves) else ""
+
         col_header = "-# Move  ·  Power  ·  Accuracy"
+
+        # ── Coverage block ────────────────────────────────────────────────────
         move_lines = "".join(
-            fmt_move_line(name, info, stab_types)
-            for (name, info, _) in best_moves
+            self._fmt_move_line_with_egg(name, info, stab_types, is_egg, alt_names, alt_accs, is_priority)
+            for (name, info, _, is_egg, is_priority, alt_names, alt_accs) in best_moves
         ).rstrip()
 
-        # Coverage breakdown by type hit
-        covered_types: dict[str, list[str]] = {}  # move_name → [types it SE hits]
-        for name, info, _ in best_moves:
-            mtype = info.get('type', '')
-            hits = [
-                "/".join(dtypes) for dtypes in self.all_pokemon_types
-                if type_effectiveness(mtype, dtypes) >= 2.0
-            ]
-            if hits:
-                covered_types[name] = hits
-
-        stab_note = f"  ·  {STAB_EMOJI} = STAB" if any(s for _, _, s in best_moves) else ""
+        coverage_block = (
+            f"**Recommended Moveset**\n"
+            f"{col_header}\n"
+            f"{move_lines}\n\n"
+            f"-# SE coverage: {se_count}/{total} ({pct}%){stab_note}{egg_note}{prio_note}"
+        )
 
         container_children = [
             discord.ui.TextDisplay(
                 content=(
-                    f"## {canonical} — Best Coverage Moves\n"
-                    f"{type_icons}  **Type{'s' if len(stab_types) > 1 else ''}:** {type_str}\n"
-                    f"-# Hits **{se_count}** of **{total}** type combos super-effectively ({pct}%)"
+                    f"## {title_name} — Best Coverage Moves\n"
+                    f"{type_icons}  **Types:** {type_str}\n"
+                    f"-# {focus_str}"
                 )
             ),
             discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.large),
-            discord.ui.TextDisplay(
-                content=f"**Recommended Moveset**\n{col_header}\n{move_lines}\n\n"
-                        f"-# Super-effective coverage: {se_count}/{total} ({pct}%){stab_note}"
-            ),
+            discord.ui.TextDisplay(content=coverage_block),
         ]
+
+        # ── Priority sidebar ── only weak/non-STAB priority moves that didn't
+        # earn a main slot. Strong priority moves already appear inline above.
+        if priority_moves:
+            prio_lines = "".join(
+                self._fmt_move_line_with_egg(name, info, stab_types, is_egg)
+                for (name, info, _, is_egg) in priority_moves
+            ).rstrip()
+            prio_block = (
+                f"⚡ **Other Priority Moves** — goes first regardless of Speed\n"
+                f"{col_header}\n"
+                f"{prio_lines}\n"
+                f"-# Lower power; not selected for main moveset"
+            )
+            container_children += [
+                discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+                discord.ui.TextDisplay(content=prio_block),
+            ]
 
         class CoverageView(discord.ui.LayoutView):
             container1 = discord.ui.Container(*container_children)
