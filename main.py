@@ -122,6 +122,7 @@ async def on_ready():
     # Load cogs
     cogs = [
         'cogs.utils',
+        'cogs.moveset',
         'cogs.chainbreeding',
         'cogs.id_overrides',
         'cogs.shinydex_display',
