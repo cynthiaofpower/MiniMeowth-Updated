@@ -465,13 +465,13 @@ class ChainBreeding(commands.Cog):
             lines.append("**✅ Possible via breeding:**")
             for m in possible:
                 label = _move_full_label(m, self.movedex)
-                lines.append(f"  **{label}**")
+                lines.append(f"  - **{label}**")
             lines.append("")
         if impossible:
             lines.append("**❌ No chain found (currently unchainable):**")
             for m in sorted(impossible):
                 label = _move_full_label(m, self.movedex)
-                lines.append(f"  {label}")
+                lines.append(f"  - {label}")
             lines.append("")
         if possible:
             lines.append("_Select the moves you want from the dropdown, then press **Get Chain**._")
@@ -568,13 +568,13 @@ class ChainBreeding(commands.Cog):
                 result_view = cog.create_chain_view(target_species, attempted, chain, page=1)
                 await interaction.followup.send(view=result_view)
 
-        picker_components = [discord.ui.TextDisplay(content=embed_text)]
+        _picker_inner = [discord.ui.TextDisplay(content=embed_text)]
+        if has_selectable:
+            _picker_inner.append(discord.ui.ActionRow(EggMoveSelect()))
+        _picker_inner.append(discord.ui.ActionRow(GetChainButton()))
         class PickerView(discord.ui.LayoutView):
             _selected_moves: List[str] = []
-            container1 = discord.ui.Container(*picker_components)
-            if has_selectable:
-                action_row1 = discord.ui.ActionRow(EggMoveSelect())
-            action_row2 = discord.ui.ActionRow(GetChainButton())
+            container1 = discord.ui.Container(*_picker_inner, accent_colour=discord.Colour(config.EMBED_COLOR))
 
         return PickerView(), has_selectable
 
@@ -839,8 +839,7 @@ class ChainBreeding(commands.Cog):
         chain_action_row = discord.ui.ActionRow(*action_row_buttons)
 
         class ChainView(discord.ui.LayoutView):
-            container1   = discord.ui.Container(*components)
-            buttons_row  = chain_action_row
+            container1 = discord.ui.Container(*components, chain_action_row)
 
         return ChainView()
 
