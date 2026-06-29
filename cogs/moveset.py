@@ -841,13 +841,13 @@ class Moveset(commands.Cog):
             power = best_power
             dominated |= {i for i, d in enumerate(best_dmg) if d > power * 1.0}
 
-        # Flatten groups into result tuples (7-tuple: name, info, is_stab, is_egg, is_priority, alt_names, alt_accs)
+        # Flatten groups into result tuples (6-tuple matching _best_coverage_moves_combined)
         result = []
         for group in chosen_groups:
             primary_name, primary_info, primary_is_stab, _ = group[0]
             alt_names = [g[0] for g in group[1:]]
             alt_accs  = [g[1].get('accuracy') for g in group[1:]]
-            result.append((primary_name, primary_info, primary_is_stab, False, False, alt_names, alt_accs))
+            result.append((primary_name, primary_info, primary_is_stab, False, alt_names, alt_accs))
         return result, len(dominated), total, priority_moves
 
     # ── m!coverage ───────────────────────────────────────────────────────────
@@ -865,16 +865,14 @@ class Moveset(commands.Cog):
         info: dict,
         stab_types: list[str],
         is_egg: bool,
-        alt_names:   list[str] = None,
-        alt_accs:    list      = None,
-        is_priority: bool      = False,
+        alt_names: list[str] = None,
+        alt_accs:  list      = None,
     ) -> str:
         """
         Render one coverage slot as a single line.
         If alt_names is provided (ties with identical type+power+stab), they are
         shown joined with '/' on the same line:
           <TypeEmoji> **Thrash/Double-Edge** [STAB]  `120`  `100%`/`90%`  🥚
-        Priority moves that earned a main slot are tagged inline with ⚡.
         """
         mtype    = info.get('type', '?')
         power    = info.get('power')
@@ -898,9 +896,8 @@ class Moveset(commands.Cog):
             all_names = name
             acc_str   = pri_acc
 
-        egg_badge  = "  🥚" if is_egg else ""
-        prio_badge = "  ⚡" if is_priority else ""
-        return f"{type_e} **{all_names}**{stab_part}  {pwr}  {acc_str}{egg_badge}{prio_badge}\n"
+        egg_badge = "  🥚" if is_egg else ""
+        return f"{type_e} **{all_names}**{stab_part}  {pwr}  {acc_str}{egg_badge}\n"
 
     def _best_coverage_moves_combined(
         self,
@@ -975,27 +972,21 @@ class Moveset(commands.Cog):
         if not candidates:
             return [], 0, total, []
 
-        # ── Decide which priority moves are strong enough to compete for a slot ─
-        # A priority move earns a main slot if it has STAB or decent power (≥60).
-        # Weaker / non-STAB priority moves fall back to the separate sidebar list.
-        priority_moves: list[tuple] = []   # sidebar-only (weak priority moves)
+        # ── Separate priority moves ───────────────────────────────────────────
+        # Priority moves go into BOTH lists:
+        #   - coverage_pool so the greedy search can pick them for the best 4
+        #   - priority_moves so they're always shown in the sidebar too
+        priority_moves: list[tuple] = []
         coverage_pool:  list[tuple] = []
         seen_prio: set[str] = set()
 
         for name, info, is_stab, is_egg in candidates:
-            norm  = normalize_string(name)
-            power = info.get('power') or 0
+            norm = normalize_string(name)
             if norm in self.PRIORITY_MOVES and norm not in seen_prio:
+                priority_moves.append((name, info, is_stab, is_egg))
                 seen_prio.add(norm)
-                good_priority = is_stab or power >= 60
-                if good_priority:
-                    # Treat it like any other coverage candidate (tagged is_priority=True
-                    # by storing it as a 5-tuple so the display can add ⚡ inline)
-                    coverage_pool.append((name, info, is_stab, is_egg, True))
-                else:
-                    priority_moves.append((name, info, is_stab, is_egg))
-            else:
-                coverage_pool.append((name, info, is_stab, is_egg, False))
+            # All moves (including priority) go into the coverage pool
+            coverage_pool.append((name, info, is_stab, is_egg))
 
         # ── Precompute per-move effective-damage map ──────────────────────────
         def move_damage_map(move_type: str, power: int, is_stab: bool) -> list[float]:
@@ -1006,11 +997,11 @@ class Moveset(commands.Cog):
             ]
 
         move_data = []
-        for name, info, is_stab, is_egg, is_priority in coverage_pool:
+        for name, info, is_stab, is_egg in coverage_pool:
             mtype = info.get('type', '')
             power = info.get('power') or 0
             dmg   = move_damage_map(mtype, power, is_stab)
-            move_data.append((name, info, is_stab, is_egg, is_priority, dmg))
+            move_data.append((name, info, is_stab, is_egg, dmg))
 
         # ── Greedy coverage search (damage-output based, ties bundled) ──────────
         chosen_groups: list[list] = []
@@ -1024,7 +1015,7 @@ class Moveset(commands.Cog):
             for m in move_data:
                 if m in chosen_flat:
                     continue
-                name, info, is_stab, is_egg, is_priority, dmg = m
+                name, info, is_stab, is_egg, dmg = m
                 power = info.get('power') or 0
                 neutral_baseline = power * 1.0
 
@@ -1049,14 +1040,14 @@ class Moveset(commands.Cog):
             if best is None:
                 break
 
-            best_name, best_info, best_is_stab, best_is_egg, best_is_priority, best_dmg = best
+            best_name, best_info, best_is_stab, best_is_egg, best_dmg = best
             best_type  = best_info.get('type', '')
             best_power = best_info.get('power') or 0
             group = [best]
             for m in move_data:
                 if m in chosen_flat or m is best:
                     continue
-                mn, mi, ms, me, mp, md = m
+                mn, mi, ms, me, md = m
                 if (mi.get('type', '') == best_type
                         and (mi.get('power') or 0) == best_power
                         and ms == best_is_stab):
@@ -1068,12 +1059,11 @@ class Moveset(commands.Cog):
 
         result = []
         for group in chosen_groups:
-            primary_name, primary_info, primary_is_stab, primary_is_egg, primary_is_priority, _ = group[0]
+            primary_name, primary_info, primary_is_stab, primary_is_egg, _ = group[0]
             alt_names = [g[0] for g in group[1:]]
             alt_accs  = [g[1].get('accuracy') for g in group[1:]]
             any_egg   = any(g[3] for g in group)
-            any_prio  = any(g[4] for g in group)
-            result.append((primary_name, primary_info, primary_is_stab, any_egg, any_prio, alt_names, alt_accs))
+            result.append((primary_name, primary_info, primary_is_stab, any_egg, alt_names, alt_accs))
         return result, len(dominated), total, priority_moves
 
     @commands.command(name='coverage', aliases=['cov'])
@@ -1174,24 +1164,23 @@ class Moveset(commands.Cog):
         type_icons = " ".join(TYPE_EMOJI.get(t, t) for t in stab_types)
         type_str   = " / ".join(stab_types) if stab_types else "Unknown"
         pct        = round(se_count / total * 100, 1) if total else 0
-        has_stab   = any(s for _, _, s, _, _, _, _ in best_moves)
+        has_stab   = any(s for _, _, s, _, _, _ in best_moves)
         stab_note  = f"  ·  {STAB_EMOJI} = STAB" if has_stab else ""
-        egg_note   = "  ·  🥚 = Egg move" if any(e for _, _, _, e, _, _, _ in best_moves) else ""
-        prio_note  = "  ·  ⚡ = Priority" if any(p for _, _, _, _, p, _, _ in best_moves) else ""
+        egg_note   = "  ·  🥚 = Egg move" if any(e for _, _, _, e, _, _ in best_moves) else ""
 
         col_header = "-# Move  ·  Power  ·  Accuracy"
 
         # ── Coverage block ────────────────────────────────────────────────────
         move_lines = "".join(
-            self._fmt_move_line_with_egg(name, info, stab_types, is_egg, alt_names, alt_accs, is_priority)
-            for (name, info, _, is_egg, is_priority, alt_names, alt_accs) in best_moves
+            self._fmt_move_line_with_egg(name, info, stab_types, is_egg, alt_names, alt_accs)
+            for (name, info, _, is_egg, alt_names, alt_accs) in best_moves
         ).rstrip()
 
         coverage_block = (
             f"**Recommended Moveset**\n"
             f"{col_header}\n"
             f"{move_lines}\n\n"
-            f"-# SE coverage: {se_count}/{total} ({pct}%){stab_note}{egg_note}{prio_note}"
+            f"-# SE coverage: {se_count}/{total} ({pct}%){stab_note}{egg_note}"
         )
 
         container_children = [
@@ -1206,18 +1195,17 @@ class Moveset(commands.Cog):
             discord.ui.TextDisplay(content=coverage_block),
         ]
 
-        # ── Priority sidebar ── only weak/non-STAB priority moves that didn't
-        # earn a main slot. Strong priority moves already appear inline above.
+        # ── Priority block ────────────────────────────────────────────────────
         if priority_moves:
             prio_lines = "".join(
                 self._fmt_move_line_with_egg(name, info, stab_types, is_egg)
                 for (name, info, _, is_egg) in priority_moves
             ).rstrip()
             prio_block = (
-                f"⚡ **Other Priority Moves** — goes first regardless of Speed\n"
+                f"⚡ **Priority Moves** — goes first regardless of Speed\n"
                 f"{col_header}\n"
                 f"{prio_lines}\n"
-                f"-# Lower power; not selected for main moveset"
+                f"-# Not counted in the 4 coverage slots above"
             )
             container_children += [
                 discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
