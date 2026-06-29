@@ -4,39 +4,14 @@ import json
 import csv
 import unicodedata
 from typing import Optional
+import config
 
 # ════════════════════════════════════════════════════════════════════════════════
-#  EMOJI CONFIG
+#  EMOJI CONFIG  — defined in config.py, imported here
 # ════════════════════════════════════════════════════════════════════════════════
-TYPE_EMOJI = {
-    "Bug":      "<:Bug:1521052884467187773>",
-    "Dark":     "<:Dark:1521052774933069844>",
-    "Dragon":   "<:Dragon:1521052819711332422>",
-    "Electric": "<:Electric:1521052805668929667>",
-    "Fairy":    "<:Fairy:1521052877546590350>",
-    "Fighting": "<:Fighting:1521052856080404561>",
-    "Fire":     "<:Fire:1521052781618925670>",
-    "Flying":   "<:Flying:1521052862811996252>",
-    "Ghost":    "<:Ghost:1521052828574158922>",
-    "Grass":    "<:Grass:1521052869644648500>",
-    "Ground":   "<:Ground:1521052835310211172>",
-    "Ice":      "<:Ice:1521052791970205726>",
-    "Normal":   "<:Normal:1521052766078894150>",
-    "Poison":   "<:Poison:1521052891123552336>",
-    "Psychic":  "<:Psychic:1521052842339729523>",
-    "Rock":     "<:Rock:1521052799314694244>",
-    "Steel":    "<:Steel:1521052812643930242>",
-    "Water":    "<:Water:1521052849214328912>",
-}
-
-CAT_EMOJI = {
-    "Physical": "<:physical:1521053308461256705>",
-    "Special":  "<:special:1521053278152949831>",
-    "Status":   "<:status:1521053324160401490>",
-    "Egg":      "🥚",
-}
-
-STAB_EMOJI = "<:STAB:1521055676913156187>"
+TYPE_EMOJI = config.TYPE_EMOJI
+CAT_EMOJI  = config.CAT_EMOJI
+STAB_EMOJI = config.STAB_EMOJI
 
 METHOD_LEVELUP = {"levelup", "level", "level_up", "lu", "lv"}
 METHOD_BREED   = {"breed", "breeding", "egg", "eggmoves"}
