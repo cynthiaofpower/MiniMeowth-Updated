@@ -24,6 +24,37 @@ def _move_emoji_prefix(move_name: str, movedex: dict) -> str:
     prefix = f"{type_e}{cat_e}"
     return f"{prefix} " if prefix.strip() else ''
 
+
+def _move_power(move_name: str, movedex: dict) -> int:
+    """Return the base power of a move (0 if status/unknown), used for sorting."""
+    key = ''.join(
+        c for c in unicodedata.normalize('NFD', move_name.lower())
+        if unicodedata.category(c) != 'Mn'
+    )
+    info = movedex.get(key, {})
+    try:
+        return int(info.get('power') or 0)
+    except (ValueError, TypeError):
+        return 0
+
+
+def _move_full_label(move_name: str, movedex: dict) -> str:
+    """Return 'Move Name 80 🔥' label for embed display (type emoji only)."""
+    key = ''.join(
+        c for c in unicodedata.normalize('NFD', move_name.lower())
+        if unicodedata.category(c) != 'Mn'
+    )
+    info = movedex.get(key, {})
+    mtype = info.get('type', '')
+    type_e = config.TYPE_EMOJI.get(mtype, '')
+    try:
+        power = int(info.get('power') or 0)
+    except (ValueError, TypeError):
+        power = 0
+    power_str = str(power) if power else '—'
+    suffix = f" {type_e}" if type_e else ''
+    return f"{move_name} {power_str}{suffix}"
+
 def normalize_string(s):
     """Remove accents from string for comparisonn"""
     return ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
@@ -425,19 +456,22 @@ class ChainBreeding(commands.Cog):
             else:
                 impossible.append(move)
 
+        # Sort possible moves by power descending (status/unknown power last)
+        possible.sort(key=lambda m: _move_power(m, self.movedex), reverse=True)
+
         # Build the display text
         lines: List[str] = [f"**🥚 Egg Moves for {target_species}**", ""]
         if possible:
             lines.append("**✅ Possible via breeding:**")
-            for m in sorted(possible):
-                prefix = _move_emoji_prefix(m, self.movedex)
-                lines.append(f"  {prefix}**{m}**")
+            for m in possible:
+                label = _move_full_label(m, self.movedex)
+                lines.append(f"  **{label}**")
             lines.append("")
         if impossible:
             lines.append("**❌ No chain found (currently unchainable):**")
             for m in sorted(impossible):
-                prefix = _move_emoji_prefix(m, self.movedex)
-                lines.append(f"  {prefix}{m}")
+                label = _move_full_label(m, self.movedex)
+                lines.append(f"  {label}")
             lines.append("")
         if possible:
             lines.append("_Select the moves you want from the dropdown, then press **Get Chain**._")
@@ -448,11 +482,31 @@ class ChainBreeding(commands.Cog):
         selectable = possible[:25]
         has_selectable = bool(selectable)
 
+        def _dropdown_label(move_name: str, movedex: dict) -> str:
+            """Plain 'Move Name 80' label for dropdown (no emojis)."""
+            key = ''.join(
+                c for c in unicodedata.normalize('NFD', move_name.lower())
+                if unicodedata.category(c) != 'Mn'
+            )
+            info = movedex.get(key, {})
+            try:
+                power = int(info.get('power') or 0)
+            except (ValueError, TypeError):
+                power = 0
+            power_str = str(power) if power else '—'
+            return f"{move_name} {power_str}"[:100]
+
         class EggMoveSelect(discord.ui.Select):
             def __init__(self):
-                options = [discord.SelectOption(label=move, value=move) for move in selectable]
+                options = [
+                    discord.SelectOption(
+                        label=_dropdown_label(move, cog.movedex),
+                        value=move
+                    )
+                    for move in selectable
+                ]
                 super().__init__(
-                    placeholder="Choose egg move(s) you want…",
+                    placeholder="Choose egg move(s) you want… (sorted by power)",
                     min_values=1,
                     max_values=min(len(selectable), 25),
                     options=options,
