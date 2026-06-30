@@ -15,6 +15,9 @@ EMOJI_TICK = "<:white_check_mark:1449749985057964094>"
 EMOJI_CROSS = "<:cross_mark:1449750002388959377>"
 EMOJI_GREEN_DOT = "<:green_dot:1450840704153686139>"
 
+# Matches an id placeholder in any of these forms: id, ID, (id), (ID)
+ID_PLACEHOLDER_RE = re.compile(r'\(id\)|\bid\b', re.IGNORECASE)
+
 # Global variables to track active commands
 active_track_commands = {}
 
@@ -130,8 +133,10 @@ class UtilityCommands(commands.Cog):
             command_template = command_template[:-8].strip()  # Remove --mobile flag
         """
         Track Pokemon IDs from an editing list and send commands when ready
-        Usage: ?track <command with (id) placeholder>
+        Usage: ?track <command with an id placeholder>
+        Placeholder can be written as: id, ID, (id), or (ID)
         Example: ?track p!select (id)
+        Example: ?track p!select id
 
         Reply to a Pokétwo list/marketplace message OR a plain text message with IDs, then react with ✅ when done editing.
         """
@@ -141,8 +146,8 @@ class UtilityCommands(commands.Cog):
         if ctx.channel.id in active_track_commands:
             return await self._send_error(ctx, "There's already an active track command in this channel! Use `?stoptrack` first.")
 
-        if '(id)' not in command_template:
-            return await self._send_error(ctx, "Command template must contain `(id)` placeholder!\nExample: `?track p!select (id)`")
+        if not ID_PLACEHOLDER_RE.search(command_template):
+            return await self._send_error(ctx, "Command template must contain an `id` placeholder!\nAccepted forms: `id`, `ID`, `(id)`, `(ID)`\nExample: `?track p!select (id)`")
 
         try:
             replied_message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
@@ -845,8 +850,8 @@ class UtilityCommands(commands.Cog):
         current_data = command_data['pokemon_data'][command_data['current_index']]
         template = command_data['template']
 
-        # Replace placeholders
-        command = template.replace('(id)', current_data['id'])
+        # Replace placeholders (accepts id, ID, (id), (ID))
+        command = ID_PLACEHOLDER_RE.sub(current_data['id'], template)
 
         # For rare candy level, replace candies placeholder
         if command_data.get('command_type') == 'rarecandylevel':
