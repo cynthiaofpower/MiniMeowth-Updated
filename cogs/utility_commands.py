@@ -170,7 +170,7 @@ class UtilityCommands(commands.Cog):
 
             # Create tracking message
             embed = discord.Embed(
-                description=f"{EMOJI_TICK} Started tracking! React with ✅ when done editing.\nCommand: `{command_template}`\nIDs collected: {len(pokemon_data)}",
+                description=f"{EMOJI_TICK} Started tracking! React with ✅ when done editing.\nCommand: `{command_template}`\nIDs collected: {len(pokemon_data)}\n-# Use `m!stoptrack` to cancel.",
                 color=EMBED_COLOR
             )
             tracking_msg = await ctx.reply(embed=embed, mention_author=False)
@@ -198,16 +198,27 @@ class UtilityCommands(commands.Cog):
             await self._send_error(ctx, f"An error occurred: {str(e)}")
 
     @commands.command(name='rarecandylevel', aliases=['rcl', 'rarecandy', 'iwantlevel'])
-    async def rarecandylevel(self, ctx, target_level: int, mobile_flag: str = None):
-        # Check for --mobile flag
-        mobile_mode = mobile_flag == '--mobile'
+    async def rarecandylevel(self, ctx, *, args: str = None):
         """
-        Auto-buy rare candies to level Pokemon to a target level
-        Usage: ?rarecandylevel <target_level>
-        Example: ?rarecandylevel 45
+        Auto-buy rare candies to level Pokemon to a target level, or to the level
+        at which they learn specific moves naturally.
+
+        Usage:
+          m!rcl <target_level> [--mobile]
+          m!rcl --move <move name> [--move <move name> ...] [--mobile]
+
+        Example:
+          m!rcl 45
+          m!rcl --move bounce
+          m!rcl --move bounce --move ice punch --mobile
 
         Reply to a Pokétwo list message, then react with ✅ when done editing.
         Will calculate and buy the correct number of rare candies for each Pokemon.
+
+        When using --move filters, each Pokemon's target level is the level at
+        which it learns the highest-level move among the given filters that it
+        can actually learn naturally. Pokemon that can't learn any of the given
+        moves are skipped.
         """
         if not ctx.message.reference:
             return await self._send_error(ctx, "Please reply to a Pokétwo list message!")
@@ -215,8 +226,18 @@ class UtilityCommands(commands.Cog):
         if ctx.channel.id in active_track_commands:
             return await self._send_error(ctx, "There's already an active track command in this channel! Use `?stoptrack` first.")
 
-        if target_level < 1 or target_level > 100:
-            return await self._send_error(ctx, "Target level must be between 1 and 100!")
+        target_level, move_filters, mobile_mode = self._parse_rcl_args(args or "")
+
+        chain_cog = None
+        if move_filters:
+            chain_cog = self.bot.get_cog('ChainBreeding')
+            if not chain_cog:
+                return await self._send_error(ctx, "Move filters need the ChainBreeding cog to be loaded!")
+        else:
+            if target_level is None:
+                return await self._send_error(ctx, "Please provide a target level (e.g. `m!rcl 45`) or use `--move <move name>` filters!")
+            if target_level < 1 or target_level > 100:
+                return await self._send_error(ctx, "Target level must be between 1 and 100!")
 
         try:
             replied_message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
@@ -229,25 +250,37 @@ class UtilityCommands(commands.Cog):
             if not embed.title or "pokémon" not in embed.title.lower() or not embed.description:
                 return await self._send_error(ctx, "Please reply to a Pokétwo list message!")
 
-            # Extract Pokemon data with levels
-            pokemon_data = self._extract_pokemon_with_levels(embed.description, target_level)
+            # Extract Pokemon data, either by fixed target level or by move filters
+            if move_filters:
+                pokemon_data = self._extract_pokemon_with_move_filters(embed.description, move_filters, chain_cog)
+            else:
+                pokemon_data = self._extract_pokemon_with_levels(embed.description, target_level)
 
             if not pokemon_data:
+                if move_filters:
+                    return await self._send_error(ctx, f"No Pokemon in this list learn `{', '.join(move_filters)}` naturally!")
                 return await self._send_error(ctx, "No Pokemon IDs found in the replied message!")
 
-            # Filter out Pokemon that are already at or above target level
+            # Filter out Pokemon that are already at or above their target level
             pokemon_to_level = [p for p in pokemon_data if p.get('candies_needed', 0) > 0]
 
             if not pokemon_to_level:
+                if move_filters:
+                    return await self._send_error(ctx, f"All matching Pokemon already know `{', '.join(move_filters)}` or are past the required level!")
                 return await self._send_error(ctx, f"All Pokemon are already at or above level {target_level}!")
 
             # Create tracking message with summary
             total_candies = sum(p['candies_needed'] for p in pokemon_to_level)
+            if move_filters:
+                summary_line = f"Move Filter: **{', '.join(move_filters)}**"
+            else:
+                summary_line = f"Target Level: **{target_level}**"
             embed = discord.Embed(
                 description=f"{EMOJI_TICK} Started tracking! React with ✅ when done editing.\n"
-                           f"Target Level: **{target_level}**\n"
+                           f"{summary_line}\n"
                            f"Pokemon to level: **{len(pokemon_to_level)}**\n"
-                           f"Total rare candies needed: **{total_candies}**",
+                           f"Total rare candies needed: **{total_candies}**\n"
+                           f"-# Use `m!stoptrack` to cancel.",
                 color=EMBED_COLOR
             )
             tracking_msg = await ctx.reply(embed=embed, mention_author=False)
@@ -264,9 +297,10 @@ class UtilityCommands(commands.Cog):
                 'current_index': 0,
                 'total_count': 0,
                 'target_level': target_level,
+                'move_filters': move_filters,
                 'is_plain_text': False,
                 'command_type': 'rarecandylevel',
-                'mobile_mode': mobile_mode  # ADD THIS LINE
+                'mobile_mode': mobile_mode
             }
 
             # Set timeout
@@ -505,6 +539,144 @@ class UtilityCommands(commands.Cog):
 
         return pokemon_ids
 
+    def _parse_rcl_args(self, raw: str):
+        """
+        Parse rarecandylevel arguments.
+        Supports: a bare target level, repeated --move <name> filters (move
+        names may contain spaces), and a --mobile flag, in any combination.
+        Returns (target_level: Optional[int], move_filters: List[str], mobile_mode: bool)
+        """
+        text = (raw or "").strip()
+        mobile_mode = False
+
+        # Pull out --mobile flag (case-insensitive, word-bounded)
+        mobile_re = re.compile(r'(?:^|\s)--mobile(?=\s|$)', re.IGNORECASE)
+        if mobile_re.search(text):
+            mobile_mode = True
+            text = mobile_re.sub(' ', text)
+
+        # Pull out every --move <value> chunk; value runs until the next --flag or end of string
+        move_filters = []
+        move_pattern = re.compile(r'--move\s+(.+?)(?=\s+--\w|$)', re.IGNORECASE | re.DOTALL)
+        for match in move_pattern.finditer(text):
+            mv = match.group(1).strip()
+            if mv:
+                move_filters.append(mv)
+        text = move_pattern.sub(' ', text).strip()
+
+        target_level = None
+        if text:
+            first_token = text.split()[0]
+            if first_token.isdigit():
+                target_level = int(first_token)
+
+        return target_level, move_filters, mobile_mode
+
+    def _resolve_species_name(self, raw_name: str, pokemon_list: list, lower_map: dict, utils_cog=None):
+        """Resolve a Pokétwo display name (which may include form prefixes) to a
+        canonical species name present in the movesets data, or None if unresolved."""
+        name = raw_name.strip()
+        if not name:
+            return None
+        if name.lower() in lower_map:
+            return lower_map[name.lower()]
+
+        # Prefer the Utils cog's own prefix-stripping logic (kept in sync with
+        # the rest of the bot) when available, falling back to a small local list.
+        if utils_cog is not None:
+            base = utils_cog.get_base_species(name).strip()
+            if base.lower() in lower_map:
+                return lower_map[base.lower()]
+            resolved = utils_cog.resolve_pokemon_name(base).strip()
+            if resolved.lower() in lower_map:
+                return lower_map[resolved.lower()]
+        else:
+            form_prefixes = [
+                'Alolan ', 'Galarian ', 'Hisuian ', 'Paldean ',
+                'Gigantamax ', 'Mega ', 'Primal ', 'Zenith ', 'Shadow ', 'Shiny ',
+            ]
+            for prefix in form_prefixes:
+                if name.startswith(prefix):
+                    stripped = name[len(prefix):].strip()
+                    if stripped.lower() in lower_map:
+                        return lower_map[stripped.lower()]
+
+        return None
+
+    def _extract_pokemon_with_move_filters(self, description: str, move_filters: list, chain_cog) -> list:
+        """
+        Extract Pokemon from an embed description and, for each one, figure out
+        the level at which it learns the highest-level move among move_filters
+        that it can actually learn naturally. Pokemon that can't learn any of
+        the requested moves are skipped entirely.
+        """
+        pokemon_list = getattr(chain_cog, 'pokemon_list', [])
+        lower_map = {p.lower(): p for p in pokemon_list}
+        level_re = re.compile(r'\(Level\s*(\d+)\)', re.IGNORECASE)
+
+        utils_cog = self.bot.get_cog('Utils')
+        # Reuse Utils' precompiled name pattern when available, otherwise fall back to a local one
+        name_re = utils_cog.name_pattern if utils_cog is not None else re.compile(r'> ([^<]+)<:(?:male|female|unknown):')
+
+        pokemon_data = []
+        for line in description.split('\n'):
+            # Extract ID
+            pokemon_id = None
+            backtick_match = re.search(r'`(\d+)`', line)
+            if backtick_match:
+                pokemon_id = backtick_match.group(1)
+            elif '　' in line or '•' in line:
+                id_part = line.split('　')[0] if '　' in line else line.split()[0]
+                id_match = id_part.replace('**', '').replace('`', '').strip()
+                if id_match.isdigit():
+                    pokemon_id = id_match
+
+            if not pokemon_id:
+                continue
+
+            # Extract current level
+            level_match = re.search(r'Lvl\.\s*(\d+)', line)
+            if not level_match:
+                continue
+            current_level = int(level_match.group(1))
+
+            # Extract species name (between the custom species emoji and the gender emoji)
+            name_match = name_re.search(line)
+            if not name_match:
+                continue
+            raw_name = name_match.group(1).strip()
+
+            species = self._resolve_species_name(raw_name, pokemon_list, lower_map, utils_cog)
+            if not species:
+                continue  # Unknown species, skip
+
+            # Find the highest level among the requested moves this Pokemon learns naturally
+            best_level = None
+            for move in move_filters:
+                entry = chain_cog.get_move_level_entry(species, move)
+                if not entry:
+                    continue
+                lvl_match = level_re.search(entry)
+                if not lvl_match:
+                    continue
+                lvl = int(lvl_match.group(1))
+                if best_level is None or lvl > best_level:
+                    best_level = lvl
+
+            if best_level is None:
+                continue  # Can't learn any of the requested moves naturally, skip
+
+            candies_needed = max(0, best_level - current_level)
+            pokemon_data.append({
+                'id': pokemon_id,
+                'species': species,
+                'current_level': current_level,
+                'target_level': best_level,
+                'candies_needed': candies_needed
+            })
+
+        return pokemon_data
+
     def _extract_pokemon_with_levels(self, description: str, target_level: int) -> list:
         """Extract Pokemon IDs and calculate rare candies needed"""
         pokemon_data = []
@@ -555,7 +727,7 @@ class UtilityCommands(commands.Cog):
 
             # Handle different command types
             if command_type == 'rarecandylevel':
-                # For rare candy level, re-extract with levels
+                # For rare candy level, re-extract using whichever mode was used originally
                 if message.author.id != 716390085896962058 or not message.embeds:
                     continue
 
@@ -563,8 +735,15 @@ class UtilityCommands(commands.Cog):
                 if not embed.title or "pokémon" not in embed.title.lower() or not embed.description:
                     continue
 
-                target_level = track_data.get('target_level', 100)
-                new_data = self._extract_pokemon_with_levels(embed.description, target_level)
+                move_filters = track_data.get('move_filters')
+                if move_filters:
+                    chain_cog = self.bot.get_cog('ChainBreeding')
+                    if not chain_cog:
+                        continue
+                    new_data = self._extract_pokemon_with_move_filters(embed.description, move_filters, chain_cog)
+                else:
+                    target_level = track_data.get('target_level', 100)
+                    new_data = self._extract_pokemon_with_levels(embed.description, target_level)
                 # Filter out Pokemon already at target level
                 new_data = [p for p in new_data if p.get('candies_needed', 0) > 0]
 
@@ -604,16 +783,21 @@ class UtilityCommands(commands.Cog):
 
                     if command_type == 'rarecandylevel':
                         total_candies = sum(p['candies_needed'] for p in track_data['pokemon_data'])
+                        if track_data.get('move_filters'):
+                            summary_line = f"Move Filter: **{', '.join(track_data['move_filters'])}**"
+                        else:
+                            summary_line = f"Target Level: **{track_data['target_level']}**"
                         embed = discord.Embed(
                             description=f"{EMOJI_TICK} Started tracking! React with ✅ when done editing.\n"
-                                       f"Target Level: **{track_data['target_level']}**\n"
+                                       f"{summary_line}\n"
                                        f"Pokemon to level: **{len(track_data['pokemon_data'])}**\n"
-                                       f"Total rare candies needed: **{total_candies}**",
+                                       f"Total rare candies needed: **{total_candies}**\n"
+                                       f"-# Use `m!stoptrack` to cancel.",
                             color=EMBED_COLOR
                         )
                     else:
                         embed = discord.Embed(
-                            description=f"{EMOJI_TICK} Started tracking! React with ✅ when done editing.\nCommand: `{track_data['template']}`\nIDs collected: {len(track_data['pokemon_data'])}",
+                            description=f"{EMOJI_TICK} Started tracking! React with ✅ when done editing.\nCommand: `{track_data['template']}`\nIDs collected: {len(track_data['pokemon_data'])}\n-# Use `m!stoptrack` to cancel.",
                             color=EMBED_COLOR
                         )
                     await tracking_msg.edit(embed=embed)
@@ -645,12 +829,13 @@ class UtilityCommands(commands.Cog):
             embed = discord.Embed(
                 description=f"{EMOJI_TICK} Started buying rare candies!\n"
                            f"Total Pokemon: {len(command_data['pokemon_data'])}\n"
-                           f"Total candies: {total_candies}",
+                           f"Total candies: {total_candies}\n"
+                           f"-# Use `m!stoptrack` to cancel.",
                 color=EMBED_COLOR
             )
         else:
             embed = discord.Embed(
-                description=f"{EMOJI_TICK} Started sending commands! Total IDs: {len(command_data['pokemon_data'])}",
+                description=f"{EMOJI_TICK} Started sending commands! Total IDs: {len(command_data['pokemon_data'])}\n-# Use `m!stoptrack` to cancel.",
                 color=EMBED_COLOR
             )
         await channel.send(embed=embed)
