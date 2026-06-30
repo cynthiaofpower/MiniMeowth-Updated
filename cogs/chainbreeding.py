@@ -692,6 +692,7 @@ class ChainBreeding(commands.Cog):
             else:
                 footer_text = "✅ Multi-step breeding! Each offspring accumulates moves from previous generations."
             components.append(discord.ui.TextDisplay(content=f"_{footer_text}_"))
+            components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
 
         # ── Pre-build the alternatives text (all steps, truncated to 4000 chars) ──
         DISCORD_CHAR_LIMIT = 4000
@@ -736,27 +737,51 @@ class ChainBreeding(commands.Cog):
         if not _alt_text:
             _alt_text = "_(No alternative males found for any step)_"
 
-        # ── Pre-build the tips text ──────────────────────────────────────────────
+        # ── Pre-build the command text (one Pokétwo filter command per step) ──────
+        _cmd_lines = []
+        for step_idx in range(len(chain.steps)):
+            step_num = step_idx + 1
+            chosen_male_name = chain.steps[step_idx]['male']
+            chosen_male_pokemon = chosen_male_name.split('(')[0].strip()
+
+            # Collect male names: chosen male first, then any alternates for this step
+            names = [chosen_male_pokemon]
+            for alt_name, _alt_cost, _alt_moves in all_step_alts.get(step_idx, []):
+                if alt_name not in names:
+                    names.append(alt_name)
+
+            name_flags = " ".join(f"--n {n}" for n in names)
+            command_str = f"{name_flags} --gender male"
+
+            _cmd_lines.append(f"**🔧 Step {step_num} Command:**")
+            _cmd_lines.append(f"`{command_str}`")
+            _cmd_lines.append("")  # blank line between steps
+
+        _cmd_text = "\n".join(_cmd_lines).strip()
+        if not _cmd_text:
+            _cmd_text = "_(No command available)_"
+
+        # ── Pre-build the tips text (as a list of bullets, rendered with separators) ──
         if is_single_step:
             female_name = chain.steps[0]['female'].split('(')[0].strip()
-            _tips_text = (
-                f"💡 **Tips:**\n\n"
-                f"• You can use evolution of **{female_name}** as the female — "
-                f"The egg always hatches as the base species (guaranteed for non-regional/non-Gmax), "
-                f"with a 20% chance into regional if female is regional and 1% into Gmax if female is gigantamax, "
-                f"and will inherit the egg move.\n\n"
-                f"• ALWAYS use base form while searching. For example - `m!iwant tepig hammer arm` "
-                f"and not `m!iwant emboar hammer arm` to get accurate results Because the base form MUST have that move as egg move. "
-                f"It Does Not matter if the evolved form has it or not."
-            )
+            _tips_bullets = [
+                f"• You can use an evolution of **{female_name}** as the female. "
+                f"The egg will always hatch as the base species (guaranteed for non-regional/non-Gmax forms), "
+                f"with a 20% chance of hatching as the regional form if the female is regional, and a 1% chance "
+                f"of hatching as Gigantamax if the female is Gigantamax. The egg move will still be inherited.",
+
+                f"• Always use the base form when searching. For example, use `m!iwant tepig hammer arm` "
+                f"instead of `m!iwant emboar hammer arm` to get accurate results, since the base form must have "
+                f"that move listed as an egg move. It doesn't matter whether the evolved form can learn it or not.",
+            ]
         else:
-            _tips_text = (
-                f"💡 **Tips:**\n\n"
-                f"• ALWAYS use base form while searching. For example - `m!iwant tepig hammer arm` "
-                f"and not `m!iwant emboar hammer arm` to get accurate results Because the base form MUST have that move as egg move. "
-                f"It Does Not matter if the evolved form has it or not.\n\n"
-                f"• Each offspring accumulates moves from previous breeding steps."
-            )
+            _tips_bullets = [
+                f"• Always use the base form when searching. For example, use `m!iwant tepig hammer arm` "
+                f"instead of `m!iwant emboar hammer arm` to get accurate results, since the base form must have "
+                f"that move listed as an egg move. It doesn't matter whether the evolved form can learn it or not.",
+
+                f"• Each offspring accumulates the moves learned in every previous breeding step.",
+            ]
 
         # ── Button classes ─────────────────────────────────────────────────────────
         class ShowAlternativesButton(discord.ui.Button):
@@ -784,11 +809,29 @@ class ChainBreeding(commands.Cog):
                 )
 
             async def callback(self, interaction: discord.Interaction):
+                _tips_components = [discord.ui.TextDisplay(content="💡 **Tips:**")]
+                for i, bullet in enumerate(_tips_bullets):
+                    _tips_components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
+                    _tips_components.append(discord.ui.TextDisplay(content=bullet))
+
                 class TipsView(discord.ui.LayoutView):
-                    container1 = discord.ui.Container(
-                        discord.ui.TextDisplay(content=_tips_text),
-                    )
+                    container1 = discord.ui.Container(*_tips_components)
                 await interaction.response.send_message(view=TipsView(), ephemeral=False)
+
+        class ShowCommandButton(discord.ui.Button):
+            def __init__(self):
+                super().__init__(
+                    style=discord.ButtonStyle.secondary,
+                    label="Command",
+                    emoji="⌨️"
+                )
+
+            async def callback(self, interaction: discord.Interaction):
+                class CommandView(discord.ui.LayoutView):
+                    container1 = discord.ui.Container(
+                        discord.ui.TextDisplay(content=_cmd_text),
+                    )
+                await interaction.response.send_message(view=CommandView(), ephemeral=False)
 
         # Pagination buttons
         class PreviousPageButton(discord.ui.Button):
@@ -832,8 +875,9 @@ class ChainBreeding(commands.Cog):
             action_row_buttons.append(PreviousPageButton(page))
             action_row_buttons.append(NextPageButton(page, total_pages))
 
-        # Always add alternatives and tips buttons
+        # Always add alternatives, command, and tips buttons
         action_row_buttons.append(ShowAlternativesButton())
+        action_row_buttons.append(ShowCommandButton())
         action_row_buttons.append(ShowTipsButton())
 
         chain_action_row = discord.ui.ActionRow(*action_row_buttons)
