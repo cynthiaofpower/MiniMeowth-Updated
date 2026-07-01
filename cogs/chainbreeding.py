@@ -1000,6 +1000,47 @@ class ChainBreeding(commands.Cog):
                 target_species = pkmn_name
                 break
 
+        # If no match, the species name may be multi-word (e.g. "Iron Moth")
+        # and the command parser already split it into pokemon="iron",
+        # moves="moth ...". Try re-absorbing leading words from `moves`
+        # back into the pokemon name until we find a real species match.
+        if not target_species and moves:
+            move_words = moves.split()
+            combined = pokemon
+            for i, word in enumerate(move_words):
+                combined = f"{combined} {word}"
+                candidate = utils.resolve_pokemon_name(combined) if utils else combined
+                candidate_normalized = normalize_string(candidate.lower())
+                match = None
+                for pkmn_name in self.pokemon_list:
+                    if normalize_string(pkmn_name.lower()) == candidate_normalized:
+                        match = pkmn_name
+                        break
+                if match:
+                    target_species = match
+                    pokemon = combined
+                    moves = ' '.join(move_words[i + 1:]).strip()
+                    break
+
+        # If we recovered a valid species but no moves are left (the whole
+        # message was just the multi-word species name), show the egg move
+        # picker instead of erroring out.
+        if target_species and not moves:
+            class ScanView(discord.ui.LayoutView):
+                container1 = discord.ui.Container(
+                    discord.ui.TextDisplay(
+                        content=f"🔍 Checking egg moves for **{target_species}**…"
+                    )
+                )
+            scan_msg = await ctx.send(view=ScanView(), reference=ctx.message,
+                                      allowed_mentions=discord.AllowedMentions(replied_user=False))
+
+            picker_view, _ = self.create_egg_move_picker_view(ctx, target_species)
+            await scan_msg.delete()
+            await ctx.send(view=picker_view, reference=ctx.message,
+                           allowed_mentions=discord.AllowedMentions(replied_user=False))
+            return
+
         if not target_species:
             class ErrorView(discord.ui.LayoutView):
                 container1 = discord.ui.Container(
