@@ -11,7 +11,7 @@ import unicodedata
 
 
 def _move_emoji_prefix(move_name: str, movedex: dict) -> str:
-    """Return '<TypeEmoji><CatEmoji> ' prefix for a move, or '' if unknown."""
+    """Return '<TypeEmoji><CatEmoji> ' prefix for a move, or '' if unknownn."""
     key = ''.join(
         c for c in unicodedata.normalize('NFD', move_name.lower())
         if unicodedata.category(c) != 'Mn'
