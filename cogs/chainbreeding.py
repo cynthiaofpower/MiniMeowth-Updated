@@ -1122,7 +1122,7 @@ class ChainBreeding(commands.Cog):
                 "• Use quotes for Pokemon with multi-word names\n"
                 "  ❌ m!iwant iron boulder tackle\n"
                 "  ✅ m!iwant "iron boulder" tackle\n\n"
-                "• If its a baby pokemon, use its second evolution\n"
+                '• If its a baby pokemon, use its second evolution\n'
                 "  ❌ m!iwant togepy future sight\n"
                 '  ✅ m!iwant togetic future sight\n'
                 "```"
