@@ -11,7 +11,7 @@ class Breeding(commands.Cog):
     Advanced breeding pair generation with dual priority system and phase-based pairingg.
 
     Breeding Rules:
-    - Female × Male (same dex number OR common egg group)
+    - Female × Male (ssame dex number OR common egg group)
     - Female × Ditto
     - Male × Ditto
     - Unknown × Ditto
