@@ -127,10 +127,6 @@ class UtilityCommands(commands.Cog):
 
     @commands.command(name='track')
     async def track(self, ctx, *, command_template: str):
-            # Check for --mobile flag
-        mobile_mode = command_template.endswith('--mobile')
-        if mobile_mode:
-            command_template = command_template[:-8].strip()  # Remove --mobile flag
         """
         Track Pokemon IDs from an editing list and send commands when ready
         Usage: ?track <command with an id placeholder>
@@ -138,8 +134,16 @@ class UtilityCommands(commands.Cog):
         Example: ?track p!select (id)
         Example: ?track p!select id
 
+        Optional flags (can appear anywhere in the command, in any order):
+          --mobile           Send each command as inline code instead of an embed
+          --note <text>      Attach a note to every command sent. Repeatable
+                              for multiple notes. "p2" inside a note is
+                              auto-replaced with the Pokétwo mention.
+        Example: ?track select id --mobile --note p2 learn hammer arm --note p2 learn superpower
+
         Reply to a Pokétwo list/marketplace message OR a plain text message with IDs, then react with ✅ when done editing.
         """
+        command_template, mobile_mode, notes = self._parse_track_args(command_template)
         if not ctx.message.reference:
             return await self._send_error(ctx, "Please reply to a Pokétwo list/marketplace message or a message containing Pokemon IDs!")
 
@@ -193,7 +197,8 @@ class UtilityCommands(commands.Cog):
                 'total_count': 0,
                 'is_plain_text': not is_poketwo_embed,
                 'command_type': 'track',
-                'mobile_mode': mobile_mode  # ADD THIS LINE
+                'mobile_mode': mobile_mode,
+                'notes': notes
             }
 
             # Set timeout
@@ -544,6 +549,45 @@ class UtilityCommands(commands.Cog):
 
         return pokemon_ids
 
+    def _parse_track_args(self, raw: str):
+        """
+        Parse the ?track command template for --mobile and --note flags.
+        These can appear anywhere and in any order. --note may be repeated;
+        each note's text runs until the next --flag or the end of the string.
+        "p2" inside a note (whole word, case-insensitive) is auto-replaced
+        with the Pokétwo mention.
+        Returns (cleaned_template: str, mobile_mode: bool, notes: List[str])
+        """
+        text = (raw or "").strip()
+
+        # Pull out --mobile flag (case-insensitive, word-bounded, anywhere)
+        mobile_mode = False
+        mobile_re = re.compile(r'(?:^|\s)--mobile(?=\s|$)', re.IGNORECASE)
+        if mobile_re.search(text):
+            mobile_mode = True
+            text = mobile_re.sub(' ', text)
+
+        # Pull out every --note <value> chunk; value runs until the next --flag or end of string
+        notes = []
+        note_pattern = re.compile(r'--note\s+(.+?)(?=\s+--\w|$)', re.IGNORECASE | re.DOTALL)
+        for match in note_pattern.finditer(text):
+            note_text = match.group(1).strip()
+            if note_text:
+                # Auto-interpret "p2" as the Pokétwo mention
+                note_text = re.sub(r'\bp2\b', '<@716390085896962058>', note_text, flags=re.IGNORECASE)
+                notes.append(note_text)
+        text = note_pattern.sub(' ', text).strip()
+        text = re.sub(r'\s+', ' ', text).strip()
+
+        return text, mobile_mode, notes
+
+    def _format_notes(self, notes: list, mobile_mode: bool) -> str:
+        """Wrap each note in backticks (single if mobile, triple otherwise) and join with newlines."""
+        if not notes:
+            return ""
+        wrap = "`" if mobile_mode else "```"
+        return "\n\n".join(f"{wrap}{note}{wrap}" for note in notes)
+
     def _parse_rcl_args(self, raw: str):
         """
         Parse rarecandylevel arguments.
@@ -857,21 +901,34 @@ class UtilityCommands(commands.Cog):
         if command_data.get('command_type') == 'rarecandylevel':
             command = command.replace('(candies)', str(current_data['candies_needed']))
 
+        mobile_mode = command_data.get('mobile_mode', False)
+        notes_block = self._format_notes(command_data.get('notes', []), mobile_mode)
+
         # Check if mobile mode is enabled
-        if command_data.get('mobile_mode', False):
+        if mobile_mode:
             current = command_data['current_index'] + 1
             total = command_data['total_count']
-            
+
+            message_text = f"`{command}`"
+            if notes_block:
+                message_text += f"\n\n{notes_block}\n"
+            message_text += f"\n{EMOJI_GREEN_DOT} **{current}/{total}**"
+
             # Send only inline code without embed
-            await channel.send(f"`{command}`\n{EMOJI_GREEN_DOT} **{current}/{total}**")
+            await channel.send(message_text)
         else:
             # Calculate remaining IDs
             current = command_data['current_index'] + 1
             total = command_data['total_count']
             remaining = total - current
 
+            description = f"```{command}```"
+            if notes_block:
+                description += f"\n\n{notes_block}\n"
+            description += f"\n{EMOJI_GREEN_DOT} **{current}/{total}** | Remaining: **{remaining}**"
+
             embed = discord.Embed(
-                description=f"```{command}```\n{EMOJI_GREEN_DOT} **{current}/{total}** | Remaining: **{remaining}**",
+                description=description,
                 color=EMBED_COLOR
             )
             await channel.send(embed=embed)
