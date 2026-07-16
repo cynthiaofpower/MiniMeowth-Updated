@@ -578,20 +578,20 @@ class BattleHelper(commands.Cog):
 
         components = [
             discord.ui.TextDisplay(content=f"**📐 {base_row['name']} — Lv{level} {nature_key}**"),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
         ]
 
         image_url = self.get_image_url(base_row["name"])
         if image_url:
-            title_section = components.pop()
             components.append(
                 discord.ui.Section(
-                    title_section,
+                    discord.ui.TextDisplay(content=stat_lines),
                     accessory=discord.ui.Thumbnail(media=image_url, description=base_row["name"]),
                 )
             )
+        else:
+            components.append(discord.ui.TextDisplay(content=stat_lines))
 
-        components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
-        components.append(discord.ui.TextDisplay(content=stat_lines))
         components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
         components.append(discord.ui.TextDisplay(content="-# ▲ boosted by nature   ▼ lowered by nature"))
 
@@ -599,6 +599,122 @@ class BattleHelper(commands.Cog):
             container1 = discord.ui.Container(*components, accent_colour=discord.Colour.blurple())
 
         await ctx.send(view=StatsView())
+
+    @commands.hybrid_command(name="outspeed", aliases=("speedcheck", "ivforspeed"))
+    @app_commands.describe(
+        mypokemon="Your Pokémon species name",
+        oppokemon="Opponent's Pokémon species name (assumed 31 Speed IV)",
+        mylevel="Your Pokémon's level (default 100)",
+        opplevel="Opponent's level (default 100)",
+        mynature="Your Pokémon's nature (default Hardy / neutral)",
+        opnature="Opponent's nature, used for the no-mint case (default Hardy / neutral)",
+    )
+    @app_commands.autocomplete(mynature=nature_autocomplete, opnature=nature_autocomplete)
+    async def outspeed(
+        self,
+        ctx: commands.Context,
+        mypokemon: str,
+        oppokemon: str,
+        mylevel: int = 100,
+        opplevel: int = 100,
+        mynature: str = "Hardy",
+        opnature: str = "Hardy",
+    ):
+        """Find the min Speed IV to outspeed an opponent (31 Speed IV), with/without a Speed mint."""
+        my_name = self.resolve_pokemon(mypokemon)
+        if my_name is None:
+            suggestions = self.suggest_pokemon(mypokemon)
+            hint = f" Did you mean: {', '.join(suggestions)}?" if suggestions else ""
+            return await ctx.send(view=simple_view(f"❌ Couldn't find a Pokémon named `{mypokemon}`.{hint}"))
+
+        opp_name = self.resolve_pokemon(oppokemon)
+        if opp_name is None:
+            suggestions = self.suggest_pokemon(oppokemon)
+            hint = f" Did you mean: {', '.join(suggestions)}?" if suggestions else ""
+            return await ctx.send(view=simple_view(f"❌ Couldn't find a Pokémon named `{oppokemon}`.{hint}"))
+
+        my_nature_key = next((n for n in ALL_NATURES if n.lower() == mynature.lower()), None)
+        if my_nature_key is None:
+            return await ctx.send(view=simple_view(f"❌ Unknown nature `{mynature}`. Valid natures: {', '.join(ALL_NATURES)}"))
+        opp_nature_key = next((n for n in ALL_NATURES if n.lower() == opnature.lower()), None)
+        if opp_nature_key is None:
+            return await ctx.send(view=simple_view(f"❌ Unknown nature `{opnature}`. Valid natures: {', '.join(ALL_NATURES)}"))
+
+        if not (1 <= mylevel <= 100):
+            return await ctx.send(view=simple_view("❌ mylevel must be between 1 and 100."))
+        if not (1 <= opplevel <= 100):
+            return await ctx.send(view=simple_view("❌ opplevel must be between 1 and 100."))
+
+        my_base = self.base_stats[dex_key(my_name)]
+        opp_base = self.base_stats[dex_key(opp_name)]
+
+        my_speed_mult = NATURE_MULTIPLIERS[my_nature_key]["speed"]
+        opp_speed_mult_no_mint = NATURE_MULTIPLIERS[opp_nature_key]["speed"]
+        opp_speed_mult_mint = MINT_MULTIPLIER["speed"]  # 1.1, overrides nature's speed effect
+
+        opp_speed_no_mint = self.calc_stat(opp_base["speed"], 31, opplevel, opp_speed_mult_no_mint)
+        opp_speed_mint = self.calc_stat(opp_base["speed"], 31, opplevel, opp_speed_mult_mint)
+
+        def min_iv_to_outspeed(opp_speed: int) -> Tuple[Optional[int], int, bool]:
+            """Returns (iv_needed_or_None, my_speed_at_31_iv, tie_at_31)."""
+            my_speed_at_31 = self.calc_stat(my_base["speed"], 31, mylevel, my_speed_mult)
+            for iv in range(0, 32):
+                my_speed = self.calc_stat(my_base["speed"], iv, mylevel, my_speed_mult)
+                if my_speed > opp_speed:
+                    return iv, my_speed_at_31, False
+            return None, my_speed_at_31, my_speed_at_31 == opp_speed
+
+        iv_no_mint, my_speed_at_31, tie_no_mint = min_iv_to_outspeed(opp_speed_no_mint)
+        iv_mint, _, tie_mint = min_iv_to_outspeed(opp_speed_mint)
+
+        def format_case(label: str, opp_speed: int, iv_needed: Optional[int], tie: bool) -> str:
+            if iv_needed is not None:
+                return f"**{label}** — opponent's Speed: {opp_speed}. You need **{iv_needed}/31** Speed IV to outspeed."
+            if tie:
+                return (
+                    f"**{label}** — opponent's Speed: {opp_speed}. Even at 31 Speed IV you only **tie** "
+                    f"({my_speed_at_31}) — a coinflip in-game, not a guaranteed outspeed."
+                )
+            return (
+                f"**{label}** — opponent's Speed: {opp_speed}. You **cannot** outspeed even at 31 Speed IV "
+                f"(your max Speed: {my_speed_at_31})."
+            )
+
+        result_text = (
+            f"{format_case(f'If {opp_name} has NO Speed mint ({opp_nature_key})', opp_speed_no_mint, iv_no_mint, tie_no_mint)}\n"
+            f"{format_case(f'If {opp_name} HAS a Speed mint', opp_speed_mint, iv_mint, tie_mint)}"
+        )
+
+        components = [
+            discord.ui.TextDisplay(content=f"**⏱️ Speed check: {my_name} (Lv{mylevel} {my_nature_key}) vs {opp_name} (Lv{opplevel}, 31 Speed IV)**"),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+        ]
+
+        image_url = self.get_image_url(my_name)
+        if image_url:
+            components.append(
+                discord.ui.Section(
+                    discord.ui.TextDisplay(content=result_text),
+                    accessory=discord.ui.Thumbnail(media=image_url, description=my_name),
+                )
+            )
+        else:
+            components.append(discord.ui.TextDisplay(content=result_text))
+
+        components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
+        components.append(
+            discord.ui.TextDisplay(
+                content=(
+                    "-# Opponent is assumed to have 31 Speed IV. \"Speed mint\" forces a +10% Speed "
+                    "multiplier regardless of nature, overriding the no-mint nature assumption above."
+                )
+            )
+        )
+
+        class OutspeedView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(*components, accent_colour=discord.Colour.green())
+
+        await ctx.send(view=OutspeedView())
 
     @commands.hybrid_command(name="battle", aliases=("bestmoves", "bm"))
     @app_commands.describe(
