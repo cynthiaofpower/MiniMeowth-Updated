@@ -102,6 +102,8 @@ _STAT_COLUMNS = {
     "speed": "Speed",
 }
 
+POKETWO_CDN_TEMPLATE = "https://cdn.poketwo.net/images/{}.png"
+
 
 # ------------------------------------------------------------------
 # Components V2 helpers
@@ -132,6 +134,7 @@ class BattleHelper(commands.Cog):
         self.movesets: Dict[str, dict] = {}          # Pokemon name (as in json) -> {"level_up": [...], "breeding": [...]}
         self.types: Dict[str, List[str]] = {}        # dex_key(name) -> [Type1, (Type2)]
         self.aliases: Dict[str, str] = {}             # dex_key(alias) -> canonical name (as in base_stats)
+        self.cdn_numbers: Dict[str, int] = {}         # dex_key(name) -> poketwo CDN image number
         self.pokemon_list: List[str] = []
         self.load_data()
 
@@ -145,10 +148,12 @@ class BattleHelper(commands.Cog):
         self.load_movesets()
         self.load_types()
         self.load_aliases()
+        self.load_cdn_mapping()
         print(
             f"✅ [BattleHelper] Loaded {len(self.base_stats)} base stats, "
             f"{len(self.movedex)} moves, {len(self.movesets)} movesets, "
-            f"{len(self.types)} typings, {len(self.aliases)} name aliases"
+            f"{len(self.types)} typings, {len(self.aliases)} name aliases, "
+            f"{len(self.cdn_numbers)} CDN image numbers"
         )
 
     def load_base_stats(self):
@@ -233,6 +238,36 @@ class BattleHelper(commands.Cog):
             pass
         except Exception as e:
             print(f"❌ [BattleHelper] Error loading pokemon_aliases.json: {e}")
+
+    def load_cdn_mapping(self):
+        """
+        data/pokemon_cdn_mapping.csv — columns: name, cdn_number.
+        Maps a Pokémon's name to its poketwo CDN image number, e.g. 430 -> https://cdn.poketwo.net/images/430.png
+        Safe to skip — if missing, images are simply not attached.
+        """
+        try:
+            with open("data/pokemon_cdn_mapping.csv", "r", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    name = (row.get("name") or "").strip()
+                    number_str = (row.get("cdn_number") or "").strip()
+                    if not name or not number_str:
+                        continue
+                    try:
+                        self.cdn_numbers[dex_key(name)] = int(number_str)
+                    except ValueError:
+                        continue
+        except FileNotFoundError:
+            print("⚠️ [BattleHelper] data/pokemon_cdn_mapping.csv not found — images disabled.")
+        except Exception as e:
+            print(f"❌ [BattleHelper] Error loading pokemon_cdn_mapping.csv: {e}")
+
+    def get_image_url(self, name: str) -> Optional[str]:
+        """Poketwo CDN image URL for a Pokémon, or None if it has no mapped CDN number."""
+        number = self.cdn_numbers.get(dex_key(name))
+        if number is None:
+            return None
+        return POKETWO_CDN_TEMPLATE.format(number)
 
     # ------------------------------------------------------------------
     # Lookups
@@ -543,11 +578,22 @@ class BattleHelper(commands.Cog):
 
         components = [
             discord.ui.TextDisplay(content=f"**📐 {base_row['name']} — Lv{level} {nature_key}**"),
-            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-            discord.ui.TextDisplay(content=stat_lines),
-            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-            discord.ui.TextDisplay(content="-# ▲ boosted by nature   ▼ lowered by nature"),
         ]
+
+        image_url = self.get_image_url(base_row["name"])
+        if image_url:
+            title_section = components.pop()
+            components.append(
+                discord.ui.Section(
+                    title_section,
+                    accessory=discord.ui.Thumbnail(media=image_url, description=base_row["name"]),
+                )
+            )
+
+        components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
+        components.append(discord.ui.TextDisplay(content=stat_lines))
+        components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
+        components.append(discord.ui.TextDisplay(content="-# ▲ boosted by nature   ▼ lowered by nature"))
 
         class StatsView(discord.ui.LayoutView):
             container1 = discord.ui.Container(*components, accent_colour=discord.Colour.blurple())
@@ -556,7 +602,7 @@ class BattleHelper(commands.Cog):
 
     @commands.hybrid_command(name="battle", aliases=("bestmoves", "bm"))
     @app_commands.describe(
-        mypokemon="Your Pokémon. Comma-separate an evolution chain (e.g. 'Eevee, Vaporeon') to include moves only a pre-evolution learns; stats come from the LAST name given.",
+        mypokemon="Your Pokémon. Comma-separate a chain (e.g. 'Eevee, Vaporeon') to include pre-evo moves.",
         oppokemon="Opponent's Pokémon. Same comma-separated evolution-chain support as mypokemon.",
         mylevel="Your Pokémon's level (default 100)",
         opplevel="Opponent's level (default 100)",
@@ -577,7 +623,7 @@ class BattleHelper(commands.Cog):
         opp_def_iv: int = 31,
         mydefiv: int = 31,
     ):
-        """Find both sides' 5 highest-damage moves, shown as a 0-31 attacker-IV damage range with OHKO/2HKO/3HKO estimates."""
+        """Find both sides' top 5 highest-damage moves with OHKO/2HKO/3HKO estimates."""
         my_names, my_bad = self.resolve_pokemon_chain(mypokemon)
         opp_names, opp_bad = self.resolve_pokemon_chain(oppokemon)
 
@@ -729,11 +775,23 @@ class BattleHelper(commands.Cog):
         # ── Build the Components V2 layout ──────────────────────────────────
         components: List[discord.ui.Item] = [
             discord.ui.TextDisplay(content=f"**⚔️ {my_chain_label} (Lv{mylevel}) vs {opp_chain_label} (Lv{opplevel})**"),
-            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
-            discord.ui.TextDisplay(
-                content=f"**{my_name}'s best moves**\n{format_lines(my_top5, opp_stats['hp'])}"
-            ),
         ]
+
+        my_image_url = self.get_image_url(my_name)
+        opp_image_url = self.get_image_url(opp_name)
+
+        components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
+
+        my_moves_text = f"**{my_name}'s best moves**\n{format_lines(my_top5, opp_stats['hp'])}"
+        if my_image_url:
+            components.append(
+                discord.ui.Section(
+                    discord.ui.TextDisplay(content=my_moves_text),
+                    accessory=discord.ui.Thumbnail(media=my_image_url, description=my_name),
+                )
+            )
+        else:
+            components.append(discord.ui.TextDisplay(content=my_moves_text))
 
         my_pri_text = format_priority_extra(my_priority_extra, opp_stats["hp"])
         if my_pri_text:
@@ -745,9 +803,16 @@ class BattleHelper(commands.Cog):
         components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
 
         if opp_top5:
-            components.append(
-                discord.ui.TextDisplay(content=f"**{opp_name}'s best moves**\n{format_lines(opp_top5, my_stats_for_defense['hp'])}")
-            )
+            opp_moves_text = f"**{opp_name}'s best moves**\n{format_lines(opp_top5, my_stats_for_defense['hp'])}"
+            if opp_image_url:
+                components.append(
+                    discord.ui.Section(
+                        discord.ui.TextDisplay(content=opp_moves_text),
+                        accessory=discord.ui.Thumbnail(media=opp_image_url, description=opp_name),
+                    )
+                )
+            else:
+                components.append(discord.ui.TextDisplay(content=opp_moves_text))
             opp_pri_text = format_priority_extra(opp_priority_extra, my_stats_for_defense["hp"])
             if opp_pri_text:
                 components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
@@ -755,9 +820,16 @@ class BattleHelper(commands.Cog):
                     discord.ui.TextDisplay(content=f"**⚡ {opp_name}'s other priority moves (outside top 5)**\n{opp_pri_text}")
                 )
         else:
-            components.append(
-                discord.ui.TextDisplay(content=f"**{opp_name}'s best moves**\nNo damaging moves found in {opp_name}'s moveset data.")
-            )
+            no_moves_text = f"**{opp_name}'s best moves**\nNo damaging moves found in {opp_name}'s moveset data."
+            if opp_image_url:
+                components.append(
+                    discord.ui.Section(
+                        discord.ui.TextDisplay(content=no_moves_text),
+                        accessory=discord.ui.Thumbnail(media=opp_image_url, description=opp_name),
+                    )
+                )
+            else:
+                components.append(discord.ui.TextDisplay(content=no_moves_text))
 
         if note_shown:
             components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
