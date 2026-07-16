@@ -11,7 +11,7 @@ from typing import Dict, List, Optional, Tuple
 # ============================================================
 # Constants — ported from poketwo's own data/constants.py rules
 # (nature multipliers) and the standard Pokémon type chart used
-# by data/models.py's TYPE_EFFICACY table.
+# by data/models.py's TYPE_EFFICACY tabler.
 # ============================================================
 
 # stat keys used throughout: "hp", "atk", "def", "spatk", "spdef", "speed"
