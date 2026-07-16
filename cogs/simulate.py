@@ -6,9 +6,14 @@ import math
 import random
 import asyncio
 import re
+import io
+import os
 import unicodedata
 from functools import lru_cache
 from typing import Dict, List, Optional, Tuple
+
+import aiohttp
+from PIL import Image, ImageDraw, ImageFont
 
 from filters import get_filter
 
@@ -58,6 +63,34 @@ LEVEL = 100
 IV = 31
 MAX_TURNS = 50  # safety cap to avoid stalling on 0-power/0-damage matchups
 
+# ------------------------------------------------------------------
+# --img rendering config
+# ------------------------------------------------------------------
+SPRITE_CACHE_DIR = "sprite_cache"
+SPRITES_PER_IMAGE = 25  # 5x5 grid — keeps each page readable
+SPRITE_FETCH_CONCURRENCY = 10
+
+# Names that don't map cleanly onto PokeAPI's "lowercase-hyphenated" slugs.
+_SLUG_OVERRIDES = {
+    "nidoran♀": "nidoran-f",
+    "nidoran♂": "nidoran-m",
+    "mr. mime": "mr-mime",
+    "mr. rime": "mr-rime",
+    "mime jr.": "mime-jr",
+    "farfetch'd": "farfetchd",
+    "sirfetch'd": "sirfetchd",
+    "type: null": "type-null",
+    "tapu koko": "tapu-koko",
+    "tapu lele": "tapu-lele",
+    "tapu bulu": "tapu-bulu",
+    "tapu fini": "tapu-fini",
+    "flabebe": "flabebe",
+    "ho-oh": "ho-oh",
+    "jangmo-o": "jangmo-o",
+    "hakamo-o": "hakamo-o",
+    "kommo-o": "kommo-o",
+}
+
 
 def normalize_string(s: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
@@ -65,6 +98,29 @@ def normalize_string(s: str) -> str:
 
 def dex_key(name: str) -> str:
     return normalize_string(name).lower().strip()
+
+
+def pokeapi_slug(name: str) -> str:
+    """Best-effort conversion of a Pokémon's display name into the slug PokeAPI expects."""
+    key = normalize_string(name).lower().strip()
+    if key in _SLUG_OVERRIDES:
+        return _SLUG_OVERRIDES[key]
+    key = key.replace("'", "").replace(".", "").replace(":", "")
+    key = re.sub(r"[^a-z0-9]+", "-", key).strip("-")
+    return key
+
+
+def load_font(size: int) -> ImageFont.FreeTypeFont:
+    for path in (
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "arial.ttf",
+    ):
+        try:
+            return ImageFont.truetype(path, size)
+        except Exception:
+            continue
+    return ImageFont.load_default()
 
 
 class BattleSim(commands.Cog):
@@ -82,6 +138,9 @@ class BattleSim(commands.Cog):
         self.head_to_head: Dict[str, Dict[str, List[str]]] = {}  # name -> {"beat": [...], "lost_to": [...]}
         self.win_lookup: Dict[str, int] = {}  # name -> win count, for sorting opponent lists
         self.tournament_done = False
+
+        self.sprite_cache: Dict[str, Optional[Image.Image]] = {}  # name -> RGBA sprite (or None if unavailable)
+        os.makedirs(SPRITE_CACHE_DIR, exist_ok=True)
 
         self.load_data()
         self.build_mon_data()
@@ -477,6 +536,180 @@ class BattleSim(commands.Cog):
         return "\n".join(lines)
 
     # ------------------------------------------------------------------
+    # --img rendering: sprite fetching (PokeAPI, disk + memory cached)
+    # ------------------------------------------------------------------
+
+    async def fetch_sprite(self, session: aiohttp.ClientSession, name: str) -> Optional[Image.Image]:
+        """Returns an RGBA sprite for this Pokémon, or None if it couldn't be resolved."""
+        if name in self.sprite_cache:
+            return self.sprite_cache[name]
+
+        slug = pokeapi_slug(name)
+        cache_path = os.path.join(SPRITE_CACHE_DIR, f"{slug}.png")
+
+        if os.path.exists(cache_path):
+            try:
+                img = Image.open(cache_path).convert("RGBA")
+                self.sprite_cache[name] = img
+                return img
+            except Exception:
+                pass  # fall through and re-fetch a corrupted cache file
+
+        try:
+            timeout = aiohttp.ClientTimeout(total=10)
+            async with session.get(f"https://pokeapi.co/api/v2/pokemon/{slug}", timeout=timeout) as resp:
+                if resp.status != 200:
+                    self.sprite_cache[name] = None
+                    return None
+                data = await resp.json()
+
+            sprites = data.get("sprites", {}) or {}
+            sprite_url = (
+                (sprites.get("other", {}) or {}).get("official-artwork", {}).get("front_default")
+                or sprites.get("front_default")
+            )
+            if not sprite_url:
+                self.sprite_cache[name] = None
+                return None
+
+            async with session.get(sprite_url, timeout=timeout) as img_resp:
+                if img_resp.status != 200:
+                    self.sprite_cache[name] = None
+                    return None
+                raw = await img_resp.read()
+
+            img = Image.open(io.BytesIO(raw)).convert("RGBA")
+            try:
+                img.save(cache_path)
+            except Exception:
+                pass
+            self.sprite_cache[name] = img
+            return img
+        except Exception:
+            self.sprite_cache[name] = None
+            return None
+
+    async def fetch_sprites_bulk(self, names: List[str]) -> Dict[str, Optional[Image.Image]]:
+        sem = asyncio.Semaphore(SPRITE_FETCH_CONCURRENCY)
+        results: Dict[str, Optional[Image.Image]] = {}
+
+        async def worker(session: aiohttp.ClientSession, name: str):
+            async with sem:
+                results[name] = await self.fetch_sprite(session, name)
+
+        async with aiohttp.ClientSession() as session:
+            await asyncio.gather(*(worker(session, n) for n in names))
+        return results
+
+    # ------------------------------------------------------------------
+    # --img rendering: build one grid image per page (CPU-bound, run in executor)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _build_ranking_image(
+        entries: List[Tuple[int, str, int, int, int]],
+        sprites: Dict[str, Optional[Image.Image]],
+        page_num: int,
+        total_pages: int,
+        title: str,
+    ) -> io.BytesIO:
+        cols = 5
+        rows = math.ceil(len(entries) / cols)
+        cell_w, cell_h = 160, 190
+        margin = 24
+        header_h = 64
+
+        width = cols * cell_w + margin * 2
+        height = header_h + rows * cell_h + margin * 2
+
+        img = Image.new("RGB", (width, height), (32, 34, 40))
+        draw = ImageDraw.Draw(img)
+
+        font_title = load_font(26)
+        font_rank = load_font(18)
+        font_name = load_font(16)
+        font_stats = load_font(14)
+
+        draw.text(
+            (margin, 18),
+            f"{title} — page {page_num}/{total_pages}",
+            font=font_title,
+            fill=(255, 255, 255),
+        )
+
+        sprite_box = 110
+
+        for idx, (rank, name, wins, losses, draws) in enumerate(entries):
+            col = idx % cols
+            row = idx // cols
+            x = margin + col * cell_w
+            y = header_h + margin + row * cell_h
+
+            cx = x + cell_w // 2
+
+            sprite = sprites.get(name)
+            if sprite is not None:
+                thumb = sprite.copy()
+                thumb.thumbnail((sprite_box, sprite_box))
+                sx = cx - thumb.width // 2
+                sy = y + (sprite_box - thumb.height) // 2
+                img.paste(thumb, (sx, sy), thumb)
+            else:
+                draw.rectangle(
+                    [cx - sprite_box // 2, y, cx + sprite_box // 2, y + sprite_box],
+                    outline=(90, 90, 96),
+                    width=2,
+                )
+                draw.text((cx, y + sprite_box // 2), "?", font=font_title, fill=(120, 120, 128), anchor="mm")
+
+            draw.text((cx, y + sprite_box + 14), f"#{rank}", font=font_rank, fill=(255, 215, 0), anchor="mm")
+
+            display_name = name if len(name) <= 16 else name[:15] + "…"
+            draw.text((cx, y + sprite_box + 36), display_name, font=font_name, fill=(235, 235, 235), anchor="mm")
+
+            draw.text(
+                (cx, y + sprite_box + 56),
+                f"{wins}W / {losses}L / {draws}D",
+                font=font_stats,
+                fill=(150, 200, 255),
+                anchor="mm",
+            )
+
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+        return buf
+
+    async def send_ranking_images(self, ctx, source: List[Tuple[str, int, int, int]], title: str):
+        """Renders `source` (already filtered/sorted) as paginated sprite-grid images."""
+        if not source:
+            return await ctx.send("No results to show.")
+
+        names = [r[0] for r in source]
+
+        async with ctx.typing():
+            sprites = await self.fetch_sprites_bulk(names)
+
+            pages = [source[i:i + SPRITES_PER_IMAGE] for i in range(0, len(source), SPRITES_PER_IMAGE)]
+            total_pages = len(pages)
+
+            loop = asyncio.get_event_loop()
+            for page_num, chunk in enumerate(pages, start=1):
+                start_rank = (page_num - 1) * SPRITES_PER_IMAGE + 1
+                entries = [
+                    (start_rank + i, name, w, l, d)
+                    for i, (name, w, l, d) in enumerate(chunk)
+                ]
+                buf = await loop.run_in_executor(
+                    None, self._build_ranking_image, entries, sprites, page_num, total_pages, title
+                )
+                await ctx.send(
+                    content=f"**{title}** — page {page_num}/{total_pages}",
+                    file=discord.File(buf, filename=f"rankings_page{page_num}.png"),
+                )
+                await asyncio.sleep(0.3)
+
+    # ------------------------------------------------------------------
     # Command to view rankings in Discord
     # ------------------------------------------------------------------
 
@@ -499,6 +732,9 @@ class BattleSim(commands.Cog):
         m!brank --t fire --asc  -> Fire-type rankings, ascending
         m!brank --f rare        -> rankings filtered to the "rare" filters.py group
         m!brank --f rare --t fire --asc  -> filters can be combined and chained
+        m!brank --t water --img -> renders the Water-type rankings as sprite-grid
+                                    images (paginated, most wins first), instead
+                                    of a text embed. Combine with --asc, --f, etc.
         """
         if not self.tournament_done:
             return await ctx.send("⏳ Tournament still running, check back in a bit.")
@@ -507,6 +743,7 @@ class BattleSim(commands.Cog):
         type_filter: Optional[str] = None
         filter_name: Optional[str] = None
         ascending = False
+        img_mode = False
 
         tokens = args.split()
         i = 0
@@ -528,6 +765,8 @@ class BattleSim(commands.Cog):
                     return await ctx.send("⚠️ Give a filter name after `--f`, e.g. `m!brank --f rare`.")
             elif tok.lower() in ("--asc", "-asc", "--ascending"):
                 ascending = True
+            elif tok.lower() in ("--img", "-img", "--image"):
+                img_mode = True
             elif tok.isdigit():
                 page = int(tok)
             i += 1
@@ -565,6 +804,9 @@ class BattleSim(commands.Cog):
         if ascending:
             source = sorted(source, key=lambda r: r[1])
             title += " (ascending)"
+
+        if img_mode:
+            return await self.send_ranking_images(ctx, source, title)
 
         per_page = 20
         start = (page - 1) * per_page
