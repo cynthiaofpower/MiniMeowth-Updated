@@ -123,6 +123,7 @@ async def on_ready():
     cogs = [
         'cogs.utils',
         'cogs.moveset',
+        'cogs.battle_helper',
         'cogs.chainbreeding',
         'cogs.id_overrides',
         'cogs.shinydex_display',
