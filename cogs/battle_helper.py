@@ -652,14 +652,17 @@ class BattleHelper(commands.Cog):
         my_base = self.base_stats[dex_key(my_name)]
         opp_base = self.base_stats[dex_key(opp_name)]
 
-        my_speed_mult = NATURE_MULTIPLIERS[my_nature_key]["speed"]
+        # Speed multiplier for each side, with vs without a Speed mint.
+        # Mint overrides whatever the nature does to Speed (+10% flat).
+        my_speed_mult_no_mint = NATURE_MULTIPLIERS[my_nature_key]["speed"]
+        my_speed_mult_mint = SPEED_MINT_MULTIPLIER
         opp_speed_mult_no_mint = NATURE_MULTIPLIERS[opp_nature_key]["speed"]
-        opp_speed_mult_mint = SPEED_MINT_MULTIPLIER  # 1.1, overrides nature's speed effect
+        opp_speed_mult_mint = SPEED_MINT_MULTIPLIER
 
         opp_speed_no_mint = self.calc_stat(opp_base["speed"], 31, opplevel, opp_speed_mult_no_mint)
         opp_speed_mint = self.calc_stat(opp_base["speed"], 31, opplevel, opp_speed_mult_mint)
 
-        def min_iv_to_outspeed(opp_speed: int) -> Tuple[Optional[int], int, bool]:
+        def min_iv_to_outspeed(my_speed_mult: float, opp_speed: int) -> Tuple[Optional[int], int, bool]:
             """Returns (iv_needed_or_None, my_speed_at_31_iv, tie_at_31)."""
             my_speed_at_31 = self.calc_stat(my_base["speed"], 31, mylevel, my_speed_mult)
             for iv in range(0, 32):
@@ -668,29 +671,36 @@ class BattleHelper(commands.Cog):
                     return iv, my_speed_at_31, False
             return None, my_speed_at_31, my_speed_at_31 == opp_speed
 
-        iv_no_mint, my_speed_at_31, tie_no_mint = min_iv_to_outspeed(opp_speed_no_mint)
-        iv_mint, _, tie_mint = min_iv_to_outspeed(opp_speed_mint)
+        # All 4 combinations: do I have a mint? does the opponent?
+        combos = {
+            ("no_mint", "no_mint"): min_iv_to_outspeed(my_speed_mult_no_mint, opp_speed_no_mint),
+            ("no_mint", "mint"): min_iv_to_outspeed(my_speed_mult_no_mint, opp_speed_mint),
+            ("mint", "no_mint"): min_iv_to_outspeed(my_speed_mult_mint, opp_speed_no_mint),
+            ("mint", "mint"): min_iv_to_outspeed(my_speed_mult_mint, opp_speed_mint),
+        }
 
-        def format_case(label: str, opp_speed: int, iv_needed: Optional[int], tie: bool) -> str:
+        def cell(iv_needed: Optional[int], my_speed_at_31: int, tie: bool) -> str:
             if iv_needed is not None:
-                return f"**{label}** — opponent's Speed: {opp_speed}. You need **{iv_needed}/31** Speed IV to outspeed."
+                return f"{iv_needed}/31"
             if tie:
-                return (
-                    f"**{label}** — opponent's Speed: {opp_speed}. Even at 31 Speed IV you only **tie** "
-                    f"({my_speed_at_31}) — a coinflip in-game, not a guaranteed outspeed."
-                )
-            return (
-                f"**{label}** — opponent's Speed: {opp_speed}. You **cannot** outspeed even at 31 Speed IV "
-                f"(your max Speed: {my_speed_at_31})."
-            )
+                return "tie@31"
+            return "❌ no"
 
+        # Simple grid, read top row / left column to find your case — no sentences to parse.
+        table_lines = [
+            f"{'':13}{'Opp no mint':>13}{'Opp mint':>13}",
+            f"{'You no mint':13}{cell(*combos[('no_mint','no_mint')]):>13}{cell(*combos[('no_mint','mint')]):>13}",
+            f"{'You mint':13}{cell(*combos[('mint','no_mint')]):>13}{cell(*combos[('mint','mint')]):>13}",
+        ]
         result_text = (
-            f"{format_case(f'If {opp_name} has NO Speed mint ({opp_nature_key})', opp_speed_no_mint, iv_no_mint, tie_no_mint)}\n"
-            f"{format_case(f'If {opp_name} HAS a Speed mint', opp_speed_mint, iv_mint, tie_mint)}"
+            f"Opponent's Speed — no mint: **{opp_speed_no_mint}**, with mint: **{opp_speed_mint}**\n"
+            f"```\n" + "\n".join(table_lines) + "\n```\n"
+            f"Table = min Speed IV **you** need to outspeed, for each mint combo. "
+            f"`tie@31` = still only a coinflip at 31 IV. `❌ no` = can't outspeed even at 31 IV."
         )
 
         components = [
-            discord.ui.TextDisplay(content=f"**⏱️ Speed check: {my_name} (Lv{mylevel} {my_nature_key}) vs {opp_name} (Lv{opplevel}, 31 Speed IV)**"),
+            discord.ui.TextDisplay(content=f"**⏱️ Speed check: {my_name} (Lv{mylevel} {my_nature_key}) vs {opp_name} (Lv{opplevel}, 31 Speed IV, {opp_nature_key})**"),
             discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
         ]
 
@@ -710,7 +720,7 @@ class BattleHelper(commands.Cog):
             discord.ui.TextDisplay(
                 content=(
                     "-# Opponent is assumed to have 31 Speed IV. \"Speed mint\" forces a +10% Speed "
-                    "multiplier regardless of nature, overriding the no-mint nature assumption above."
+                    "multiplier regardless of nature, overriding that side's nature-based Speed above."
                 )
             )
         )
