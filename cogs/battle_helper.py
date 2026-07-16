@@ -59,6 +59,10 @@ MINT_MULTIPLIER: Dict[str, float] = {k: 1.0 for k in STAT_KEYS}
 MINT_MULTIPLIER["atk"] = 1.1
 MINT_MULTIPLIER["spatk"] = 1.1
 
+# Separate from MINT_MULTIPLIER above (which only boosts Atk/Sp.Atk for damage calcs).
+# A Speed mint boosts Speed by +10% instead — used by the outspeed command.
+SPEED_MINT_MULTIPLIER = 1.1
+
 # Attacking type -> {defending type: multiplier}. Omitted entries are 1x.
 TYPE_CHART = {
     "Normal": {"Rock": 0.5, "Ghost": 0, "Steel": 0.5},
@@ -650,7 +654,7 @@ class BattleHelper(commands.Cog):
 
         my_speed_mult = NATURE_MULTIPLIERS[my_nature_key]["speed"]
         opp_speed_mult_no_mint = NATURE_MULTIPLIERS[opp_nature_key]["speed"]
-        opp_speed_mult_mint = MINT_MULTIPLIER["speed"]  # 1.1, overrides nature's speed effect
+        opp_speed_mult_mint = SPEED_MINT_MULTIPLIER  # 1.1, overrides nature's speed effect
 
         opp_speed_no_mint = self.calc_stat(opp_base["speed"], 31, opplevel, opp_speed_mult_no_mint)
         opp_speed_mint = self.calc_stat(opp_base["speed"], 31, opplevel, opp_speed_mult_mint)
