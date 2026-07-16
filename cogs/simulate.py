@@ -10,6 +10,8 @@ import unicodedata
 from functools import lru_cache
 from typing import Dict, List, Optional, Tuple
 
+from filters import get_filter
+
 # ============================================================
 # BattleSim — round-robin tournament between every Pokémon.
 # All Pokémon assumed: Level 100, 31 IVs everywhere, Hardy (neutral) nature.
@@ -495,12 +497,15 @@ class BattleSim(commands.Cog):
         m!brank --t fire 2      -> page 2 of the Fire-type filtered rankings
         m!brank --asc           -> rankings sorted worst-to-best (fewest wins first)
         m!brank --t fire --asc  -> Fire-type rankings, ascending
+        m!brank --f rare        -> rankings filtered to the "rare" filters.py group
+        m!brank --f rare --t fire --asc  -> filters can be combined and chained
         """
         if not self.tournament_done:
             return await ctx.send("⏳ Tournament still running, check back in a bit.")
 
         page = 1
         type_filter: Optional[str] = None
+        filter_name: Optional[str] = None
         ascending = False
 
         tokens = args.split()
@@ -514,6 +519,13 @@ class BattleSim(commands.Cog):
                     continue
                 else:
                     return await ctx.send("⚠️ Give a type after `--t`, e.g. `m!brank --t fire`.")
+            elif tok.lower() in ("--f", "-f", "--filter"):
+                if i + 1 < len(tokens):
+                    filter_name = tokens[i + 1]
+                    i += 2
+                    continue
+                else:
+                    return await ctx.send("⚠️ Give a filter name after `--f`, e.g. `m!brank --f rare`.")
             elif tok.lower() in ("--asc", "-asc", "--ascending"):
                 ascending = True
             elif tok.isdigit():
@@ -523,6 +535,19 @@ class BattleSim(commands.Cog):
         source = self.rankings
         title = "🏆 Pokémon Battle Rankings"
 
+        if filter_name:
+            filt = get_filter(filter_name)
+            if filt is None:
+                return await ctx.send(
+                    f"⚠️ `{filter_name}` isn't a recognized filter. "
+                    f"Check `filters.py` for the full list of names/aliases."
+                )
+            wanted = {dex_key(n) for n in filt["pokemon"]}
+            source = [r for r in source if dex_key(r[0]) in wanted]
+            title = f"🏆 Pokémon Battle Rankings — {filt['name']}"
+            if not source:
+                return await ctx.send(f"No Pokémon from the `{filter_name}` filter were found in the rankings.")
+
         if type_filter:
             valid_types = set(TYPE_CHART.keys())
             if type_filter not in valid_types:
@@ -530,10 +555,10 @@ class BattleSim(commands.Cog):
                     f"⚠️ `{type_filter}` isn't a recognized type. Valid types: {', '.join(sorted(valid_types))}"
                 )
             source = [
-                r for r in self.rankings
+                r for r in source
                 if type_filter in self.mon_data.get(r[0], {}).get("types", [])
             ]
-            title = f"🏆 Pokémon Battle Rankings — {type_filter} type"
+            title = title + f" — {type_filter} type" if filter_name else f"🏆 Pokémon Battle Rankings — {type_filter} type"
             if not source:
                 return await ctx.send(f"No {type_filter}-type Pokémon found in the rankings.")
 
