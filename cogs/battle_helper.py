@@ -686,16 +686,18 @@ class BattleHelper(commands.Cog):
                 return "tie@31"
             return "❌ no"
 
-        # Simple grid, read top row / left column to find your case — no sentences to parse.
-        table_lines = [
-            f"{'':13}{'Opp no mint':>13}{'Opp mint':>13}",
-            f"{'You no mint':13}{cell(*combos[('no_mint','no_mint')]):>13}{cell(*combos[('no_mint','mint')]):>13}",
-            f"{'You mint':13}{cell(*combos[('mint','no_mint')]):>13}{cell(*combos[('mint','mint')]):>13}",
-        ]
+        # Stacked lines instead of a fixed-width monospace grid — a code-block table
+        # with padded columns gets word-wrapped mid-row on the mobile Discord client
+        # (the one wide line gets split into two), which scrambles the columns.
+        # Plain bolded-label lines can't be split mid-cell, so they stay readable
+        # at any width.
         result_text = (
-            f"Opponent's Speed — no mint: **{opp_speed_no_mint}**, with mint: **{opp_speed_mint}**\n"
-            f"```\n" + "\n".join(table_lines) + "\n```\n"
-            f"Table = min Speed IV **you** need to outspeed, for each mint combo. "
+            f"Opponent's Speed — no mint: **{opp_speed_no_mint}**, with mint: **{opp_speed_mint}**\n\n"
+            f"**Min Speed IV you need to outspeed:**\n"
+            f"• You no mint, opp no mint: **{cell(*combos[('no_mint','no_mint')])}**\n"
+            f"• You no mint, opp mint: **{cell(*combos[('no_mint','mint')])}**\n"
+            f"• You mint, opp no mint: **{cell(*combos[('mint','no_mint')])}**\n"
+            f"• You mint, opp mint: **{cell(*combos[('mint','mint')])}**\n\n"
             f"`tie@31` = still only a coinflip at 31 IV. `❌ no` = can't outspeed even at 31 IV."
         )
 
@@ -729,6 +731,179 @@ class BattleHelper(commands.Cog):
             container1 = discord.ui.Container(*components, accent_colour=discord.Colour.green())
 
         await ctx.send(view=OutspeedView())
+
+    @commands.hybrid_command(name="damagecalc", aliases=("dmgcalc", "calc"))
+    @app_commands.describe(
+        attacker="Attacker's Pokémon species name",
+        defender="Defender's Pokémon species name",
+        move="Move name used by the attacker",
+        atklevel="Attacker's level (default 100)",
+        deflevel="Defender's level (default 100)",
+        atknature="Attacker's nature (default Hardy / neutral)",
+        defnature="Defender's nature (default Hardy / neutral)",
+        atk_iv="Attacker's relevant offense IV — Attack or Sp.Atk depending on the move (0-31 fixed, default: ranged 0-31)",
+        def_iv="Defender's relevant defense IV — Defense or Sp.Def depending on the move (0-31 fixed, default: ranged 0-31)",
+        hp_iv="Defender's HP IV, used to compute HP for the KO estimate (0-31, default 31)",
+    )
+    @app_commands.autocomplete(atknature=nature_autocomplete, defnature=nature_autocomplete)
+    async def damagecalc(
+        self,
+        ctx: commands.Context,
+        attacker: str,
+        defender: str,
+        move: str,
+        atklevel: int = 100,
+        deflevel: int = 100,
+        atknature: str = "Hardy",
+        defnature: str = "Hardy",
+        atk_iv: Optional[int] = None,
+        def_iv: Optional[int] = None,
+        hp_iv: int = 31,
+    ):
+        """Calculate a move's damage range between two Pokémon (mint-optimal shown too)."""
+        atk_name = self.resolve_pokemon(attacker)
+        if atk_name is None:
+            suggestions = self.suggest_pokemon(attacker)
+            hint = f" Did you mean: {', '.join(suggestions)}?" if suggestions else ""
+            return await ctx.send(view=simple_view(f"❌ Couldn't find a Pokémon named `{attacker}`.{hint}"))
+
+        def_name = self.resolve_pokemon(defender)
+        if def_name is None:
+            suggestions = self.suggest_pokemon(defender)
+            hint = f" Did you mean: {', '.join(suggestions)}?" if suggestions else ""
+            return await ctx.send(view=simple_view(f"❌ Couldn't find a Pokémon named `{defender}`.{hint}"))
+
+        mv = self.get_move(move)
+        if mv is None:
+            return await ctx.send(view=simple_view(f"❌ Couldn't find a move named `{move}`."))
+        if (mv.get("damage_class") or "").lower() == "status" or mv.get("power") is None:
+            return await ctx.send(view=simple_view(f"❌ **{mv.get('name', move)}** is a status move — it has no damage to calculate."))
+
+        atk_nature_key = next((n for n in ALL_NATURES if n.lower() == atknature.lower()), None)
+        if atk_nature_key is None:
+            return await ctx.send(view=simple_view(f"❌ Unknown nature `{atknature}`. Valid natures: {', '.join(ALL_NATURES)}"))
+        def_nature_key = next((n for n in ALL_NATURES if n.lower() == defnature.lower()), None)
+        if def_nature_key is None:
+            return await ctx.send(view=simple_view(f"❌ Unknown nature `{defnature}`. Valid natures: {', '.join(ALL_NATURES)}"))
+
+        if not (1 <= atklevel <= 100):
+            return await ctx.send(view=simple_view("❌ atklevel must be between 1 and 100."))
+        if not (1 <= deflevel <= 100):
+            return await ctx.send(view=simple_view("❌ deflevel must be between 1 and 100."))
+        if atk_iv is not None and not (0 <= atk_iv <= 31):
+            return await ctx.send(view=simple_view("❌ atk_iv must be between 0 and 31."))
+        if def_iv is not None and not (0 <= def_iv <= 31):
+            return await ctx.send(view=simple_view("❌ def_iv must be between 0 and 31."))
+        if not (0 <= hp_iv <= 31):
+            return await ctx.send(view=simple_view("❌ hp_iv must be between 0 and 31."))
+
+        atk_base = self.base_stats[dex_key(atk_name)]
+        def_base = self.base_stats[dex_key(def_name)]
+        atk_types = self.types.get(dex_key(atk_name), [])
+        def_types = self.types.get(dex_key(def_name), [])
+
+        physical = (mv.get("damage_class") or "").lower() == "physical"
+        offense_key = "atk" if physical else "spatk"
+        defense_key = "def" if physical else "spdef"
+
+        atk_nmult = NATURE_MULTIPLIERS[atk_nature_key]
+        def_nmult = NATURE_MULTIPLIERS[def_nature_key]
+
+        # If atk_iv/def_iv weren't given, sweep the full 0-31 range for that one stat
+        # (all other IVs fixed at 31) instead of assuming a single fixed number —
+        # this is the same "worst case to best case" approach the /battle command uses.
+        atk_iv_lo = 0 if atk_iv is None else atk_iv
+        atk_iv_hi = 31 if atk_iv is None else atk_iv
+        def_iv_lo = 0 if def_iv is None else def_iv
+        def_iv_hi = 31 if def_iv is None else def_iv
+
+        def build_stats(base_row, level, nmult, iv_map):
+            return self.calc_all_stats_with_mult(base_row, level, iv_map, nmult)
+
+        # Worst case for the attacker = lowest offense IV, worst case for damage.
+        # Best case for the defender's bulk = highest defense IV, worst case for damage.
+        # So "damage low" pairs atk_iv_lo with def_iv_hi, and "damage high" pairs atk_iv_hi with def_iv_lo.
+        atk_stats_dmg_lo = build_stats(atk_base, atklevel, atk_nmult, {**{k: 31 for k in STAT_KEYS}, offense_key: atk_iv_lo})
+        atk_stats_dmg_hi = build_stats(atk_base, atklevel, atk_nmult, {**{k: 31 for k in STAT_KEYS}, offense_key: atk_iv_hi})
+        def_stats_dmg_lo = build_stats(def_base, deflevel, def_nmult, {**{k: 31 for k in STAT_KEYS}, "hp": hp_iv, defense_key: def_iv_hi})
+        def_stats_dmg_hi = build_stats(def_base, deflevel, def_nmult, {**{k: 31 for k in STAT_KEYS}, "hp": hp_iv, defense_key: def_iv_lo})
+
+        dmg_lo, note = self.compute_move_damage(mv, atklevel, atk_stats_dmg_lo, atk_types, def_stats_dmg_lo, def_types)
+        dmg_hi, note2 = self.compute_move_damage(mv, atklevel, atk_stats_dmg_hi, atk_types, def_stats_dmg_hi, def_types)
+        note = note or note2
+
+        # Mint-optimal: attacker's offense IV pinned at 31 with a +10% mint (instead of nature),
+        # same defense-IV sweep as above.
+        mint_nmult = {k: 1.0 for k in STAT_KEYS}
+        mint_nmult[offense_key] = 1.1
+        atk_stats_mint = build_stats(atk_base, atklevel, mint_nmult, {**{k: 31 for k in STAT_KEYS}})
+        mint_lo, _ = self.compute_move_damage(mv, atklevel, atk_stats_mint, atk_types, def_stats_dmg_lo, def_types)
+        mint_hi, _ = self.compute_move_damage(mv, atklevel, atk_stats_mint, atk_types, def_stats_dmg_hi, def_types)
+
+        defender_hp = def_stats_dmg_lo["hp"]  # hp_iv is fixed either way, same in both dicts
+        hko = self.hko_label(defender_hp, dmg_lo, dmg_hi)
+        range_str = f"{dmg_lo}" if dmg_lo == dmg_hi else f"{dmg_lo}–{dmg_hi}"
+        mint_str = f"{mint_lo}" if mint_lo == mint_hi else f"{mint_lo}–{mint_hi}"
+        pct_lo = round(100 * dmg_lo / defender_hp) if defender_hp else 0
+        pct_hi = round(100 * dmg_hi / defender_hp) if defender_hp else 0
+        pct_str = f"{pct_lo}%" if pct_lo == pct_hi else f"{pct_lo}–{pct_hi}%"
+
+        result_text = (
+            f"**{mv.get('name', move)}** ({mv.get('type')}, {'Physical' if physical else 'Special'}, {mv.get('power')} BP)\n\n"
+            f"**Damage:** {range_str} ({pct_str} of {def_name}'s HP)\n"
+            f"**KOs in:** {hko}\n"
+            f"**🌿 Mint-optimal damage:** {mint_str}\n"
+            f"**{def_name}'s HP:** {defender_hp} (HP IV {hp_iv}/31)"
+        )
+
+        atk_iv_label = "0–31 (ranged)" if atk_iv is None else f"{atk_iv}/31 (fixed)"
+        def_iv_label = "0–31 (ranged)" if def_iv is None else f"{def_iv}/31 (fixed)"
+        offense_label = "Attack" if physical else "Sp. Atk"
+        defense_label = "Defense" if physical else "Sp. Def"
+        assumptions_text = (
+            f"**📋 Assumptions**\n"
+            f"{atk_name}'s {offense_label} IV: {atk_iv_label}. All its other IVs fixed at 31.\n"
+            f"{def_name}'s {defense_label} IV: {def_iv_label}. HP IV: {hp_iv}/31. All its other IVs fixed at 31.\n"
+            f"{atk_name}: {atk_nature_key} nature (Lv{atklevel}). {def_name}: {def_nature_key} nature (Lv{deflevel}).\n"
+            f"🌿 mint = damage if {offense_label} got a +10% mint boost instead of relying on nature, at IV 31.\n"
+            f"Single hit, no stat stages, no crit, no held items/abilities, no weather/terrain, no screens.\n"
+            f"If you didn't pass an IV, it's swept 0–31 instead of assumed as one fixed number — "
+            f"'Damage' low end = your worst-case offense IV + their best-case defense IV; high end = the reverse."
+        )
+
+        class AssumptionsButton(discord.ui.Button):
+            def __init__(self):
+                super().__init__(style=discord.ButtonStyle.secondary, label="Assumptions", emoji="📋")
+
+            async def callback(self, interaction: discord.Interaction):
+                await interaction.response.send_message(view=simple_view(assumptions_text), ephemeral=True)
+
+        components = [
+            discord.ui.TextDisplay(content=f"**💥 {atk_name} used {mv.get('name', move)} on {def_name}**"),
+            discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small),
+        ]
+
+        image_url = self.get_image_url(def_name)
+        if image_url:
+            components.append(
+                discord.ui.Section(
+                    discord.ui.TextDisplay(content=result_text),
+                    accessory=discord.ui.Thumbnail(media=image_url, description=def_name),
+                )
+            )
+        else:
+            components.append(discord.ui.TextDisplay(content=result_text))
+
+        if note:
+            components.append(discord.ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
+            components.append(discord.ui.TextDisplay(content=f"-# ⚠️ {note}"))
+
+        action_row = discord.ui.ActionRow(AssumptionsButton())
+
+        class DamageCalcView(discord.ui.LayoutView):
+            container1 = discord.ui.Container(*components, action_row, accent_colour=discord.Colour.orange())
+
+        await ctx.send(view=DamageCalcView())
 
     @commands.hybrid_command(name="battle", aliases=("bestmoves", "bm"))
     @app_commands.describe(
