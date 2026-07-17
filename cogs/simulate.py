@@ -67,8 +67,10 @@ MAX_TURNS = 50  # safety cap to avoid stalling on 0-power/0-damage matchups
 # --img rendering config
 # ------------------------------------------------------------------
 SPRITE_CACHE_DIR = "sprite_cache"
-SPRITES_PER_IMAGE = 25  # 5x5 grid — keeps each page readable
+SPRITES_PER_IMAGE = 100  # 10x10 grid — sprite-only cells let us pack in a lot more
 SPRITE_FETCH_CONCURRENCY = 10
+POKETWO_CDN_URL = "https://cdn.poketwo.net/images/{}.png"
+CDN_MAPPING_PATH = "data/pokemon_cdn_mapping.csv"
 
 # Names that don't map cleanly onto PokeAPI's "lowercase-hyphenated" slugs.
 _SLUG_OVERRIDES = {
@@ -91,6 +93,17 @@ _SLUG_OVERRIDES = {
     "kommo-o": "kommo-o",
 }
 
+# PokeAPI names Arceus/Silvally forms "<species>-<type>" (e.g. "arceus-fairy"),
+# but our display names are "<Type> <Species>" (e.g. "Fairy Arceus"). Detect that
+# pattern and flip the word order instead of hyphenating them as-is, which would
+# otherwise produce the wrong (nonexistent) slug "fairy-arceus".
+_TYPE_FORM_SPECIES = ("arceus", "silvally")
+_TYPES_FOR_FORMS = {
+    "bug", "dark", "dragon", "electric", "fairy", "fighting", "fire", "flying",
+    "ghost", "grass", "ground", "ice", "normal", "poison", "psychic", "rock",
+    "steel", "water",
+}
+
 
 def normalize_string(s: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
@@ -105,6 +118,12 @@ def pokeapi_slug(name: str) -> str:
     key = normalize_string(name).lower().strip()
     if key in _SLUG_OVERRIDES:
         return _SLUG_OVERRIDES[key]
+
+    parts = key.split()
+    if len(parts) == 2 and parts[1] in _TYPE_FORM_SPECIES and parts[0] in _TYPES_FOR_FORMS:
+        # "Fairy Arceus" -> "arceus-fairy" (PokeAPI's actual slug order)
+        return f"{parts[1]}-{parts[0]}"
+
     key = key.replace("'", "").replace(".", "").replace(":", "")
     key = re.sub(r"[^a-z0-9]+", "-", key).strip("-")
     return key
@@ -140,6 +159,7 @@ class BattleSim(commands.Cog):
         self.tournament_done = False
 
         self.sprite_cache: Dict[str, Optional[Image.Image]] = {}  # name -> RGBA sprite (or None if unavailable)
+        self.cdn_mapping: Dict[str, int] = {}  # dex_key(name) -> Poketwo cdn_number
         os.makedirs(SPRITE_CACHE_DIR, exist_ok=True)
 
         self.load_data()
@@ -160,10 +180,28 @@ class BattleSim(commands.Cog):
         self.load_movedex()
         self.load_movesets()
         self.load_types()
+        self.load_cdn_mapping()
         print(
             f"✅ [BattleSim] Loaded {len(self.base_stats)} base stats, "
-            f"{len(self.movedex)} moves, {len(self.movesets)} movesets, {len(self.types)} typings"
+            f"{len(self.movedex)} moves, {len(self.movesets)} movesets, {len(self.types)} typings, "
+            f"{len(self.cdn_mapping)} sprite CDN entries"
         )
+
+    def load_cdn_mapping(self):
+        try:
+            with open(CDN_MAPPING_PATH, "r", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    name = (row.get("name") or "").strip()
+                    raw_number = (row.get("cdn_number") or "").strip()
+                    if not name or not raw_number:
+                        continue
+                    try:
+                        self.cdn_mapping[dex_key(name)] = int(raw_number)
+                    except ValueError:
+                        continue
+        except Exception as e:
+            print(f"❌ [BattleSim] Error loading {CDN_MAPPING_PATH}: {e}")
 
     def load_base_stats(self):
         try:
@@ -539,11 +577,55 @@ class BattleSim(commands.Cog):
     # --img rendering: sprite fetching (PokeAPI, disk + memory cached)
     # ------------------------------------------------------------------
 
+    async def _download_sprite(
+        self, session: aiohttp.ClientSession, url: str, cache_path: str, timeout: aiohttp.ClientTimeout
+    ) -> Optional[Image.Image]:
+        """Downloads an image from `url`, caches it at `cache_path`, and returns it as RGBA."""
+        async with session.get(url, timeout=timeout) as img_resp:
+            if img_resp.status != 200:
+                return None
+            raw = await img_resp.read()
+        img = Image.open(io.BytesIO(raw)).convert("RGBA")
+        try:
+            img.save(cache_path)
+        except Exception:
+            pass
+        return img
+
     async def fetch_sprite(self, session: aiohttp.ClientSession, name: str) -> Optional[Image.Image]:
-        """Returns an RGBA sprite for this Pokémon, or None if it couldn't be resolved."""
+        """Returns an RGBA sprite for this Pokémon, or None if it couldn't be resolved.
+
+        Tries the Poketwo CDN (data/pokemon_cdn_mapping.csv) first, since it covers
+        every custom/fakemon form the sim knows about. Falls back to guessing a
+        PokeAPI slug for anything missing from that mapping.
+        """
         if name in self.sprite_cache:
             return self.sprite_cache[name]
 
+        timeout = aiohttp.ClientTimeout(total=10)
+
+        # 1) Preferred source: Poketwo CDN, keyed by dex-mapping number.
+        cdn_number = self.cdn_mapping.get(dex_key(name))
+        if cdn_number is not None:
+            cache_path = os.path.join(SPRITE_CACHE_DIR, f"cdn-{cdn_number}.png")
+            if os.path.exists(cache_path):
+                try:
+                    img = Image.open(cache_path).convert("RGBA")
+                    self.sprite_cache[name] = img
+                    return img
+                except Exception:
+                    pass  # fall through and re-fetch a corrupted cache file
+            try:
+                img = await self._download_sprite(
+                    session, POKETWO_CDN_URL.format(cdn_number), cache_path, timeout
+                )
+                if img is not None:
+                    self.sprite_cache[name] = img
+                    return img
+            except Exception:
+                pass  # fall through to the PokeAPI fallback below
+
+        # 2) Fallback: guess a PokeAPI slug (covers anything not in the CDN mapping).
         slug = pokeapi_slug(name)
         cache_path = os.path.join(SPRITE_CACHE_DIR, f"{slug}.png")
 
@@ -556,7 +638,6 @@ class BattleSim(commands.Cog):
                 pass  # fall through and re-fetch a corrupted cache file
 
         try:
-            timeout = aiohttp.ClientTimeout(total=10)
             async with session.get(f"https://pokeapi.co/api/v2/pokemon/{slug}", timeout=timeout) as resp:
                 if resp.status != 200:
                     self.sprite_cache[name] = None
@@ -572,17 +653,7 @@ class BattleSim(commands.Cog):
                 self.sprite_cache[name] = None
                 return None
 
-            async with session.get(sprite_url, timeout=timeout) as img_resp:
-                if img_resp.status != 200:
-                    self.sprite_cache[name] = None
-                    return None
-                raw = await img_resp.read()
-
-            img = Image.open(io.BytesIO(raw)).convert("RGBA")
-            try:
-                img.save(cache_path)
-            except Exception:
-                pass
+            img = await self._download_sprite(session, sprite_url, cache_path, timeout)
             self.sprite_cache[name] = img
             return img
         except Exception:
@@ -613,9 +684,9 @@ class BattleSim(commands.Cog):
         total_pages: int,
         title: str,
     ) -> io.BytesIO:
-        cols = 5
+        cols = 10
         rows = math.ceil(len(entries) / cols)
-        cell_w, cell_h = 160, 190
+        cell_w, cell_h = 80, 80
         margin = 24
         header_h = 64
 
@@ -626,9 +697,6 @@ class BattleSim(commands.Cog):
         draw = ImageDraw.Draw(img)
 
         font_title = load_font(26)
-        font_rank = load_font(18)
-        font_name = load_font(16)
-        font_stats = load_font(14)
 
         draw.text(
             (margin, 18),
@@ -637,7 +705,7 @@ class BattleSim(commands.Cog):
             fill=(255, 255, 255),
         )
 
-        sprite_box = 110
+        sprite_box = 72
 
         for idx, (rank, name, wins, losses, draws) in enumerate(entries):
             col = idx % cols
@@ -646,34 +714,22 @@ class BattleSim(commands.Cog):
             y = header_h + margin + row * cell_h
 
             cx = x + cell_w // 2
+            cy = y + cell_h // 2
 
             sprite = sprites.get(name)
             if sprite is not None:
                 thumb = sprite.copy()
                 thumb.thumbnail((sprite_box, sprite_box))
                 sx = cx - thumb.width // 2
-                sy = y + (sprite_box - thumb.height) // 2
+                sy = cy - thumb.height // 2
                 img.paste(thumb, (sx, sy), thumb)
             else:
                 draw.rectangle(
-                    [cx - sprite_box // 2, y, cx + sprite_box // 2, y + sprite_box],
+                    [cx - sprite_box // 2, cy - sprite_box // 2, cx + sprite_box // 2, cy + sprite_box // 2],
                     outline=(90, 90, 96),
                     width=2,
                 )
-                draw.text((cx, y + sprite_box // 2), "?", font=font_title, fill=(120, 120, 128), anchor="mm")
-
-            draw.text((cx, y + sprite_box + 14), f"#{rank}", font=font_rank, fill=(255, 215, 0), anchor="mm")
-
-            display_name = name if len(name) <= 16 else name[:15] + "…"
-            draw.text((cx, y + sprite_box + 36), display_name, font=font_name, fill=(235, 235, 235), anchor="mm")
-
-            draw.text(
-                (cx, y + sprite_box + 56),
-                f"{wins}W / {losses}L / {draws}D",
-                font=font_stats,
-                fill=(150, 200, 255),
-                anchor="mm",
-            )
+                draw.text((cx, cy), "?", font=font_title, fill=(120, 120, 128), anchor="mm")
 
         buf = io.BytesIO()
         img.save(buf, format="PNG")
