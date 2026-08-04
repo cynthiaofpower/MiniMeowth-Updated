@@ -16,6 +16,7 @@ load_dotenv()
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
+intents.members = True
 
 # Custom prefix function to handle bot mentions and strip spaces
 def get_prefix(bot, message):
