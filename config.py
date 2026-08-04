@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Bot Configurationn
-PREFIX = ["m!", "M!", "n!","l!", "N!"] 
+PREFIX = ["m!", "M!", "X!","l!", "x!"] 
 EMBED_COLOR = 0x9c8e8b  # RGB: 156, 142, 139
 
 # ── Move type emojis (used in moveset, chainbreeding, etc.) ─────────────────
