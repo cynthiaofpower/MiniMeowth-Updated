@@ -12,7 +12,7 @@ from did_you_mean import suggest_commands
 
 load_dotenv()
 
-# Bot intents
+# Bot intentss
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
