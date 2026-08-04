@@ -18,7 +18,7 @@ class Breeding(commands.Cog):
     - CANNOT breed Ditto × Ditto
 
     Two Priority Systems:
-    1. Same-Dex-First (default): Prioritize same dex number first, then egg group
+    1. Same-Dex-First (default): Prioritize same dex numbyer first, then egg group
        - Uses Phase 1 (same dex) → Phase 2 (egg group) → Phases 3-6
     2. Egg-Group-First: Only egg group matching (same dex = same egg group anyway)
        - Uses ONLY Phase 2 (egg group) → Phases 3-6 (Phase 1 skipped as redundant)
