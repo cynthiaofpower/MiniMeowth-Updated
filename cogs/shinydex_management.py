@@ -6,6 +6,7 @@ import re
 import config
 from config import EMBED_COLOR, POKETWO_BOT_ID
 from database import db
+from v2_compat import get_message_description, has_readable_content
 
 
 class ShinyDexManagement(commands.Cog):
@@ -22,7 +23,7 @@ class ShinyDexManagement(commands.Cog):
     async def add_shiny_context_callback(self, interaction: discord.Interaction, message: discord.Message):
         """Context menu command to add shinies from a message"""
         # Check if message is from Pokétwo
-        if message.author.id != POKETWO_BOT_ID or not message.embeds:
+        if message.author.id != POKETWO_BOT_ID or not has_readable_content(message):
             class ErrorView(discord.ui.LayoutView):
                 container1 = discord.ui.Container(
                     discord.ui.TextDisplay(content="❌ Please use this on a Pokétwo shiny list message!"),
@@ -50,14 +51,14 @@ class ShinyDexManagement(commands.Cog):
         total_found_in_embed = 0
         event_pokemon_count = 0
 
-        # Process the first embed
-        embed = message.embeds[0]
-        if embed and embed.description:
-            lines = embed.description.strip().split('\n')
+        # Process the message text (embed description or Components V2 text)
+        description = get_message_description(message)
+        if description:
+            lines = description.strip().split('\n')
             page_total = sum(1 for line in lines if '✨' in line)
             total_found_in_embed += page_total
 
-            shinies = self.parse_shiny_embed(embed.description, utils)
+            shinies = self.parse_shiny_embed(description, utils)
             page_event_count = page_total - len(shinies)
             event_pokemon_count += page_event_count
 
@@ -99,7 +100,7 @@ class ShinyDexManagement(commands.Cog):
     async def remove_shiny_context_callback(self, interaction: discord.Interaction, message: discord.Message):
         """Context menu command to remove shinies from a message"""
         # Check if message is from Pokétwo
-        if message.author.id != POKETWO_BOT_ID or not message.embeds:
+        if message.author.id != POKETWO_BOT_ID or not has_readable_content(message):
             class ErrorView(discord.ui.LayoutView):
                 container1 = discord.ui.Container(
                     discord.ui.TextDisplay(content="❌ Please use this on a Pokétwo shiny list message!"),
@@ -114,10 +115,10 @@ class ShinyDexManagement(commands.Cog):
         user_id = interaction.user.id
         all_ids = []
 
-        # Process the embed and extract all Pokemon IDs
-        embed = message.embeds[0]
-        if embed and embed.description:
-            lines = embed.description.strip().split('\n')
+        # Process the message text and extract all Pokemon IDs
+        description = get_message_description(message)
+        if description:
+            lines = description.strip().split('\n')
 
             for line in lines:
                 # Extract ID using the same pattern
@@ -184,19 +185,19 @@ class ShinyDexManagement(commands.Cog):
         total_found_in_embed = 0
         event_pokemon_count = 0
 
-        async def process_embed(embed):
-            """Parse shiny embed and extract data"""
+        async def process_description(description: str):
+            """Parse shiny list text (embed description or V2 text) and extract data"""
             nonlocal total_found_in_embed, event_pokemon_count
 
-            if not embed or not embed.description:
+            if not description:
                 return 0
 
             # Count all lines with sparkles (including events)
-            lines = embed.description.strip().split('\n')
+            lines = description.strip().split('\n')
             page_total = sum(1 for line in lines if '✨' in line)
             total_found_in_embed += page_total
 
-            shinies = self.parse_shiny_embed(embed.description, utils)
+            shinies = self.parse_shiny_embed(description, utils)
             page_event_count = page_total - len(shinies)
             event_pokemon_count += page_event_count
 
@@ -214,7 +215,7 @@ class ShinyDexManagement(commands.Cog):
             try:
                 replied_msg = await ctx.channel.fetch_message(ctx.message.reference.message_id)
 
-                if replied_msg.author.id != POKETWO_BOT_ID or not replied_msg.embeds:
+                if replied_msg.author.id != POKETWO_BOT_ID or not has_readable_content(replied_msg):
                     class ErrorView(discord.ui.LayoutView):
                         container1 = discord.ui.Container(
                             discord.ui.TextDisplay(content="❌ Please reply to a Pokétwo shiny list message!"),
@@ -227,7 +228,7 @@ class ShinyDexManagement(commands.Cog):
                     )
                     return
 
-                await process_embed(replied_msg.embeds[0])
+                await process_description(get_message_description(replied_msg))
                 monitored_message_id = replied_msg.id
 
             except Exception as e:
@@ -248,8 +249,8 @@ class ShinyDexManagement(commands.Cog):
             for msg_id in message_ids_list:
                 try:
                     msg = await ctx.channel.fetch_message(int(msg_id))
-                    if msg.author.id == POKETWO_BOT_ID and msg.embeds:
-                        await process_embed(msg.embeds[0])
+                    if msg.author.id == POKETWO_BOT_ID and has_readable_content(msg):
+                        await process_description(get_message_description(msg))
                 except:
                     continue
 
@@ -301,7 +302,7 @@ class ShinyDexManagement(commands.Cog):
             def check(before, after):
                 return (after.id == monitored_message_id and 
                        after.author.id == POKETWO_BOT_ID and 
-                       after.embeds)
+                       has_readable_content(after))
 
             timeout = 300
             start_time = asyncio.get_event_loop().time()
@@ -313,18 +314,18 @@ class ShinyDexManagement(commands.Cog):
                     wait_time = min(remaining, 30.0)
                     before, after = await self.bot.wait_for('message_edit', timeout=wait_time, check=check)
 
-                    embed = after.embeds[0]
+                    description = get_message_description(after)
                     page_shinies = []
 
                     # Count total in this page
                     page_total = 0
-                    if embed.description:
-                        page_lines = embed.description.strip().split('\n')
+                    if description:
+                        page_lines = description.strip().split('\n')
                         page_total = sum(1 for line in page_lines if '✨' in line)
 
                     total_found_in_embed += page_total
 
-                    shinies = self.parse_shiny_embed(embed.description, utils)
+                    shinies = self.parse_shiny_embed(description, utils)
                     page_event_count = page_total - len(shinies)
                     event_pokemon_count += page_event_count
 
